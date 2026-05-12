@@ -9,6 +9,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 const Welcome        = lazy(() => import('./pages/Welcome'))
 const TokenValidation= lazy(() => import('./pages/customer/TokenValidation'))
 const Menu           = lazy(() => import('./pages/customer/Menu'))
+const SearchPage     = lazy(() => import('./pages/customer/Search'))
 const Cart           = lazy(() => import('./pages/customer/Cart'))
 const OrderStatus    = lazy(() => import('./pages/customer/OrderStatus'))
 const MyOrders       = lazy(() => import('./pages/customer/MyOrders'))
@@ -35,9 +36,10 @@ export default function App() {
           <Route path="/table/:tableId"    element={<TokenValidation />} />
           <Route path="/t/:tableId"        element={<TokenValidation />} />
           <Route path="/menu"              element={<Menu />} />
+          <Route path="/search"            element={<SearchPage />} />
           <Route path="/cart"              element={<Cart />} />
           <Route path="/order/:orderId"    element={<OrderStatus />} />
-          <Route path="/my-orders"          element={<MyOrders />} />
+          <Route path="/my-orders"         element={<MyOrders />} />
           <Route path="/expired"           element={<ExpiredSession />} />
 
           {/* Staff login — open */}

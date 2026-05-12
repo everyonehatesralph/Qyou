@@ -40,4 +40,3 @@ and when placing and order it must ask a customer for some follow up questions l
 4. i will also add some recommendations based on their order
 
 also for the owner side i want to add a feature that can show the sales tracker and it will analyze the most selling items and the least selling items
-
