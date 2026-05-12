@@ -42,7 +42,7 @@ export default function MenuManagement() {
   }, [addForm, items])
   const categories = ['Coffee', 'Tea', 'Pastry', 'Food']
   return (
-    <div className="min-h-screen bg-background pt-14">
+    <div className="min-h-screen bg-background md:ml-56 pt-4 md:pt-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {/* Header */}
         <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">

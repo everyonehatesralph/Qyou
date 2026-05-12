@@ -159,7 +159,7 @@ export default function SalesTracker() {
   }, [completed])
 
   return (
-    <div className="min-h-screen bg-background pt-14">
+    <div className="min-h-screen bg-background md:ml-56 pt-4 md:pt-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-24 md:pb-8">
 
         {/* ── Header ─────────────────────────────────────────────────── */}

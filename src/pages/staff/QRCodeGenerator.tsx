@@ -238,7 +238,7 @@ export default function QRCodeGenerator() {
   const wifiQrString = makeWifiQrString(wifi)
 
   return (
-    <div className="min-h-screen bg-background pt-14">
+    <div className="min-h-screen bg-background md:ml-56 pt-4 md:pt-6">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 pb-24 md:pb-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-2">
