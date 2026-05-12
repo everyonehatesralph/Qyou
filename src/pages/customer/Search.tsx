@@ -1,8 +1,9 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, X, ShoppingCart, Plus, Minus, Coffee, Leaf, Croissant, Utensils } from 'lucide-react'
+import { Search as SearchIcon, X, ShoppingCart, Plus, Minus, Coffee, Leaf, Croissant, Utensils } from 'lucide-react'
 import { MENU_ITEMS, CATEGORIES } from '../../constants/menu'
 import { useCart } from '../../context/CartContext'
+import { useMenuAvailability } from '../../context/MenuAvailabilityContext'
 
 const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
   Coffee:  Coffee,
@@ -14,6 +15,7 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string; s
 export default function SearchPage() {
   const navigate = useNavigate()
   const { cartItems, addToCart, updateQuantity } = useCart()
+  const { itemAvailability } = useMenuAvailability()
   const [query,    setQuery]    = useState('')
   const [category, setCategory] = useState<string>('All')
 
@@ -37,68 +39,69 @@ export default function SearchPage() {
   const cartCount = cartItems.reduce((s, i) => s + i.quantity, 0)
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#0D0B0A', paddingBottom: '90px' }}>
-      {/* Header */}
+    <div className="min-h-screen bg-background pt-14 pb-28">
+      {/* ── Sticky search bar ──────────────────────────────────────────── */}
       <div
-        className="sticky top-14 z-30 px-4 pt-4 pb-3"
-        style={{ backgroundColor: '#0D0B0A', borderBottom: '1px solid #2E2318' }}
+        className="sticky top-14 z-30 px-4 sm:px-6 pt-4 pb-3"
+        style={{ backgroundColor: 'var(--background)', borderBottom: '1px solid #2E2318' }}
       >
-        {/* Search input */}
-        <div className="relative mb-3">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
-            style={{ color: '#9B8B7A' }}
-          />
-          <input
-            autoFocus
-            type="text"
-            placeholder="Search menu items…"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            className="w-full pl-9 pr-10 py-2.5 rounded-xl text-sm outline-none transition-all"
-            style={{
-              backgroundColor: '#171210',
-              border: '1px solid #2E2318',
-              color: '#F0E6D3',
-            }}
-          />
-          {query && (
-            <button
-              onClick={() => setQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2"
+        <div className="max-w-3xl mx-auto">
+          {/* Search input */}
+          <div className="relative mb-3">
+            <SearchIcon
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4"
               style={{ color: '#9B8B7A' }}
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-
-        {/* Category chips */}
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-          {CATEGORIES.map(cat => {
-            const Icon = CATEGORY_ICONS[cat]
-            const active = category === cat
-            return (
+            />
+            <input
+              autoFocus
+              type="text"
+              placeholder="Search coffee, pastries, meals…"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              className="w-full pl-10 pr-10 py-3 rounded-xl text-sm outline-none transition-all"
+              style={{
+                backgroundColor: '#171210',
+                border: query ? '1.5px solid rgba(200,134,10,0.5)' : '1.5px solid #2E2318',
+                color: '#F0E6D3',
+              }}
+            />
+            {query && (
               <button
-                key={cat}
-                onClick={() => setCategory(cat)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0"
-                style={active
-                  ? { backgroundColor: '#C8860A', color: '#0D0B0A' }
-                  : { backgroundColor: '#171210', color: '#9B8B7A', border: '1px solid #2E2318' }
-                }
+                onClick={() => setQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-md hover:bg-surface-3 transition-all"
+                style={{ color: '#9B8B7A' }}
               >
-                {Icon && <Icon className="w-3 h-3" />}
-                {cat}
+                <X className="w-4 h-4" />
               </button>
-            )
-          })}
+            )}
+          </div>
+
+          {/* Category chips */}
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+            {CATEGORIES.map(cat => {
+              const Icon = CATEGORY_ICONS[cat]
+              const active = category === cat
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setCategory(cat)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0"
+                  style={active
+                    ? { backgroundColor: '#C8860A', color: '#0D0B0A' }
+                    : { backgroundColor: '#171210', color: '#9B8B7A', border: '1px solid #2E2318' }
+                  }
+                >
+                  {Icon && <Icon className="w-3.5 h-3.5" />}
+                  {cat}
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
 
-      {/* Results */}
-      <div className="px-4 pt-4">
-        {/* Result count */}
+      {/* ── Results ────────────────────────────────────────────────────── */}
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-5">
         <p className="text-xs mb-4" style={{ color: '#9B8B7A' }}>
           {query || category !== 'All'
             ? `${results.length} result${results.length !== 1 ? 's' : ''} found`
@@ -106,13 +109,12 @@ export default function SearchPage() {
         </p>
 
         {results.length === 0 ? (
-          /* Empty state */
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
               style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}
             >
-              <Search className="w-7 h-7" style={{ color: '#C8860A' }} />
+              <SearchIcon className="w-7 h-7" style={{ color: '#C8860A' }} />
             </div>
             <p className="font-semibold mb-1" style={{ color: '#F0E6D3' }}>Nothing found</p>
             <p className="text-sm" style={{ color: '#9B8B7A' }}>
@@ -120,30 +122,32 @@ export default function SearchPage() {
             </p>
             <button
               onClick={() => { setQuery(''); setCategory('All') }}
-              className="mt-4 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+              className="mt-4 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95"
               style={{ backgroundColor: '#C8860A', color: '#0D0B0A' }}
             >
               Clear filters
             </button>
           </div>
         ) : (
-          <div className="space-y-3">
+          /* ── Card grid — 1 col mobile, 2 col tablet+ ── */
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {results.map(item => {
               const qty = getQty(item.id)
+              const isAvailable = itemAvailability[item.id] !== false && item.available
               return (
                 <div
                   key={item.id}
-                  className="flex items-center gap-3 p-3 rounded-xl transition-all"
+                  className="flex items-center gap-3 p-3.5 rounded-xl transition-all"
                   style={{
                     backgroundColor: '#171210',
-                    border: '1px solid #2E2318',
-                    opacity: item.available ? 1 : 0.5,
+                    border: qty > 0 ? '1.5px solid rgba(200,134,10,0.4)' : '1.5px solid #2E2318',
+                    opacity: isAvailable ? 1 : 0.45,
                   }}
                 >
-                  {/* Category dot */}
+                  {/* Icon */}
                   <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: 'rgba(200,134,10,0.12)', border: '1px solid rgba(200,134,10,0.2)' }}
+                    className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: 'rgba(200,134,10,0.1)', border: '1px solid rgba(200,134,10,0.18)' }}
                   >
                     {(() => {
                       const Icon = CATEGORY_ICONS[item.category]
@@ -155,11 +159,11 @@ export default function SearchPage() {
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
                       <p className="font-semibold text-sm truncate" style={{ color: '#F0E6D3' }}>{item.name}</p>
-                      {!item.available && (
+                      {!isAvailable && (
                         <span
-                          className="text-[10px] px-1.5 py-0.5 rounded font-bold"
+                          className="text-[10px] px-1.5 py-0.5 rounded font-bold flex-shrink-0"
                           style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: '#F87171' }}
                         >
                           Sold Out
@@ -170,26 +174,26 @@ export default function SearchPage() {
                     <p className="text-sm font-bold mt-1" style={{ color: '#C8860A' }}>₱{item.price}</p>
                   </div>
 
-                  {/* Add/remove controls */}
-                  {item.available ? (
+                  {/* Cart controls */}
+                  {isAvailable ? (
                     qty === 0 ? (
                       <button
                         onClick={() => addToCart({ id: item.id, name: item.name, price: item.price, category: item.category, description: item.description })}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all"
+                        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all active:scale-90"
                         style={{ backgroundColor: '#C8860A', color: '#0D0B0A' }}
                       >
                         <Plus className="w-4 h-4" />
                       </button>
                     ) : (
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button
                           onClick={() => updateQuantity(item.id, -1)}
                           className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
-                          style={{ backgroundColor: '#171210', border: '1px solid #2E2318', color: '#F0E6D3' }}
+                          style={{ backgroundColor: '#211A15', border: '1px solid #2E2318', color: '#F0E6D3' }}
                         >
                           <Minus className="w-3 h-3" />
                         </button>
-                        <span className="text-sm font-bold w-4 text-center" style={{ color: '#C8860A' }}>{qty}</span>
+                        <span className="text-sm font-bold w-5 text-center" style={{ color: '#C8860A' }}>{qty}</span>
                         <button
                           onClick={() => addToCart({ id: item.id, name: item.name, price: item.price, category: item.category, description: item.description })}
                           className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
@@ -207,12 +211,12 @@ export default function SearchPage() {
         )}
       </div>
 
-      {/* Floating cart button */}
+      {/* ── Floating cart ──────────────────────────────────────────── */}
       {cartCount > 0 && (
         <button
           onClick={() => navigate('/cart')}
-          className="fixed bottom-20 left-1/2 -translate-x-1/2 flex items-center gap-2 px-5 py-3 rounded-full font-semibold text-sm shadow-lg transition-all z-40"
-          style={{ backgroundColor: '#C8860A', color: '#0D0B0A', boxShadow: '0 4px 20px rgba(200,134,10,0.4)' }}
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 flex items-center gap-2 px-6 py-3.5 rounded-2xl font-bold text-sm z-40 transition-all active:scale-95"
+          style={{ backgroundColor: '#C8860A', color: '#0D0B0A', boxShadow: '0 4px 24px rgba(200,134,10,0.45)' }}
         >
           <ShoppingCart className="w-4 h-4" />
           View Cart ({cartCount})

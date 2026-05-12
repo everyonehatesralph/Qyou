@@ -298,40 +298,94 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ── Tables ── */}
-        <h2 className="text-text-muted text-sm font-semibold uppercase tracking-wider mb-3">Tables</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        {/* ── Table Availability ── */}
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-text-muted text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
+            Table Availability
+            <span className="text-xs font-normal normal-case text-text-faint">
+              ({TABLES.length - occupiedTableIds.size} free / {TABLES.length} total)
+            </span>
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 pb-6">
           {TABLES.map(table => {
             const occupied = occupiedTableIds.has(table.id)
             const tableOrders = orders.filter(o => o.tableId === table.id && o.status !== 'paid')
+            const allServed = tableOrders.length > 0 && tableOrders.every(o => o.status === 'served')
+            const totalSpent = tableOrders.reduce((s, o) => s + o.total, 0)
             return (
-              <div key={table.id} className={`card p-4 border-2 ${
-                occupied
-                  ? 'border-primary/40 bg-primary-glow'
-                  : 'border-transparent'
-              }`}>
-                <p className="font-bold text-text-base text-sm mb-1">{table.name}</p>
-                <p className={`text-xs font-semibold ${occupied ? 'text-primary' : 'text-success'}`}>
-                  {occupied ? 'OCCUPIED' : 'AVAILABLE'}
-                </p>
-                {tableOrders.map(o => (
-                  <div key={o.id} className="mt-2 pt-2 border-t border-border">
-                    <p className="text-text-muted text-xs">#{o.id} · {o.customerName}</p>
-                    <p className={`text-xs font-semibold mt-0.5 ${STATUS_COLOR[o.status]}`}>
-                      {STATUS_LABEL[o.status]}
-                    </p>
-                  </div>
-                ))}
-                {/* Clear entire table button */}
-                {occupied && tableOrders.every(o => o.status === 'served') && (
-                  <button
-                    onClick={() => clearTable(table.id)}
-                    className="mt-3 w-full py-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-all active:scale-95"
-                    style={{ backgroundColor: '#4ADE80', color: '#0D0B0A' }}
+              <div
+                key={table.id}
+                className="rounded-xl p-4 transition-all"
+                style={{
+                  backgroundColor: occupied ? 'rgba(200,134,10,0.04)' : '#171210',
+                  border: occupied
+                    ? allServed ? '1.5px solid rgba(74,222,128,0.4)' : '1.5px solid rgba(200,134,10,0.35)'
+                    : '1.5px solid #2E2318',
+                }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-bold text-text-base text-sm">{table.name}</p>
+                  <span
+                    className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={occupied
+                      ? { backgroundColor: 'rgba(200,134,10,0.15)', color: '#C8860A', border: '1px solid rgba(200,134,10,0.3)' }
+                      : { backgroundColor: 'rgba(74,222,128,0.1)', color: '#4ADE80', border: '1px solid rgba(74,222,128,0.25)' }
+                    }
                   >
-                    <Banknote className="w-3 h-3" />
-                    Clear Table — Paid
-                  </button>
+                    {occupied ? 'OCCUPIED' : 'AVAILABLE'}
+                  </span>
+                </div>
+                {tableOrders.length > 0 && (
+                  <div className="space-y-1.5 mb-3">
+                    {tableOrders.map(o => (
+                      <div key={o.id} className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-text-muted font-mono">#{o.id}</span>
+                          <span className="text-text-faint">·</span>
+                          <span className="text-text-muted truncate">{o.customerName}</span>
+                        </div>
+                        <span className={`font-semibold flex-shrink-0 ${STATUS_COLOR[o.status]}`}>
+                          {STATUS_LABEL[o.status]}
+                        </span>
+                      </div>
+                    ))}
+                    {totalSpent > 0 && (
+                      <div
+                        className="flex items-center justify-between text-xs pt-1.5 mt-1"
+                        style={{ borderTop: '1px dashed rgba(255,255,255,0.06)' }}
+                      >
+                        <span className="text-text-faint">Total</span>
+                        <span className="font-bold" style={{ color: '#C8860A' }}>₱{totalSpent.toFixed(0)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {occupied && (
+                  <div className="space-y-2">
+                    {allServed && (
+                      <button
+                        onClick={() => clearTable(table.id)}
+                        className="w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                        style={{ backgroundColor: '#4ADE80', color: '#0D0B0A' }}
+                      >
+                        <Banknote className="w-3.5 h-3.5" />
+                        Clear — Paid
+                      </button>
+                    )}
+                    <button
+                      onClick={() => clearTable(table.id)}
+                      className="w-full py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                      style={{ backgroundColor: 'transparent', color: '#F87171', border: '1px solid rgba(248,113,113,0.3)' }}
+                    >
+                      Free Table
+                    </button>
+                  </div>
+                )}
+                {!occupied && (
+                  <div className="flex items-center justify-center py-2">
+                    <span className="text-text-faint text-xs">Ready for customers</span>
+                  </div>
                 )}
               </div>
             )
@@ -341,3 +395,4 @@ export default function Dashboard() {
     </div>
   )
 }
+

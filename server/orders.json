@@ -1,5 +1,79 @@
 [
   {
+    "id": "78917",
+    "tableId": 3,
+    "tableName": "Garden View",
+    "customerName": "p",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      },
+      {
+        "id": 3,
+        "name": "Matcha Latte",
+        "price": 175,
+        "quantity": 1
+      },
+      {
+        "id": 4,
+        "name": "Cold Brew",
+        "price": 155,
+        "quantity": 1
+      }
+    ],
+    "total": 615,
+    "status": "paid",
+    "createdAt": "2026-05-12T17:21:18.008Z",
+    "notes": "Dine In | + Extra Sugar",
+    "confirmedAt": "2026-05-12T17:21:32.750Z",
+    "preparingAt": "2026-05-12T17:21:39.146Z",
+    "readyAt": "2026-05-12T17:21:41.200Z",
+    "servedAt": "2026-05-12T17:21:42.253Z"
+  },
+  {
+    "id": "39756",
+    "tableId": 1,
+    "tableName": "Window Seat",
+    "customerName": "Ralph Joshua",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      },
+      {
+        "id": 3,
+        "name": "Matcha Latte",
+        "price": 175,
+        "quantity": 5
+      }
+    ],
+    "total": 1160,
+    "status": "paid",
+    "createdAt": "2026-05-12T17:11:33.161Z",
+    "notes": "Dine In | + Less Ice",
+    "confirmedAt": "2026-05-12T17:11:35.455Z",
+    "preparingAt": "2026-05-12T17:11:44.302Z",
+    "readyAt": "2026-05-12T17:11:45.820Z",
+    "servedAt": "2026-05-12T17:11:46.907Z"
+  },
+  {
     "id": "87111",
     "tableId": 2,
     "tableName": "Center Table",
@@ -19,9 +93,13 @@
       }
     ],
     "total": 285,
-    "status": "pending",
+    "status": "paid",
     "createdAt": "2026-05-12T17:03:49.041Z",
-    "notes": "Dine In | + Extra Sugar"
+    "notes": "Dine In | + Extra Sugar",
+    "confirmedAt": "2026-05-12T17:12:24.676Z",
+    "preparingAt": "2026-05-12T17:12:27.420Z",
+    "readyAt": "2026-05-12T17:12:27.990Z",
+    "servedAt": "2026-05-12T17:12:28.354Z"
   },
   {
     "id": "56453",
