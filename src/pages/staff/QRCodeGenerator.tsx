@@ -1,5 +1,5 @@
 import { QRCodeSVG } from 'qrcode.react'
-import { Download, Printer, QrCode, Wifi, CheckCircle, Copy, RefreshCw } from 'lucide-react'
+import { Download, Printer, QrCode, Wifi, CheckCircle, Copy, RefreshCw, Globe } from 'lucide-react'
 import { useCallback, useState, useEffect } from 'react'
 
 const TABLES = [
@@ -11,25 +11,21 @@ const TABLES = [
 ]
 
 // ─── PERMANENT QR SYSTEM ──────────────────────────────────────────────────────
-// QR codes encode: http://{FIXED_IP}:{FIXED_PORT}/t/{tableId}
-//
-// Why this is permanent:
-//   1. The base URL is saved to localStorage ONCE and never changes
-//   2. Vite uses strictPort: true — port 5173 is locked, never drifts
-//   3. The /t/:id route is a short stable path that absorbs all app updates
-//   4. Staff only needs to set this once during initial café setup
-//   5. QR codes can be printed, laminated, and will work forever
-//      as long as the server runs on the same IP
+// Two types of QR codes:
+//   1. TABLE QR → URL to the ordering app: https://your-vercel.app/t/{tableId}
+//   2. WIFI  QR → Auto-connects phone to café WiFi: WIFI:T:WPA;S:ssid;P:pass;;
 // ──────────────────────────────────────────────────────────────────────────────
-const LS_KEY = 'deverse_cafe_base_url'
+const LS_KEY      = 'deverse_cafe_base_url'
+const LS_WIFI_KEY = 'deverse_cafe_wifi'
 
-/** Detect all available network URLs */
+interface WifiConfig {
+  ssid: string
+  password: string
+  encryption: 'WPA' | 'WEP' | 'nopass'
+}
+
 function detectNetworkUrl(): string {
   const { protocol, hostname, port } = window.location
-  // If already on a LAN IP, use it directly
-  if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-    return `${protocol}//${hostname}${port ? ':' + port : ''}`
-  }
   return `${protocol}//${hostname}${port ? ':' + port : ''}`
 }
 
@@ -41,15 +37,39 @@ function getStoredUrl(): string {
   return detectNetworkUrl()
 }
 
+function getStoredWifi(): WifiConfig {
+  try {
+    const stored = localStorage.getItem(LS_WIFI_KEY)
+    if (stored) return JSON.parse(stored)
+  } catch { /* noop */ }
+  return { ssid: '', password: '', encryption: 'WPA' }
+}
+
+function makeWifiQrString(wifi: WifiConfig): string {
+  if (!wifi.ssid) return ''
+  // Standard WiFi QR format — supported by Android & iOS camera apps
+  const esc = (s: string) => s.replace(/[\\;,:""]/g, '\\$&')
+  return `WIFI:T:${wifi.encryption};S:${esc(wifi.ssid)};P:${esc(wifi.password)};;`
+}
+
 export default function QRCodeGenerator() {
-  const [baseUrl, setBaseUrl] = useState<string>(() => getStoredUrl())
-  const [editUrl, setEditUrl] = useState<string>('')
-  const [editing, setEditing] = useState(false)
-  const [saved, setSaved]     = useState(false)
-  const [copied, setCopied]   = useState<number | null>(null)
+  const [baseUrl,  setBaseUrl]  = useState<string>(() => getStoredUrl())
+  const [editUrl,  setEditUrl]  = useState<string>('')
+  const [editing,  setEditing]  = useState(false)
+  const [saved,    setSaved]    = useState(false)
+  const [copied,   setCopied]   = useState<number | null>(null)
+  const [urlMode,  setUrlMode]  = useState<'vercel' | 'local'>(() => {
+    const stored = getStoredUrl()
+    return stored.includes('vercel.app') || stored.includes('.app') || stored.includes('.com')
+      ? 'vercel'
+      : 'local'
+  })
 
+  // WiFi config
+  const [wifi,       setWifi]       = useState<WifiConfig>(() => getStoredWifi())
+  const [editingWifi, setEditingWifi] = useState(false)
+  const [wifiSaved,  setWifiSaved]  = useState(false)
 
-  // On mount: if no URL saved yet, auto-open edit mode
   useEffect(() => {
     try {
       if (!localStorage.getItem(LS_KEY)) setEditing(true)
@@ -58,14 +78,10 @@ export default function QRCodeGenerator() {
 
   const saveUrl = useCallback(() => {
     let url = editUrl.trim().replace(/\/$/, '')
-    if (!url) {
-      url = detectNetworkUrl()
-    }
+    if (!url) url = detectNetworkUrl()
     if (!url.startsWith('http')) url = 'http://' + url
-    try {
-      new URL(url)
-    } catch {
-      alert('Please enter a valid URL, e.g. http://192.168.1.10:5173')
+    try { new URL(url) } catch {
+      alert('Please enter a valid URL, e.g. https://qyou.vercel.app or http://192.168.1.10:5173')
       return
     }
     localStorage.setItem(LS_KEY, url)
@@ -89,6 +105,13 @@ export default function QRCodeGenerator() {
     setEditing(true)
   }, [baseUrl])
 
+  const saveWifi = useCallback(() => {
+    localStorage.setItem(LS_WIFI_KEY, JSON.stringify(wifi))
+    setEditingWifi(false)
+    setWifiSaved(true)
+    setTimeout(() => setWifiSaved(false), 3000)
+  }, [wifi])
+
   const qrUrl = useCallback(
     (tableId: number) => `${baseUrl}/t/${tableId}`,
     [baseUrl]
@@ -105,10 +128,9 @@ export default function QRCodeGenerator() {
     const el  = document.getElementById(`qr-wrap-${tableId}`)
     const svg = el?.querySelector('svg')
     if (!svg) return
-    // Convert SVG to high-res PNG for better print quality
     const svgData = new XMLSerializer().serializeToString(svg)
     const canvas  = document.createElement('canvas')
-    const size    = 800  // High resolution
+    const size    = 800
     canvas.width  = size
     canvas.height = size
     const ctx = canvas.getContext('2d')
@@ -133,7 +155,7 @@ export default function QRCodeGenerator() {
 
   const printAllQR = useCallback(() => {
     const cards = TABLES.map(table => {
-      const el  = document.getElementById(`qr-wrap-${table.id}`)
+      const el = document.getElementById(`qr-wrap-${table.id}`)
       if (!el) return ''
       return `
         <div class="card">
@@ -178,7 +200,7 @@ export default function QRCodeGenerator() {
   }, [])
 
   const printSingleQR = useCallback((tableId: number, tableName: string) => {
-    const el  = document.getElementById(`qr-wrap-${tableId}`)
+    const el = document.getElementById(`qr-wrap-${tableId}`)
     if (!el) return
     const win = window.open('', '_blank', 'width=420,height=620')
     if (!win) return
@@ -213,6 +235,8 @@ export default function QRCodeGenerator() {
     setTimeout(() => win.print(), 600)
   }, [])
 
+  const wifiQrString = makeWifiQrString(wifi)
+
   return (
     <div className="min-h-screen bg-background pt-14">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 pb-24 md:pb-8">
@@ -222,10 +246,90 @@ export default function QRCodeGenerator() {
           <h1 className="text-2xl font-bold text-text-base">Table QR Codes</h1>
         </div>
         <p className="text-text-muted text-sm mb-6">
-          Fixed & permanent — print once, works forever. Updates to the app don't change the QR codes.
+          Fixed & permanent — print once, works forever.
         </p>
 
-        {/* ── URL Config — Simple & Reliable ── */}
+        {/* ── WiFi QR Config ─────────────────────────────────────────────── */}
+        <div
+          className="rounded-xl p-5 mb-6"
+          style={{
+            backgroundColor: wifi.ssid && !editingWifi ? 'rgba(96,165,250,0.06)' : 'rgba(200,134,10,0.06)',
+            border: `1px solid ${wifi.ssid && !editingWifi ? 'rgba(96,165,250,0.3)' : 'rgba(200,134,10,0.35)'}`,
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <Wifi className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: wifi.ssid ? '#60A5FA' : '#C8860A' }} />
+            <div className="flex-1 min-w-0">
+              {editingWifi || !wifi.ssid ? (
+                <>
+                  <p className="text-text-base font-semibold text-sm mb-1">Café WiFi QR Code</p>
+                  <p className="text-text-muted text-xs mb-4">
+                    Customers scan this to auto-connect to your WiFi. Print it on a wall poster or next to the menu.
+                  </p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-text-muted text-xs font-medium mb-1 block">WiFi Name (SSID)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. DeVerse-Cafe-WiFi"
+                        value={wifi.ssid}
+                        onChange={e => setWifi(w => ({ ...w, ssid: e.target.value }))}
+                        className="w-full font-mono text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-text-muted text-xs font-medium mb-1 block">Password</label>
+                      <input
+                        type="text"
+                        placeholder="WiFi password"
+                        value={wifi.password}
+                        onChange={e => setWifi(w => ({ ...w, password: e.target.value }))}
+                        className="w-full font-mono text-sm"
+                      />
+                    </div>
+                    <button
+                      onClick={saveWifi}
+                      disabled={!wifi.ssid}
+                      className="btn-primary px-5 py-2.5 rounded-lg text-sm font-semibold text-background disabled:opacity-40"
+                    >
+                      Save WiFi QR
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-text-base font-semibold text-sm mb-0.5">✓ WiFi QR Ready</p>
+                    <p className="text-text-muted text-xs">
+                      Network: <strong>{wifi.ssid}</strong> — Print this separately for wall display
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setEditingWifi(true)}
+                    className="flex items-center gap-1 text-xs text-text-muted hover:text-text-base"
+                  >
+                    <RefreshCw className="w-3 h-3" /> Change
+                  </button>
+                  {wifiSaved && <span className="text-xs font-semibold" style={{ color: '#4ADE80' }}>✓ Saved!</span>}
+                </div>
+              )}
+            </div>
+          </div>
+          {/* WiFi QR preview */}
+          {wifi.ssid && !editingWifi && wifiQrString && (
+            <div className="mt-4 flex items-center gap-4 flex-wrap">
+              <div className="p-3 rounded-xl bg-white inline-block">
+                <QRCodeSVG value={wifiQrString} size={120} level="H" fgColor="#0D0B0A" bgColor="#FFFFFF" />
+              </div>
+              <div>
+                <p className="text-text-muted text-xs mb-1">Customers scan this to connect to WiFi</p>
+                <p className="text-text-faint text-[10px]">Works on iPhone & Android camera apps</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── URL Config ──────────────────────────────────────────────── */}
         <div
           className="rounded-xl p-5 mb-8"
           style={{
@@ -236,7 +340,7 @@ export default function QRCodeGenerator() {
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 mt-0.5">
               {editing
-                ? <Wifi className="w-5 h-5 text-primary" />
+                ? <Globe className="w-5 h-5 text-primary" />
                 : <CheckCircle className="w-5 h-5" style={{ color: '#4ADE80' }} />
               }
             </div>
@@ -244,33 +348,56 @@ export default function QRCodeGenerator() {
               {editing ? (
                 <>
                   <p className="text-text-base font-semibold text-sm mb-1">
-                    Set Your Café's Network Address
+                    Set Your App URL
                   </p>
                   <p className="text-text-muted text-xs mb-4 leading-relaxed">
-                    This is the address customers' phones will connect to. Set it once — QR codes will
-                    permanently point here, even after app updates.
+                    This is the URL customers' phones will open after scanning the table QR.
                   </p>
 
-                  {/* Quick auto-detect button */}
-                  <button
-                    onClick={useCurrentUrl}
-                    className="w-full mb-3 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                    style={{ backgroundColor: '#4ADE80', color: '#0D0B0A' }}
-                  >
-                    <Wifi className="w-4 h-4" />
-                    Use Current Address: {detectNetworkUrl()}
-                  </button>
-
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="flex-1 h-px" style={{ backgroundColor: 'var(--border)' }} />
-                    <span className="text-text-faint text-[10px] uppercase tracking-wider">or enter manually</span>
-                    <div className="flex-1 h-px" style={{ backgroundColor: 'var(--border)' }} />
+                  {/* Mode toggle */}
+                  <div className="flex gap-2 mb-4">
+                    <button
+                      onClick={() => setUrlMode('vercel')}
+                      className="flex-1 py-2.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5"
+                      style={urlMode === 'vercel'
+                        ? { backgroundColor: '#C8860A', color: '#0D0B0A' }
+                        : { backgroundColor: '#211A15', color: '#9B8B7A', border: '1px solid #2E2318' }
+                      }
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      Vercel / Public URL
+                    </button>
+                    <button
+                      onClick={() => setUrlMode('local')}
+                      className="flex-1 py-2.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5"
+                      style={urlMode === 'local'
+                        ? { backgroundColor: '#C8860A', color: '#0D0B0A' }
+                        : { backgroundColor: '#211A15', color: '#9B8B7A', border: '1px solid #2E2318' }
+                      }
+                    >
+                      <Wifi className="w-3.5 h-3.5" />
+                      Local Network IP
+                    </button>
                   </div>
+
+                  {urlMode === 'local' && (
+                    <button
+                      onClick={useCurrentUrl}
+                      className="w-full mb-3 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                      style={{ backgroundColor: '#4ADE80', color: '#0D0B0A' }}
+                    >
+                      <Wifi className="w-4 h-4" />
+                      Use Current: {detectNetworkUrl()}
+                    </button>
+                  )}
 
                   <div className="flex gap-2 flex-col sm:flex-row">
                     <input
                       type="url"
-                      placeholder="http://192.168.1.10:5173"
+                      placeholder={urlMode === 'vercel'
+                        ? 'https://qyou.vercel.app'
+                        : 'http://192.168.1.10:5173'
+                      }
                       defaultValue={baseUrl}
                       onChange={e => setEditUrl(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && saveUrl()}
@@ -286,8 +413,10 @@ export default function QRCodeGenerator() {
                   </div>
 
                   <p className="text-text-faint text-[11px] mt-3 leading-relaxed">
-                    💡 <strong>Tip:</strong> Make sure your phone and this PC are on the same Wi-Fi.
-                    Find your PC's IP: open Command Prompt → type <code className="text-primary">ipconfig</code> → look for IPv4 Address.
+                    {urlMode === 'vercel'
+                      ? '💡 Use your Vercel deployment URL. QR codes will work on any internet connection.'
+                      : '💡 Use your local IP. Phones must be on the same WiFi to access the app.'
+                    }
                   </p>
                 </>
               ) : (
@@ -296,7 +425,7 @@ export default function QRCodeGenerator() {
                     ✓ QR Codes Locked & Permanent
                   </p>
                   <p className="text-text-muted text-xs mb-3">
-                    All QR codes point to this fixed address. App updates won't change them.
+                    All table QR codes point to this address.
                   </p>
                   <div className="flex items-center gap-3 flex-wrap">
                     <code
@@ -326,7 +455,6 @@ export default function QRCodeGenerator() {
         {/* ── QR Grid ── */}
         {!editing && (
           <>
-            {/* Print All button */}
             <div className="flex justify-end mb-4">
               <button
                 onClick={printAllQR}
@@ -342,7 +470,6 @@ export default function QRCodeGenerator() {
                 <div key={table.id} className="card p-6 flex flex-col items-center text-center">
                   <h2 className="text-text-base font-semibold mb-0.5">{table.name}</h2>
                   <p className="text-text-muted text-xs mb-5">Table {table.id}</p>
-                  {/* QR code — always white bg for scanning */}
                   <div
                     id={`qr-wrap-${table.id}`}
                     className="p-5 rounded-xl mb-4"
@@ -361,9 +488,8 @@ export default function QRCodeGenerator() {
                     Scan to order · Table {table.id}
                   </p>
                   <p className="text-text-faint text-[10px] mb-4">
-                    Permanent — survives app updates
+                    {baseUrl}/t/{table.id}
                   </p>
-                  {/* Actions */}
                   <div className="flex gap-2 w-full">
                     <button
                       onClick={() => printSingleQR(table.id, table.name)}
@@ -378,7 +504,6 @@ export default function QRCodeGenerator() {
                       <Download className="w-4 h-4" /> PNG
                     </button>
                   </div>
-                  {/* Copy URL */}
                   <button
                     onClick={() => copyUrl(table.id)}
                     className="mt-2 text-[11px] text-text-faint hover:text-text-muted transition-colors flex items-center gap-1"
@@ -390,35 +515,6 @@ export default function QRCodeGenerator() {
               ))}
             </div>
           </>
-        )}
-
-        {/* Setup guide */}
-        {!editing && (
-          <div className="card p-6">
-            <h3 className="text-text-base font-semibold mb-4">Why QR Codes Are Permanent</h3>
-            <ol className="space-y-3">
-              {[
-                { n: 1, t: 'Fixed address', d: 'QR codes encode your café\'s fixed network address. This never changes once set.' },
-                { n: 2, t: 'Short stable path', d: 'Each QR points to /t/1, /t/2, etc. — simple paths that absorb all app updates.' },
-                { n: 3, t: 'Locked port', d: 'The server always runs on port 5173. It won\'t drift to another port.' },
-                { n: 4, t: 'Print & laminate', d: 'Print the QR codes, laminate or frame them. They\'ll work as long as the server runs.' },
-                { n: 5, t: 'Updates are safe', d: 'When you update the app, new features appear automatically — QR codes don\'t need reprinting.' },
-              ].map(step => (
-                <li key={step.n} className="flex items-start gap-3">
-                  <span
-                    className="flex-shrink-0 w-6 h-6 rounded-full text-xs flex items-center justify-center font-bold"
-                    style={{ backgroundColor: 'rgba(200,134,10,0.15)', color: 'var(--primary)', border: '1px solid rgba(200,134,10,0.3)' }}
-                  >
-                    {step.n}
-                  </span>
-                  <div>
-                    <p className="text-text-base text-sm font-medium">{step.t}</p>
-                    <p className="text-text-muted text-xs mt-0.5 leading-relaxed">{step.d}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </div>
         )}
       </div>
     </div>

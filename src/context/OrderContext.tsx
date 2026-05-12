@@ -40,6 +40,10 @@ function loadOrders(): Order[] {
   return []
 }
 
+function persistOrders(orders: Order[]) {
+  try { localStorage.setItem(LS_ORDERS, JSON.stringify(orders)) } catch { /* noop */ }
+}
+
 function saveMyOrderId(orderId: string) {
   try {
     const raw = localStorage.getItem(LS_MY_ORDERS)
@@ -76,6 +80,7 @@ interface OrderContextType {
   updateOrderStatus: (orderId: string, status: OrderStatus) => void
   getOrder: (orderId: string) => Order | undefined
   isConnected: boolean
+  syncMode: 'sse' | 'local'
 }
 
 const OrderContext = createContext<OrderContextType | null>(null)
@@ -83,26 +88,42 @@ const OrderContext = createContext<OrderContextType | null>(null)
 export function OrderProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>(loadOrders)
   const [isConnected, setIsConnected] = useState(false)
+  const [syncMode, setSyncMode] = useState<'sse' | 'local'>('local')
 
-  // ── Connect SSE for real-time cross-device sync ──
+  // ── Connect SSE (if available) + BroadcastChannel sync ──
   useEffect(() => {
     orderSync.connect()
 
+    // SSE or BroadcastChannel updates
     const unsub = orderSync.onSync((payload) => {
       const serverOrders = payload as Order[]
       setOrders(serverOrders)
       setIsConnected(true)
-      try { localStorage.setItem(LS_ORDERS, JSON.stringify(serverOrders)) } catch { /* noop */ }
+      setSyncMode(orderSync.mode)
+      persistOrders(serverOrders)
     })
 
     // Check connection status periodically
     const interval = setInterval(() => {
       setIsConnected(orderSync.isConnected)
+      setSyncMode(orderSync.mode)
     }, 3000)
+
+    // ── Cross-tab localStorage sync (fallback for non-BroadcastChannel browsers) ──
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === LS_ORDERS && e.newValue) {
+        try {
+          const updated = JSON.parse(e.newValue) as Order[]
+          setOrders(updated)
+        } catch { /* noop */ }
+      }
+    }
+    window.addEventListener('storage', handleStorage)
 
     return () => {
       unsub()
       clearInterval(interval)
+      window.removeEventListener('storage', handleStorage)
     }
   }, [])
 
@@ -130,13 +151,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     // Optimistic update
     setOrders(prev => {
       const next = [newOrder, ...prev]
-      try { localStorage.setItem(LS_ORDERS, JSON.stringify(next)) } catch { /* noop */ }
+      persistOrders(next)
       return next
     })
 
     saveMyOrderId(id)
 
-    // Send to server (async — don't block)
+    // Send to server or broadcast to tabs
     orderSync.placeOrder(newOrder)
 
     return id
@@ -159,11 +180,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         ? { ...o, status, ...(tsKey ? { [tsKey]: timestamp } : {}) }
         : o
       )
-      try { localStorage.setItem(LS_ORDERS, JSON.stringify(next)) } catch { /* noop */ }
+      persistOrders(next)
       return next
     })
 
-    // Send to server (async — don't block)
+    // Send to server or broadcast to tabs
     orderSync.updateStatus(orderId, status)
   }, [])
 
@@ -173,8 +194,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   )
 
   const value = useMemo(() => ({
-    orders, placeOrder, updateOrderStatus, getOrder, isConnected,
-  }), [orders, placeOrder, updateOrderStatus, getOrder, isConnected])
+    orders, placeOrder, updateOrderStatus, getOrder, isConnected, syncMode,
+  }), [orders, placeOrder, updateOrderStatus, getOrder, isConnected, syncMode])
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>
 }

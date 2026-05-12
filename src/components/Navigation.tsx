@@ -32,7 +32,7 @@ export default function Navigation() {
   )
   // Hide nav on landing page and staff login — both are full-screen immersive
   if (location.pathname === '/' || location.pathname === '/staff/login') return null
-  const mobileGridCols = 'grid-cols-4'
+  const mobileGridCols = isStaff && isStaffRoute ? 'grid-cols-5' : 'grid-cols-4'
   const handleLogout = () => { staffLogout(); navigate('/') }
   return (
     <>

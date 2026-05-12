@@ -1,11 +1,15 @@
 /**
- * Client-side order sync using SSE (Server-Sent Events) + REST API.
+ * Client-side order sync — works in TWO modes:
  *
- * SSE = server pushes updates instantly to all connected clients.
- * REST = client sends mutations (place order, update status) via POST.
+ * MODE 1 (Local dev with Vite): SSE + REST API via the Vite plugin
+ *   → Real-time push, cross-device sync on the same Wi-Fi
  *
- * This avoids WebSocket conflicts with Vite's HMR.
- * Latency: <10ms on local Wi-Fi.
+ * MODE 2 (Vercel / static deploy): localStorage + BroadcastChannel
+ *   → Cross-tab sync on the same browser, no backend needed
+ *
+ * The client tries SSE first. If it fails (404, no server), it silently
+ * falls back to localStorage-only mode. Orders still work — they just
+ * live in the browser instead of a server.
  */
 
 type OnSyncCallback = (orders: unknown) => void
@@ -14,50 +18,117 @@ class OrderSyncClient {
   private eventSource: EventSource | null = null
   private callbacks: Set<OnSyncCallback> = new Set()
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
-  private connected = false
+  private _connected = false
+  private _mode: 'sse' | 'local' = 'local'
+  private _sseAttempted = false
+  private broadcastChannel: BroadcastChannel | null = null
 
   connect() {
-    if (this.eventSource) return
+    this.initBroadcastChannel()
 
+    // Only attempt SSE once — if it fails, stay in local mode
+    if (!this._sseAttempted) {
+      this._sseAttempted = true
+      this.attemptSSE()
+    }
+  }
+
+  private initBroadcastChannel() {
+    if (this.broadcastChannel) return
     try {
-      this.eventSource = new EventSource('/api/orders/stream')
+      this.broadcastChannel = new BroadcastChannel('deverse_orders_sync')
+      this.broadcastChannel.onmessage = (ev) => {
+        try {
+          const orders = ev.data
+          if (Array.isArray(orders)) {
+            this.callbacks.forEach(cb => cb(orders))
+          }
+        } catch { /* ignore */ }
+      }
+    } catch { /* BroadcastChannel not supported */ }
+  }
 
-      this.eventSource.onmessage = (event) => {
+  /** Broadcast orders to other tabs */
+  broadcastToTabs(orders: unknown) {
+    try {
+      this.broadcastChannel?.postMessage(orders)
+    } catch { /* ignore */ }
+  }
+
+  private attemptSSE() {
+    try {
+      const es = new EventSource('/api/orders/stream')
+
+      // If SSE doesn't connect within 3s, give up and use local mode
+      const timeout = setTimeout(() => {
+        if (!this._connected) {
+          es.close()
+          this._mode = 'local'
+          this._connected = true // "connected" in local mode
+          this.callbacks.forEach(cb => cb(this.loadLocalOrders()))
+        }
+      }, 3000)
+
+      es.onmessage = (event) => {
+        clearTimeout(timeout)
         try {
           const orders = JSON.parse(event.data)
-          this.connected = true
+          this._connected = true
+          this._mode = 'sse'
+          this.eventSource = es
           this.callbacks.forEach(cb => cb(orders))
-        } catch { /* ignore malformed */ }
+        } catch { /* ignore */ }
       }
 
-      this.eventSource.onerror = () => {
-        this.connected = false
-        this.eventSource?.close()
+      es.onerror = () => {
+        clearTimeout(timeout)
+        es.close()
         this.eventSource = null
-        // Reconnect after 2s
-        if (!this.reconnectTimer) {
-          this.reconnectTimer = setTimeout(() => {
-            this.reconnectTimer = null
-            this.connect()
-          }, 2000)
+
+        if (this._mode === 'sse') {
+          // Was connected via SSE, lost connection — try reconnect
+          this._connected = false
+          this.scheduleReconnect()
+        } else {
+          // Never connected via SSE — stay in local mode permanently
+          this._mode = 'local'
+          this._connected = true
+          this.callbacks.forEach(cb => cb(this.loadLocalOrders()))
         }
       }
     } catch {
-      // SSE not supported or connection failed
-      this.scheduleReconnect()
+      // SSE not available at all
+      this._mode = 'local'
+      this._connected = true
+      this.callbacks.forEach(cb => cb(this.loadLocalOrders()))
     }
+  }
+
+  private loadLocalOrders(): unknown[] {
+    try {
+      const raw = localStorage.getItem('deverse_orders')
+      if (raw) return JSON.parse(raw)
+    } catch { /* noop */ }
+    return []
   }
 
   private scheduleReconnect() {
     if (this.reconnectTimer) return
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null
-      this.connect()
-    }, 2000)
+      this.attemptSSE()
+    }, 5000)
   }
 
-  /** Send a new order to the server */
+  /** Send a new order to the server (SSE mode) or save locally */
   async placeOrder(order: unknown): Promise<boolean> {
+    if (this._mode === 'local') {
+      // In local mode, localStorage is the source of truth
+      // OrderContext already saved to localStorage — just broadcast to tabs
+      this.broadcastToTabs(this.loadLocalOrders())
+      return true
+    }
+
     try {
       const res = await fetch('/api/orders/place', {
         method: 'POST',
@@ -72,6 +143,11 @@ class OrderSyncClient {
 
   /** Update an order's status */
   async updateStatus(orderId: string, status: string): Promise<boolean> {
+    if (this._mode === 'local') {
+      this.broadcastToTabs(this.loadLocalOrders())
+      return true
+    }
+
     try {
       const res = await fetch('/api/orders/status', {
         method: 'POST',
@@ -91,7 +167,11 @@ class OrderSyncClient {
   }
 
   get isConnected() {
-    return this.connected
+    return this._connected
+  }
+
+  get mode() {
+    return this._mode
   }
 
   destroy() {
@@ -102,6 +182,10 @@ class OrderSyncClient {
     if (this.eventSource) {
       this.eventSource.close()
       this.eventSource = null
+    }
+    if (this.broadcastChannel) {
+      this.broadcastChannel.close()
+      this.broadcastChannel = null
     }
     this.callbacks.clear()
   }
