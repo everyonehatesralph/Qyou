@@ -1,5 +1,45 @@
 [
   {
+    "id": "58410",
+    "tableId": 1,
+    "tableName": "Window Seat",
+    "customerName": "Ralph",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      },
+      {
+        "id": 5,
+        "name": "Chamomile Honey Tea",
+        "price": 110,
+        "quantity": 1
+      },
+      {
+        "id": 6,
+        "name": "Iced Lemon Verbena",
+        "price": 125,
+        "quantity": 1
+      }
+    ],
+    "total": 520,
+    "status": "paid",
+    "createdAt": "2026-05-12T18:01:36.766Z",
+    "notes": "Take Away | + Extra Sugar",
+    "confirmedAt": "2026-05-12T18:01:44.055Z",
+    "preparingAt": "2026-05-12T18:01:51.516Z",
+    "readyAt": "2026-05-12T18:01:55.261Z",
+    "servedAt": "2026-05-12T18:01:56.478Z"
+  },
+  {
     "id": "78917",
     "tableId": 3,
     "tableName": "Garden View",

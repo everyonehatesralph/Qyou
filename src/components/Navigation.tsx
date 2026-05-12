@@ -94,24 +94,59 @@ export default function Navigation() {
             })}
           </nav>
 
-          {/* Footer */}
-          <div className="px-3 py-4 space-y-2" style={{ borderTop: '1px solid #2E2318' }}>
-            <ThemeToggle variant="nav" />
-            <div className="flex items-center justify-between px-3 py-2">
-              <span
-                className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: 'rgba(200,134,10,0.12)', color: '#C8860A', border: '1px solid rgba(200,134,10,0.3)' }}
+          {/* Footer — Staff profile card */}
+          <div className="px-3 py-4" style={{ borderTop: '1px solid #2E2318' }}>
+            {/* Profile card */}
+            <div
+              className="rounded-xl p-3 mb-3"
+              style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold"
+                  style={{
+                    background: 'linear-gradient(135deg, #C8860A 0%, #E8C97A 100%)',
+                    color: '#0D0B0A',
+                  }}
+                >
+                  S
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-text-base leading-tight">Staff Account</p>
+                  <p className="text-[10px] text-text-faint mt-0.5">Administrator</p>
+                </div>
+                <span
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: '#4ADE80', boxShadow: '0 0 6px rgba(74,222,128,0.5)' }}
+                  title="Online"
+                />
+              </div>
+
+              {/* Theme row */}
+              <div
+                className="flex items-center justify-between px-2 py-2 rounded-lg"
+                style={{ backgroundColor: '#0D0B0A' }}
               >
-                Staff
-              </span>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1.5 text-xs text-text-muted hover:text-error transition-colors"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                Logout
-              </button>
+                <span className="text-[11px] text-text-muted font-medium">Appearance</span>
+                <ThemeToggle variant="nav" />
+              </div>
             </div>
+
+            {/* Logout button */}
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-95"
+              style={{
+                backgroundColor: 'transparent',
+                color: '#9B8B7A',
+                border: '1px solid #2E2318',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(248,113,113,0.4)'; e.currentTarget.style.color = '#F87171'; e.currentTarget.style.backgroundColor = 'rgba(248,113,113,0.05)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#2E2318'; e.currentTarget.style.color = '#9B8B7A'; e.currentTarget.style.backgroundColor = 'transparent' }}
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Sign Out
+            </button>
           </div>
         </aside>
 
