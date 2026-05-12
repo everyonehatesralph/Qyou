@@ -1,9 +1,10 @@
-import { Coffee, Plus, Minus, ShoppingBag } from 'lucide-react'
+import { Coffee, Plus, Minus, ShoppingBag, Hash } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useState, useMemo, useCallback } from 'react'
 import { useCart } from '../../context/CartContext'
 import { useAuth } from '../../context/AuthContext'
 import { useMenuAvailability } from '../../context/MenuAvailabilityContext'
+import { useOrders } from '../../context/OrderContext'
 import { MENU_ITEMS, CATEGORIES } from '../../constants/menu'
 import HelpAssistant from '../../components/HelpAssistant'
 
@@ -19,7 +20,14 @@ export default function Menu() {
   const { addToCart, updateQuantity, removeFromCart, cartItems, cartCount } = useCart()
   const { customerName } = useAuth()
   const { itemAvailability } = useMenuAvailability()
+  const { orders } = useOrders()
   const [selectedCategory, setSelectedCategory] = useState('All')
+
+  // Queue number = total active orders (not yet served) + 1
+  const queueNumber = useMemo(
+    () => orders.filter(o => o.status !== 'served').length + 1,
+    [orders]
+  )
 
   const filteredItems = useMemo(() => {
     const byCat = selectedCategory === 'All'
@@ -55,6 +63,24 @@ export default function Menu() {
             </div>
           </div>
         )}
+
+        {/* Queue number banner */}
+        <div
+          className="flex items-center gap-3 rounded-xl px-4 py-3 mb-6"
+          style={{ backgroundColor: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.2)' }}
+        >
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-lg"
+            style={{ backgroundColor: 'rgba(96,165,250,0.15)', color: '#60A5FA', border: '1px solid rgba(96,165,250,0.3)' }}
+          >
+            <Hash className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-xs text-text-muted">Your estimated queue number</p>
+            <p className="font-bold text-xl" style={{ color: '#60A5FA' }}>Q-{String(queueNumber).padStart(3, '0')}</p>
+          </div>
+          <p className="ml-auto text-xs text-text-faint text-right">Updates live</p>
+        </div>
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">

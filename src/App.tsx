@@ -20,6 +20,7 @@ const Dashboard      = lazy(() => import('./pages/staff/Dashboard'))
 const OrderQueue     = lazy(() => import('./pages/staff/OrderQueue'))
 const MenuManagement = lazy(() => import('./pages/staff/MenuManagement'))
 const QRCodeGenerator= lazy(() => import('./pages/staff/QRCodeGenerator'))
+const SalesTracker   = lazy(() => import('./pages/staff/SalesTracker'))
 
 // Shared
 const ExpiredSession = lazy(() => import('./pages/shared/ExpiredSession'))
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="/staff/kitchen"     element={<ProtectedRoute><OrderQueue /></ProtectedRoute>} />
           <Route path="/staff/menu"        element={<ProtectedRoute><MenuManagement /></ProtectedRoute>} />
           <Route path="/staff/qr-codes"    element={<ProtectedRoute><QRCodeGenerator /></ProtectedRoute>} />
+          <Route path="/staff/sales"       element={<ProtectedRoute><SalesTracker /></ProtectedRoute>} />
           <Route path="*"                  element={<NotFound />} />
         </Routes>
       </Suspense>

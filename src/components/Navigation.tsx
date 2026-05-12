@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Search, ShoppingCart, ShoppingBag, ClipboardList, LayoutGrid, ChefHat, Settings, QrCode, LogOut } from 'lucide-react'
+import { Search, ShoppingCart, ShoppingBag, ClipboardList, LayoutGrid, ChefHat, Settings, QrCode, LogOut, TrendingUp } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import ThemeToggle from './ThemeToggle'
@@ -11,10 +11,11 @@ const customerItems = [
   { path: '/my-orders', label: 'Orders',  icon: ClipboardList },
 ]
 const staffItems = [
-  { path: '/staff/dashboard', label: 'Dashboard', icon: LayoutGrid },
-  { path: '/staff/kitchen',   label: 'Kitchen',   icon: ChefHat },
-  { path: '/staff/menu',      label: 'Manage',    icon: Settings },
-  { path: '/staff/qr-codes',  label: 'QR',        icon: QrCode },
+  { path: '/staff/dashboard', label: 'Dashboard', icon: LayoutGrid   },
+  { path: '/staff/kitchen',   label: 'Kitchen',   icon: ChefHat      },
+  { path: '/staff/menu',      label: 'Manage',    icon: Settings     },
+  { path: '/staff/sales',     label: 'Sales',     icon: TrendingUp   },
+  { path: '/staff/qr-codes',  label: 'QR',        icon: QrCode       },
 ]
 export default function Navigation() {
   const navigate  = useNavigate()
