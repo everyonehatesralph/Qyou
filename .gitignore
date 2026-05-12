@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env.local
+.env.*.local
+.DS_Store
+*.log
+*.pid
+*.seed
+*.pid.lock
+.vscode/
+.idea/
+*.iml
+.sixth/
+coverage/
+.env
+*.timestamp-*
+qual_ass/

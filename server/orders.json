@@ -1,0 +1,492 @@
+[
+  {
+    "id": "19298",
+    "tableId": 1,
+    "tableName": "Window Seat",
+    "customerName": "Ralph",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      },
+      {
+        "id": 3,
+        "name": "Matcha Latte",
+        "price": 175,
+        "quantity": 1
+      },
+      {
+        "id": 4,
+        "name": "Cold Brew",
+        "price": 155,
+        "quantity": 1
+      },
+      {
+        "id": 5,
+        "name": "Chamomile Honey Tea",
+        "price": 110,
+        "quantity": 1
+      },
+      {
+        "id": 6,
+        "name": "Iced Lemon Verbena",
+        "price": 125,
+        "quantity": 1
+      },
+      {
+        "id": 7,
+        "name": "Butter Croissant",
+        "price": 95,
+        "quantity": 1
+      },
+      {
+        "id": 8,
+        "name": "Almond Danish",
+        "price": 115,
+        "quantity": 1
+      },
+      {
+        "id": 9,
+        "name": "Avocado Toast",
+        "price": 195,
+        "quantity": 1
+      },
+      {
+        "id": 10,
+        "name": "Club Sandwich",
+        "price": 225,
+        "quantity": 1
+      }
+    ],
+    "total": 1480,
+    "status": "pending",
+    "createdAt": "2026-05-11T07:31:45.846Z",
+    "notes": ""
+  },
+  {
+    "id": "81170",
+    "tableId": 1,
+    "tableName": "Window Seat",
+    "customerName": "Ralph",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      },
+      {
+        "id": 3,
+        "name": "Matcha Latte",
+        "price": 175,
+        "quantity": 1
+      }
+    ],
+    "total": 460,
+    "status": "pending",
+    "createdAt": "2026-05-11T07:31:19.161Z",
+    "notes": ""
+  },
+  {
+    "id": "77445",
+    "tableId": 1,
+    "tableName": "Window Seat",
+    "customerName": "Ralph",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      },
+      {
+        "id": 3,
+        "name": "Matcha Latte",
+        "price": 175,
+        "quantity": 1
+      }
+    ],
+    "total": 460,
+    "status": "pending",
+    "createdAt": "2026-05-11T07:30:34.778Z",
+    "notes": "Sugar"
+  },
+  {
+    "id": "74851",
+    "tableId": 0,
+    "tableName": "Table null",
+    "customerName": "",
+    "items": [
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      },
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 3,
+        "name": "Matcha Latte",
+        "price": 175,
+        "quantity": 1
+      }
+    ],
+    "total": 460,
+    "status": "served",
+    "createdAt": "2026-05-11T00:41:35.589Z",
+    "notes": "",
+    "confirmedAt": "2026-05-11T00:41:45.905Z",
+    "preparingAt": "2026-05-11T00:41:58.705Z",
+    "readyAt": "2026-05-11T00:41:59.818Z",
+    "servedAt": "2026-05-11T00:42:01.270Z"
+  },
+  {
+    "id": "67747",
+    "tableId": 0,
+    "tableName": "Table null",
+    "customerName": "",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      },
+      {
+        "id": 3,
+        "name": "Matcha Latte",
+        "price": 175,
+        "quantity": 1
+      }
+    ],
+    "total": 460,
+    "status": "served",
+    "createdAt": "2026-05-11T00:41:28.501Z",
+    "notes": "",
+    "confirmedAt": "2026-05-11T00:41:46.521Z",
+    "preparingAt": "2026-05-11T00:42:03.781Z",
+    "readyAt": "2026-05-11T00:42:22.221Z",
+    "servedAt": "2026-05-11T00:42:25.121Z"
+  },
+  {
+    "id": "51704",
+    "tableId": 0,
+    "tableName": "Table null",
+    "customerName": "",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      },
+      {
+        "id": 3,
+        "name": "Matcha Latte",
+        "price": 175,
+        "quantity": 1
+      }
+    ],
+    "total": 460,
+    "status": "served",
+    "createdAt": "2026-05-11T00:41:21.042Z",
+    "notes": "",
+    "confirmedAt": "2026-05-11T00:41:47.078Z",
+    "preparingAt": "2026-05-11T00:42:28.552Z",
+    "readyAt": "2026-05-11T00:42:29.201Z",
+    "servedAt": "2026-05-11T00:42:31.128Z"
+  },
+  {
+    "id": "53563",
+    "tableId": 0,
+    "tableName": "Table null",
+    "customerName": "",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      },
+      {
+        "id": 3,
+        "name": "Matcha Latte",
+        "price": 175,
+        "quantity": 1
+      }
+    ],
+    "total": 460,
+    "status": "served",
+    "createdAt": "2026-05-11T00:41:09.698Z",
+    "notes": "",
+    "confirmedAt": "2026-05-11T00:41:47.658Z",
+    "preparingAt": "2026-05-11T00:42:32.934Z",
+    "readyAt": "2026-05-11T00:42:39.516Z",
+    "servedAt": "2026-05-11T00:42:40.361Z"
+  },
+  {
+    "id": "54024",
+    "tableId": 0,
+    "tableName": "Table null",
+    "customerName": "",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      }
+    ],
+    "total": 285,
+    "status": "served",
+    "createdAt": "2026-05-11T00:39:34.635Z",
+    "notes": "",
+    "confirmedAt": "2026-05-11T00:41:48.236Z",
+    "preparingAt": "2026-05-11T00:42:41.842Z",
+    "readyAt": "2026-05-11T00:42:43.448Z",
+    "servedAt": "2026-05-11T00:42:44.392Z"
+  },
+  {
+    "id": "68793",
+    "tableId": 0,
+    "tableName": "Table null",
+    "customerName": "",
+    "items": [
+      {
+        "id": 4,
+        "name": "Cold Brew",
+        "price": 155,
+        "quantity": 1
+      },
+      {
+        "id": 5,
+        "name": "Chamomile Honey Tea",
+        "price": 110,
+        "quantity": 1
+      },
+      {
+        "id": 6,
+        "name": "Iced Lemon Verbena",
+        "price": 125,
+        "quantity": 1
+      }
+    ],
+    "total": 390,
+    "status": "served",
+    "createdAt": "2026-05-11T00:33:42.888Z",
+    "notes": "",
+    "confirmedAt": "2026-05-11T00:34:03.107Z",
+    "preparingAt": "2026-05-11T00:34:06.898Z",
+    "readyAt": "2026-05-11T00:34:07.229Z",
+    "servedAt": "2026-05-11T00:34:08.421Z"
+  },
+  {
+    "id": "58964",
+    "tableId": 1,
+    "tableName": "Window Seat",
+    "customerName": "Ralph",
+    "items": [
+      {
+        "id": 9,
+        "name": "Avocado Toast",
+        "price": 195,
+        "quantity": 1
+      },
+      {
+        "id": 10,
+        "name": "Club Sandwich",
+        "price": 225,
+        "quantity": 1
+      }
+    ],
+    "total": 420,
+    "status": "served",
+    "createdAt": "2026-05-11T00:28:19.178Z",
+    "notes": "",
+    "confirmedAt": "2026-05-11T00:28:23.119Z",
+    "preparingAt": "2026-05-11T00:28:53.811Z",
+    "readyAt": "2026-05-11T00:28:59.171Z",
+    "servedAt": "2026-05-11T00:29:04.002Z"
+  },
+  {
+    "id": "45994",
+    "tableId": 1,
+    "tableName": "Window Seat",
+    "customerName": "Joshua",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      }
+    ],
+    "total": 285,
+    "status": "served",
+    "createdAt": "2026-05-10T00:12:15.322Z",
+    "notes": "",
+    "confirmedAt": "2026-05-10T00:12:23.972Z",
+    "preparingAt": "2026-05-10T00:13:10.871Z",
+    "readyAt": "2026-05-10T00:13:13.833Z",
+    "servedAt": "2026-05-10T00:13:16.782Z"
+  },
+  {
+    "id": "28290",
+    "tableId": 1,
+    "tableName": "Window Seat",
+    "customerName": "Ralph Joshua",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      },
+      {
+        "id": 3,
+        "name": "Matcha Latte",
+        "price": 175,
+        "quantity": 1
+      },
+      {
+        "id": 4,
+        "name": "Cold Brew",
+        "price": 155,
+        "quantity": 1
+      },
+      {
+        "id": 5,
+        "name": "Chamomile Honey Tea",
+        "price": 110,
+        "quantity": 1
+      },
+      {
+        "id": 6,
+        "name": "Iced Lemon Verbena",
+        "price": 125,
+        "quantity": 1
+      },
+      {
+        "id": 7,
+        "name": "Butter Croissant",
+        "price": 95,
+        "quantity": 1
+      },
+      {
+        "id": 8,
+        "name": "Almond Danish",
+        "price": 115,
+        "quantity": 1
+      },
+      {
+        "id": 9,
+        "name": "Avocado Toast",
+        "price": 195,
+        "quantity": 1
+      },
+      {
+        "id": 10,
+        "name": "Club Sandwich",
+        "price": 225,
+        "quantity": 1
+      }
+    ],
+    "total": 1480,
+    "status": "served",
+    "createdAt": "2026-05-09T22:55:30.122Z",
+    "notes": "",
+    "confirmedAt": "2026-05-09T22:55:56.862Z",
+    "preparingAt": "2026-05-09T22:56:11.627Z",
+    "readyAt": "2026-05-09T22:56:24.737Z",
+    "servedAt": "2026-05-09T22:56:26.793Z"
+  },
+  {
+    "id": "37337",
+    "tableId": 3,
+    "tableName": "Garden View",
+    "customerName": "Ralph",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      }
+    ],
+    "total": 285,
+    "status": "served",
+    "createdAt": "2026-05-09T20:25:08.681Z",
+    "notes": "",
+    "confirmedAt": "2026-05-09T20:25:16.920Z",
+    "preparingAt": "2026-05-09T20:25:20.451Z",
+    "readyAt": "2026-05-09T20:25:21.560Z",
+    "servedAt": "2026-05-09T20:25:33.111Z"
+  }
+]

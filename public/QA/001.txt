@@ -1,0 +1,43 @@
+Wanna Put a search bar so it can easily search for items.
+
+also i will add an feature that can show the queue number
+
+and i want to achieve the concurrency accuracy 
+
+and update the UI to make it more premium and user-friendly 
+
+The user flow is like this:
+1. User scan the QR Code
+2. User browse the menu
+3. User add items to cart
+4. User review the order
+5. User place order
+6. User can track the order
+
+the staffs can use tablets to update the order status
+
+the staffs can also add items to the order if the customer ask to add more items
+
+also i want to add a feature that can show the queue number on the menu page
+
+and the queue number should be visible to all users
+
+and it should update in real time
+
+i want to use pnpm as the package manager
+
+and i want to use supabase as the database
+
+and i want to use tailwindcss as the styling framework
+
+and i want to use typescript as the programming language
+
+and when placing and order it must ask a customer for some follow up questions like:
+
+1.  do you want to make this a dine in or take away?
+2.  do you want to add any additional?
+3.  and they can confirm it on the spot
+4. i will also add some recommendations based on their order
+
+also for the owner side i want to add a feature that can show the sales tracker and it will analyze the most selling items and the least selling items
+

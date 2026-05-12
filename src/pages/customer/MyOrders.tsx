@@ -1,0 +1,176 @@
+import { ClipboardList, ChefHat, Clock, CheckCircle, ArrowRight, Loader2, Coffee } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { useMemo } from 'react'
+import { useOrders, getMyOrderIds } from '../../context/OrderContext'
+import type { Order } from '../../context/OrderContext'
+
+const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string; icon: typeof Clock }> = {
+  pending:   { color: '#FBBF24', bg: 'rgba(251,191,36,0.1)',  label: 'Awaiting Cashier',   icon: Clock },
+  confirmed: { color: '#60A5FA', bg: 'rgba(96,165,250,0.1)',  label: 'Cashier Confirmed',  icon: CheckCircle },
+  preparing: { color: '#C8860A', bg: 'rgba(200,134,10,0.1)',  label: 'Kitchen Preparing',  icon: ChefHat },
+  ready:     { color: '#4ADE80', bg: 'rgba(74,222,128,0.1)',  label: 'Ready for You! 🎉',  icon: CheckCircle },
+  served:    { color: '#4ADE80', bg: 'rgba(74,222,128,0.06)', label: 'Served ✓',           icon: CheckCircle },
+}
+
+function timeAgo(iso: string): string {
+  const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+  if (secs < 60) return 'just now'
+  const mins = Math.floor(secs / 60)
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  return `${hours}h ago`
+}
+
+function OrderCard({ order, onTap }: { order: Order; onTap: () => void }) {
+  const cfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending
+  const Icon = cfg.icon
+  const isActive = order.status !== 'served'
+
+  return (
+    <button
+      onClick={onTap}
+      className="w-full card p-4 text-left transition-all duration-200 active:scale-[0.98]"
+      style={isActive ? { borderColor: cfg.color + '60' } : undefined}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: cfg.bg }}
+        >
+          {order.status === 'preparing'
+            ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: cfg.color }} />
+            : <Icon className="w-5 h-5" style={{ color: cfg.color }} />
+          }
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-text-base font-semibold text-sm">Order #{order.id}</span>
+            {isActive && (
+              <span
+                className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                style={{ backgroundColor: cfg.bg, color: cfg.color }}
+              >
+                {order.status === 'ready' ? 'READY!' : 'ACTIVE'}
+              </span>
+            )}
+          </div>
+          <p className="text-text-muted text-xs truncate">
+            {order.items.map(i => `${i.name} ×${i.quantity}`).join(', ')}
+          </p>
+          <div className="flex items-center gap-2 mt-1.5">
+            <span className="text-xs font-semibold" style={{ color: cfg.color }}>
+              {cfg.label}
+            </span>
+            <span className="text-text-faint text-[10px]">·</span>
+            <span className="text-text-faint text-[10px]">{timeAgo(order.createdAt)}</span>
+          </div>
+        </div>
+        <div className="text-right flex-shrink-0">
+          <p className="text-primary font-bold text-sm">₱{order.total.toFixed(0)}</p>
+          <ArrowRight className="w-4 h-4 text-text-faint mt-1 ml-auto" />
+        </div>
+      </div>
+
+      {/* Live progress bar for active orders */}
+      {isActive && (
+        <div className="flex gap-1 mt-3">
+          {['pending', 'confirmed', 'preparing', 'ready'].map((step, i) => {
+            const stepIdx = ['pending', 'confirmed', 'preparing', 'ready'].indexOf(order.status)
+            const isDone = i < stepIdx
+            const isCurrent = i === stepIdx
+            return (
+              <div
+                key={step}
+                className="flex-1 h-1 rounded-full transition-all duration-500"
+                style={{
+                  backgroundColor: isDone ? '#4ADE80'
+                    : isCurrent ? cfg.color
+                    : 'rgba(255,255,255,0.07)',
+                }}
+              />
+            )
+          })}
+        </div>
+      )}
+    </button>
+  )
+}
+
+export default function MyOrders() {
+  const navigate = useNavigate()
+  const { orders } = useOrders()
+  const myOrderIds = useMemo(() => getMyOrderIds(), [])
+
+  const myOrders = useMemo(() => {
+    return myOrderIds
+      .map(id => orders.find(o => o.id === id))
+      .filter((o): o is Order => !!o)
+  }, [orders, myOrderIds])
+
+  const activeOrders = useMemo(() => myOrders.filter(o => o.status !== 'served'), [myOrders])
+  const pastOrders   = useMemo(() => myOrders.filter(o => o.status === 'served'), [myOrders])
+
+  return (
+    <div className="min-h-screen bg-background pt-14">
+      <div className="max-w-lg mx-auto px-4 sm:px-6 py-6 pb-28 md:pb-8">
+        <div className="flex items-center gap-3 mb-6">
+          <ClipboardList className="w-6 h-6 text-primary" />
+          <h1 className="text-2xl font-bold text-text-base">My Orders</h1>
+        </div>
+
+        {myOrders.length === 0 ? (
+          <div className="card p-12 text-center">
+            <Coffee className="w-14 h-14 text-text-faint mx-auto mb-4" />
+            <p className="text-text-muted font-medium mb-1">No orders yet</p>
+            <p className="text-text-faint text-sm mb-6">Place your first order from the menu!</p>
+            <button
+              onClick={() => navigate('/menu')}
+              className="btn-primary py-3 px-8 rounded-xl text-background font-semibold"
+            >
+              Browse Menu
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Active Orders */}
+            {activeOrders.length > 0 && (
+              <div className="mb-8">
+                <h2 className="text-text-muted text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                  Active Orders ({activeOrders.length})
+                </h2>
+                <div className="space-y-3">
+                  {activeOrders.map(order => (
+                    <OrderCard
+                      key={order.id}
+                      order={order}
+                      onTap={() => navigate(`/order/${order.id}`)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Past Orders */}
+            {pastOrders.length > 0 && (
+              <div>
+                <h2 className="text-text-muted text-xs font-semibold uppercase tracking-wider mb-3">
+                  Past Orders ({pastOrders.length})
+                </h2>
+                <div className="space-y-2">
+                  {pastOrders.map(order => (
+                    <OrderCard
+                      key={order.id}
+                      order={order}
+                      onTap={() => navigate(`/order/${order.id}`)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
