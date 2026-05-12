@@ -1,5 +1,7 @@
-import { Smartphone, ShoppingBag, Clock, ArrowRight, Shield, Coffee } from 'lucide-react'
+import { Smartphone, ShoppingBag, Clock, ArrowRight, Shield, Coffee, MapPin } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { useAuth } from '../context/AuthContext'
 import ThemeToggle from '../components/ThemeToggle'
 
 const features = [
@@ -8,8 +10,27 @@ const features = [
   { icon: Clock,       title: 'Track in Real Time', desc: 'Watch your order flow from cashier to kitchen to your table' },
 ]
 
+const TABLES = [
+  { id: 1, name: 'Window Seat' },
+  { id: 2, name: 'Center Table' },
+  { id: 3, name: 'Garden View' },
+  { id: 4, name: 'Bar Seat A' },
+  { id: 5, name: 'Bar Seat B' },
+]
+
 export default function Welcome() {
   const navigate = useNavigate()
+  const { setTableSession } = useAuth()
+  const [showTablePicker, setShowTablePicker] = useState(false)
+  const [selectedTable, setSelectedTable]     = useState<number | null>(null)
+  const [name, setName] = useState('')
+
+  const handleStartOrder = () => {
+    if (!selectedTable || !name.trim()) return
+    const table = TABLES.find(t => t.id === selectedTable)!
+    setTableSession(selectedTable, table.name, name.trim())
+    navigate('/menu')
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -52,7 +73,7 @@ export default function Welcome() {
 
         {/* Hero content */}
         <div className="relative z-10 text-center px-6 sm:px-8 max-w-xl mx-auto">
-          {/* Logo — clean, no box container */}
+          {/* Logo */}
           <div className="flex justify-center mb-6">
             <img
               src="/assets/bean.png"
@@ -91,7 +112,7 @@ export default function Welcome() {
           {/* CTA buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
             <button
-              onClick={() => navigate('/menu')}
+              onClick={() => setShowTablePicker(true)}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 py-4 px-10 text-base rounded-2xl font-bold transition-all duration-300 active:scale-[0.97]"
               style={{
                 backgroundColor: '#C8860A',
@@ -100,7 +121,7 @@ export default function Welcome() {
               }}
             >
               <Coffee className="w-5 h-5" />
-              View Menu
+              Start Ordering
               <ArrowRight className="w-4 h-4" />
             </button>
             <button
@@ -162,7 +183,6 @@ export default function Welcome() {
                   border: '1px solid #2E2318',
                 }}
               >
-                {/* Step number */}
                 <span
                   className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-bold w-6 h-6 rounded-full flex items-center justify-center"
                   style={{ backgroundColor: '#C8860A', color: '#0D0B0A' }}
@@ -214,6 +234,94 @@ export default function Welcome() {
           </p>
         </div>
       </div>
+
+      {/* ── Table Picker Modal ─────────────────────────────── */}
+      {showTablePicker && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
+        >
+          <div
+            className="w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden"
+            style={{ backgroundColor: '#171210', border: '1px solid #2E2318', maxHeight: '90vh' }}
+          >
+            {/* Header */}
+            <div className="px-5 pt-5 pb-3" style={{ borderBottom: '1px solid #2E2318' }}>
+              <div className="flex items-center gap-2 mb-1">
+                <MapPin className="w-5 h-5" style={{ color: '#C8860A' }} />
+                <h2 className="text-text-base font-bold text-lg">Where are you seated?</h2>
+              </div>
+              <p className="text-text-muted text-xs">Select your table to start ordering</p>
+            </div>
+
+            {/* Table grid */}
+            <div className="px-5 py-4 space-y-2 overflow-y-auto" style={{ maxHeight: '40vh' }}>
+              {TABLES.map(table => (
+                <button
+                  key={table.id}
+                  onClick={() => setSelectedTable(table.id)}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all text-left"
+                  style={{
+                    border: selectedTable === table.id ? '2px solid #C8860A' : '2px solid #2E2318',
+                    backgroundColor: selectedTable === table.id ? 'rgba(200,134,10,0.1)' : '#211A15',
+                  }}
+                >
+                  <div
+                    className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-sm"
+                    style={{
+                      backgroundColor: selectedTable === table.id ? '#C8860A' : 'rgba(200,134,10,0.12)',
+                      color: selectedTable === table.id ? '#0D0B0A' : '#C8860A',
+                    }}
+                  >
+                    {table.id}
+                  </div>
+                  <span
+                    className="font-semibold text-sm"
+                    style={{ color: selectedTable === table.id ? '#F0E6D3' : '#9B8B7A' }}
+                  >
+                    {table.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Name input */}
+            {selectedTable && (
+              <div className="px-5 pb-2">
+                <label className="block text-text-muted text-xs font-medium mb-1.5">Your name</label>
+                <input
+                  type="text"
+                  placeholder="Enter your name"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleStartOrder()}
+                  className="w-full text-sm"
+                  autoFocus
+                />
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex gap-3 px-5 py-4" style={{ borderTop: '1px solid #2E2318' }}>
+              <button
+                onClick={() => { setShowTablePicker(false); setSelectedTable(null); setName('') }}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold"
+                style={{ backgroundColor: '#211A15', color: '#9B8B7A', border: '1px solid #2E2318' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleStartOrder}
+                disabled={!selectedTable || !name.trim()}
+                className="flex-1 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-40"
+                style={{ backgroundColor: '#C8860A', color: '#0D0B0A' }}
+              >
+                Start Ordering →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
