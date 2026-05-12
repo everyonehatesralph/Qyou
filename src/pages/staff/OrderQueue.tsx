@@ -28,6 +28,7 @@ const CARD_STYLE: Record<OrderStatus, { border: string; bg: string; badge: strin
   preparing: { border: 'rgba(200,134,10,0.5)',   bg: 'rgba(200,134,10,0.07)',  badge: 'rgba(200,134,10,0.15)',  text: '#C8860A' },
   ready:     { border: 'rgba(74,222,128,0.5)',   bg: 'rgba(74,222,128,0.07)',  badge: 'rgba(74,222,128,0.15)',  text: '#4ADE80' },
   served:    { border: '#2E2318',                bg: '#171210',                badge: '#211A15',                text: '#5C4F44' },
+  paid:      { border: '#2E2318',                bg: '#171210',                badge: '#211A15',                text: '#3A3330' },
 }
 
 function elapsed(iso: string) {

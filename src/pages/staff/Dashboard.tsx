@@ -1,4 +1,4 @@
-import { LayoutGrid, Users, TrendingUp, Coffee, Clock, CheckCircle, Bell, ChefHat, Volume2 } from 'lucide-react'
+import { LayoutGrid, Users, TrendingUp, Coffee, Clock, CheckCircle, Bell, ChefHat, Volume2, Banknote } from 'lucide-react'
 import { useOrders } from '../../context/OrderContext'
 import type { Order } from '../../context/OrderContext'
 import { useOrderNotification } from '../../hooks/useOrderNotification'
@@ -18,6 +18,7 @@ const STATUS_COLOR: Record<string, string> = {
   preparing: 'text-primary',
   ready:     'text-success',
   served:    'text-text-muted',
+  paid:      'text-text-faint',
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -26,6 +27,7 @@ const STATUS_LABEL: Record<string, string> = {
   preparing: 'In Preparation',
   ready:     'Ready to Serve',
   served:    'Served',
+  paid:      'Paid ✓',
 }
 
 function elapsed(iso: string) {
@@ -119,7 +121,11 @@ export default function Dashboard() {
     [orders]
   )
   const activeOrders = useMemo(
-    () => orders.filter(o => o.status !== 'served' && o.status !== 'pending'),
+    () => orders.filter(o => !['served', 'paid', 'pending'].includes(o.status)),
+    [orders]
+  )
+  const servedOrders = useMemo(
+    () => orders.filter(o => o.status === 'served'),
     [orders]
   )
   const inKitchenCount = useMemo(
@@ -130,14 +136,26 @@ export default function Dashboard() {
     () => orders.filter(o => o.status === 'ready').length,
     [orders]
   )
+  // Table is occupied if it has any order that's NOT paid
   const occupiedTableIds = useMemo(
-    () => new Set(orders.filter(o => o.status !== 'served').map(o => o.tableId)),
+    () => new Set(orders.filter(o => o.status !== 'paid').map(o => o.tableId)),
     [orders]
   )
 
   const confirmOrder = useCallback((orderId: string) => {
     updateOrderStatus(orderId, 'confirmed')
   }, [updateOrderStatus])
+
+  const markPaid = useCallback((orderId: string) => {
+    updateOrderStatus(orderId, 'paid')
+  }, [updateOrderStatus])
+
+  // Mark ALL orders for a table as paid (clear the table)
+  const clearTable = useCallback((tableId: number) => {
+    orders
+      .filter(o => o.tableId === tableId && o.status !== 'paid')
+      .forEach(o => updateOrderStatus(o.id, 'paid'))
+  }, [orders, updateOrderStatus])
 
   return (
     <div className="min-h-screen bg-background pt-14">
@@ -241,12 +259,51 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* ── Served Orders (awaiting payment) ── */}
+        {servedOrders.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-text-muted text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Banknote className="w-4 h-4" style={{ color: '#4ADE80' }} />
+              Awaiting Payment ({servedOrders.length})
+            </h2>
+            <div className="space-y-2">
+              {servedOrders.map(order => (
+                <div key={order.id} className="card p-4 flex items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-text-base font-semibold text-sm">#{order.id}</span>
+                      <span className="text-text-muted text-xs">·</span>
+                      <span className="text-text-muted text-xs">{order.tableName}</span>
+                      <span className="text-text-muted text-xs">·</span>
+                      <span className="text-text-muted text-xs">{order.customerName}</span>
+                    </div>
+                    <p className="text-text-faint text-xs truncate">
+                      {order.items.map(i => `${i.name} ×${i.quantity}`).join(', ')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <p className="text-primary font-bold text-sm">₱{order.total.toFixed(0)}</p>
+                    <button
+                      onClick={() => markPaid(order.id)}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
+                      style={{ backgroundColor: '#4ADE80', color: '#0D0B0A' }}
+                    >
+                      <Banknote className="w-3.5 h-3.5" />
+                      Already Paid
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ── Tables ── */}
         <h2 className="text-text-muted text-sm font-semibold uppercase tracking-wider mb-3">Tables</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           {TABLES.map(table => {
             const occupied = occupiedTableIds.has(table.id)
-            const tableOrders = orders.filter(o => o.tableId === table.id && o.status !== 'served')
+            const tableOrders = orders.filter(o => o.tableId === table.id && o.status !== 'paid')
             return (
               <div key={table.id} className={`card p-4 border-2 ${
                 occupied
@@ -265,6 +322,17 @@ export default function Dashboard() {
                     </p>
                   </div>
                 ))}
+                {/* Clear entire table button */}
+                {occupied && tableOrders.every(o => o.status === 'served') && (
+                  <button
+                    onClick={() => clearTable(table.id)}
+                    className="mt-3 w-full py-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-all active:scale-95"
+                    style={{ backgroundColor: '#4ADE80', color: '#0D0B0A' }}
+                  >
+                    <Banknote className="w-3 h-3" />
+                    Clear Table — Paid
+                  </button>
+                )}
               </div>
             )
           })}

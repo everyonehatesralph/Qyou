@@ -11,7 +11,7 @@ export interface OrderItem {
   price: number
   quantity: number
 }
-export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'served'
+export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'served' | 'paid'
 export interface Order {
   id: string
   tableId: number
@@ -26,6 +26,7 @@ export interface Order {
   preparingAt?: string
   readyAt?: string
   servedAt?: string
+  paidAt?: string
 }
 
 // ─── localStorage helpers ──────────────────────────────────────────────────────
@@ -171,6 +172,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       preparing: 'preparingAt',
       ready:     'readyAt',
       served:    'servedAt',
+      paid:      'paidAt',
     }
     const tsKey = STAGE_TS[status]
 

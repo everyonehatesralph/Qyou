@@ -1,5 +1,91 @@
 [
   {
+    "id": "87111",
+    "tableId": 2,
+    "tableName": "Center Table",
+    "customerName": "Myrelyn",
+    "items": [
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      },
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      }
+    ],
+    "total": 285,
+    "status": "pending",
+    "createdAt": "2026-05-12T17:03:49.041Z",
+    "notes": "Dine In | + Extra Sugar"
+  },
+  {
+    "id": "56453",
+    "tableId": 2,
+    "tableName": "Center Table",
+    "customerName": "iro",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      },
+      {
+        "id": 3,
+        "name": "Matcha Latte",
+        "price": 175,
+        "quantity": 1
+      }
+    ],
+    "total": 460,
+    "status": "paid",
+    "createdAt": "2026-05-12T16:56:52.458Z",
+    "notes": "Dine In | + Extra Sugar",
+    "confirmedAt": "2026-05-12T16:57:16.073Z",
+    "preparingAt": "2026-05-12T16:57:38.472Z",
+    "readyAt": "2026-05-12T16:57:43.617Z",
+    "servedAt": "2026-05-12T16:57:45.810Z"
+  },
+  {
+    "id": "49230",
+    "tableId": 1,
+    "tableName": "Window Seat",
+    "customerName": "Ralph",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      }
+    ],
+    "total": 285,
+    "status": "paid",
+    "createdAt": "2026-05-12T16:54:01.704Z",
+    "notes": "Dine In | + Extra Sugar",
+    "confirmedAt": "2026-05-12T16:57:27.715Z",
+    "preparingAt": "2026-05-12T17:01:41.510Z",
+    "readyAt": "2026-05-12T17:01:41.672Z",
+    "servedAt": "2026-05-12T17:01:41.817Z"
+  },
+  {
     "id": "19298",
     "tableId": 1,
     "tableName": "Window Seat",
@@ -67,7 +153,7 @@
       }
     ],
     "total": 1480,
-    "status": "served",
+    "status": "paid",
     "createdAt": "2026-05-11T07:31:45.846Z",
     "notes": "",
     "confirmedAt": "2026-05-12T16:13:01.918Z",
@@ -101,7 +187,7 @@
       }
     ],
     "total": 460,
-    "status": "served",
+    "status": "paid",
     "createdAt": "2026-05-11T07:31:19.161Z",
     "notes": "",
     "confirmedAt": "2026-05-12T16:13:01.002Z",
@@ -135,7 +221,7 @@
       }
     ],
     "total": 460,
-    "status": "served",
+    "status": "paid",
     "createdAt": "2026-05-11T07:30:34.778Z",
     "notes": "Sugar",
     "confirmedAt": "2026-05-12T16:12:59.825Z",
@@ -169,7 +255,7 @@
       }
     ],
     "total": 460,
-    "status": "served",
+    "status": "paid",
     "createdAt": "2026-05-11T00:41:35.589Z",
     "notes": "",
     "confirmedAt": "2026-05-11T00:41:45.905Z",
@@ -203,7 +289,7 @@
       }
     ],
     "total": 460,
-    "status": "served",
+    "status": "paid",
     "createdAt": "2026-05-11T00:41:28.501Z",
     "notes": "",
     "confirmedAt": "2026-05-11T00:41:46.521Z",
@@ -237,7 +323,7 @@
       }
     ],
     "total": 460,
-    "status": "served",
+    "status": "paid",
     "createdAt": "2026-05-11T00:41:21.042Z",
     "notes": "",
     "confirmedAt": "2026-05-11T00:41:47.078Z",
@@ -271,7 +357,7 @@
       }
     ],
     "total": 460,
-    "status": "served",
+    "status": "paid",
     "createdAt": "2026-05-11T00:41:09.698Z",
     "notes": "",
     "confirmedAt": "2026-05-11T00:41:47.658Z",
@@ -299,7 +385,7 @@
       }
     ],
     "total": 285,
-    "status": "served",
+    "status": "paid",
     "createdAt": "2026-05-11T00:39:34.635Z",
     "notes": "",
     "confirmedAt": "2026-05-11T00:41:48.236Z",
@@ -333,7 +419,7 @@
       }
     ],
     "total": 390,
-    "status": "served",
+    "status": "paid",
     "createdAt": "2026-05-11T00:33:42.888Z",
     "notes": "",
     "confirmedAt": "2026-05-11T00:34:03.107Z",
@@ -361,7 +447,7 @@
       }
     ],
     "total": 420,
-    "status": "served",
+    "status": "paid",
     "createdAt": "2026-05-11T00:28:19.178Z",
     "notes": "",
     "confirmedAt": "2026-05-11T00:28:23.119Z",
@@ -389,7 +475,7 @@
       }
     ],
     "total": 285,
-    "status": "served",
+    "status": "paid",
     "createdAt": "2026-05-10T00:12:15.322Z",
     "notes": "",
     "confirmedAt": "2026-05-10T00:12:23.972Z",
@@ -465,7 +551,7 @@
       }
     ],
     "total": 1480,
-    "status": "served",
+    "status": "paid",
     "createdAt": "2026-05-09T22:55:30.122Z",
     "notes": "",
     "confirmedAt": "2026-05-09T22:55:56.862Z",
@@ -493,7 +579,7 @@
       }
     ],
     "total": 285,
-    "status": "served",
+    "status": "paid",
     "createdAt": "2026-05-09T20:25:08.681Z",
     "notes": "",
     "confirmedAt": "2026-05-09T20:25:16.920Z",

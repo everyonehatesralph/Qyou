@@ -13,14 +13,14 @@ interface ItemStat {
 export default function SalesTracker() {
   const { orders } = useOrders()
 
-  // Only count served orders for accurate sales data
-  const servedOrders = useMemo(() => orders.filter(o => o.status === 'served'), [orders])
-  const allOrders    = useMemo(() => orders, [orders])
+  // Count served + paid orders for sales data
+  const completedOrders = useMemo(() => orders.filter(o => o.status === 'served' || o.status === 'paid'), [orders])
+  const allOrders       = useMemo(() => orders, [orders])
 
   // ── Aggregate per-item stats ──────────────────────────────────────────────────
   const itemStats = useMemo(() => {
     const map = new Map<number, ItemStat>()
-    servedOrders.forEach(order => {
+    completedOrders.forEach(order => {
       order.items.forEach(item => {
         const existing = map.get(item.id)
         if (existing) {
@@ -38,15 +38,15 @@ export default function SalesTracker() {
       })
     })
     return Array.from(map.values()).sort((a, b) => b.totalQty - a.totalQty)
-  }, [servedOrders])
+  }, [completedOrders])
 
   // ── Summary stats ─────────────────────────────────────────────────────────────
   const totalRevenue = useMemo(
-    () => servedOrders.reduce((s, o) => s + o.total, 0),
-    [servedOrders]
+    () => completedOrders.reduce((s, o) => s + o.total, 0),
+    [completedOrders]
   )
-  const totalOrders  = servedOrders.length
-  const activeOrders = allOrders.filter(o => o.status !== 'served').length
+  const totalOrders  = completedOrders.length
+  const activeOrders = allOrders.filter(o => !['served', 'paid'].includes(o.status)).length
   const avgOrderVal  = totalOrders > 0 ? totalRevenue / totalOrders : 0
 
   const topItems    = itemStats.slice(0, 5)
@@ -58,8 +58,8 @@ export default function SalesTracker() {
   // ── Today's orders ────────────────────────────────────────────────────────────
   const today = new Date().toDateString()
   const todayOrders = useMemo(
-    () => servedOrders.filter(o => new Date(o.createdAt).toDateString() === today),
-    [servedOrders, today]
+    () => completedOrders.filter(o => new Date(o.createdAt).toDateString() === today),
+    [completedOrders, today]
   )
   const todayRevenue = todayOrders.reduce((s, o) => s + o.total, 0)
 
@@ -71,7 +71,7 @@ export default function SalesTracker() {
         <div className="flex items-center gap-3 mb-6">
           <BarChart2 className="w-6 h-6 text-primary" />
           <h1 className="text-2xl font-bold text-text-base">Sales Tracker</h1>
-          <span className="ml-auto text-xs text-text-muted">Based on served orders only</span>
+          <span className="ml-auto text-xs text-text-muted">Based on served & paid orders</span>
         </div>
 
         {/* ── Summary Cards ─────────────────────────────────────────────────── */}

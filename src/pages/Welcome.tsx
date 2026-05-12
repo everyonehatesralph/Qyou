@@ -1,7 +1,8 @@
-import { Smartphone, ShoppingBag, Clock, ArrowRight, Shield, Coffee, MapPin } from 'lucide-react'
+import { Smartphone, ShoppingBag, Clock, ArrowRight, Shield, Coffee, MapPin, Lock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { useOrders } from '../context/OrderContext'
 import ThemeToggle from '../components/ThemeToggle'
 
 const features = [
@@ -21,9 +22,16 @@ const TABLES = [
 export default function Welcome() {
   const navigate = useNavigate()
   const { setTableSession } = useAuth()
+  const { orders } = useOrders()
   const [showTablePicker, setShowTablePicker] = useState(false)
   const [selectedTable, setSelectedTable]     = useState<number | null>(null)
   const [name, setName] = useState('')
+
+  // Table is occupied if it has any non-paid order
+  const occupiedTableIds = useMemo(
+    () => new Set(orders.filter(o => o.status !== 'paid').map(o => o.tableId)),
+    [orders]
+  )
 
   const handleStartOrder = () => {
     if (!selectedTable || !name.trim()) return
@@ -256,33 +264,51 @@ export default function Welcome() {
 
             {/* Table grid */}
             <div className="px-5 py-4 space-y-2 overflow-y-auto" style={{ maxHeight: '40vh' }}>
-              {TABLES.map(table => (
-                <button
-                  key={table.id}
-                  onClick={() => setSelectedTable(table.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all text-left"
-                  style={{
-                    border: selectedTable === table.id ? '2px solid #C8860A' : '2px solid #2E2318',
-                    backgroundColor: selectedTable === table.id ? 'rgba(200,134,10,0.1)' : '#211A15',
-                  }}
-                >
-                  <div
-                    className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-sm"
+              {TABLES.map(table => {
+                const occupied = occupiedTableIds.has(table.id)
+                return (
+                  <button
+                    key={table.id}
+                    onClick={() => !occupied && setSelectedTable(table.id)}
+                    disabled={occupied}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all text-left disabled:cursor-not-allowed"
                     style={{
-                      backgroundColor: selectedTable === table.id ? '#C8860A' : 'rgba(200,134,10,0.12)',
-                      color: selectedTable === table.id ? '#0D0B0A' : '#C8860A',
+                      border: selectedTable === table.id ? '2px solid #C8860A'
+                        : occupied ? '2px solid rgba(248,113,113,0.3)'
+                        : '2px solid #2E2318',
+                      backgroundColor: selectedTable === table.id ? 'rgba(200,134,10,0.1)'
+                        : occupied ? 'rgba(248,113,113,0.05)'
+                        : '#211A15',
+                      opacity: occupied ? 0.55 : 1,
                     }}
                   >
-                    {table.id}
-                  </div>
-                  <span
-                    className="font-semibold text-sm"
-                    style={{ color: selectedTable === table.id ? '#F0E6D3' : '#9B8B7A' }}
-                  >
-                    {table.name}
-                  </span>
-                </button>
-              ))}
+                    <div
+                      className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-sm"
+                      style={{
+                        backgroundColor: selectedTable === table.id ? '#C8860A'
+                          : occupied ? 'rgba(248,113,113,0.15)'
+                          : 'rgba(200,134,10,0.12)',
+                        color: selectedTable === table.id ? '#0D0B0A'
+                          : occupied ? '#F87171'
+                          : '#C8860A',
+                      }}
+                    >
+                      {occupied ? <Lock className="w-4 h-4" /> : table.id}
+                    </div>
+                    <div className="flex-1">
+                      <span
+                        className="font-semibold text-sm block"
+                        style={{ color: selectedTable === table.id ? '#F0E6D3' : occupied ? '#9B8B7A' : '#9B8B7A' }}
+                      >
+                        {table.name}
+                      </span>
+                      {occupied && (
+                        <span className="text-[10px] font-bold" style={{ color: '#F87171' }}>OCCUPIED</span>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
             </div>
 
             {/* Name input */}
