@@ -3,11 +3,16 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useState, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 const TABLE_NAMES: Record<number, string> = {
-  1: 'Window Seat',
-  2: 'Center Table',
-  3: 'Garden View',
-  4: 'Bar Seat A',
-  5: 'Bar Seat B',
+  1: 'Table 1',
+  2: 'Table 2',
+  3: 'Table 3',
+  4: 'Table 4',
+  5: 'Table 5',
+  6: 'Table 6',
+  7: 'Table 7',
+  8: 'Table 8',
+  9: 'Table 9',
+  10: 'Table 10',
 }
 export default function TokenValidation() {
   const navigate = useNavigate()

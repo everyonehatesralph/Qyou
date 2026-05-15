@@ -99,7 +99,6 @@ export default function TableAvailability() {
                     </div>
                     <div>
                       <p className="font-bold text-text-base text-sm">{table.name}</p>
-                      <p className="text-[10px] text-text-faint">Table {table.id}</p>
                     </div>
                   </div>
                   <span
