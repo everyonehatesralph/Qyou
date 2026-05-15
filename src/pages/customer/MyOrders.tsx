@@ -1,4 +1,4 @@
-import { ClipboardList, ChefHat, Clock, CheckCircle, ArrowRight, Loader2, Coffee, X, Heart, Bell } from 'lucide-react'
+import { ClipboardList, ChefHat, Clock, CheckCircle, ArrowRight, Loader2, Coffee, X, Heart, Bell, Flame } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useMemo, useState } from 'react'
 import { useOrders, getMyOrderIds } from '../../context/OrderContext'
@@ -117,6 +117,94 @@ function OrderCard({ order, onTap, onCancel }: { order: Order; onTap: () => void
   )
 }
 
+/* ── Live Queue Board ────────────────────────────────────────────────── */
+function LiveQueueBoard({ orders }: { orders: Order[] }) {
+  const preparing = orders.filter(o => o.status === 'preparing')
+  const ready = orders.filter(o => o.status === 'ready')
+
+  if (preparing.length === 0 && ready.length === 0) return null
+
+  return (
+    <div className="mb-5 space-y-2.5">
+      {/* Now Preparing */}
+      {preparing.length > 0 && (
+        <div
+          className="rounded-xl p-3.5 flex items-start gap-3"
+          style={{ backgroundColor: 'rgba(200,134,10,0.06)', border: '1.5px solid rgba(200,134,10,0.3)' }}
+        >
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+            style={{ backgroundColor: 'rgba(200,134,10,0.15)' }}
+          >
+            <Flame className="w-4.5 h-4.5 animate-pulse" style={{ color: '#C8860A', width: 18, height: 18 }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#C8860A' }}>
+                Now Preparing
+              </span>
+              <span
+                className="w-2 h-2 rounded-full animate-pulse"
+                style={{ backgroundColor: '#C8860A' }}
+              />
+              <span className="text-[10px] text-text-faint">LIVE</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {preparing.map(o => (
+                <span
+                  key={o.id}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold"
+                  style={{ backgroundColor: 'rgba(200,134,10,0.12)', color: '#C8860A', border: '1px solid rgba(200,134,10,0.2)' }}
+                >
+                  #{o.id}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ready for Pickup */}
+      {ready.length > 0 && (
+        <div
+          className="rounded-xl p-3.5 flex items-start gap-3"
+          style={{ backgroundColor: 'rgba(74,222,128,0.06)', border: '1.5px solid rgba(74,222,128,0.35)' }}
+        >
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+            style={{ backgroundColor: 'rgba(74,222,128,0.15)' }}
+          >
+            <Bell className="w-4.5 h-4.5 animate-bounce" style={{ color: '#4ADE80', width: 18, height: 18 }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#4ADE80' }}>
+                Ready for Pickup
+              </span>
+              <span
+                className="w-2 h-2 rounded-full animate-pulse"
+                style={{ backgroundColor: '#4ADE80' }}
+              />
+              <span className="text-[10px] text-text-faint">LIVE</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {ready.map(o => (
+                <span
+                  key={o.id}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold"
+                  style={{ backgroundColor: 'rgba(74,222,128,0.12)', color: '#4ADE80', border: '1px solid rgba(74,222,128,0.25)' }}
+                >
+                  #{o.id}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function MyOrders() {
   const navigate = useNavigate()
   const { orders, cancelOrder } = useOrders()
@@ -223,10 +311,13 @@ export default function MyOrders() {
           </div>
         )}
 
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-4">
           <ClipboardList className="w-6 h-6 text-primary" />
           <h1 className="text-2xl font-bold text-text-base">My Orders</h1>
         </div>
+
+        {/* ── Live Queue Board ─────────────────────────────────────── */}
+        <LiveQueueBoard orders={orders} />
 
         {myOrders.length === 0 ? (
           <div className="card p-12 text-center">
