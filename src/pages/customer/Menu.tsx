@@ -4,7 +4,6 @@ import { useState, useMemo, useCallback } from 'react'
 import { useCart } from '../../context/CartContext'
 import { useAuth } from '../../context/AuthContext'
 import { useMenuAvailability } from '../../context/MenuAvailabilityContext'
-import { useOrders } from '../../context/OrderContext'
 import { MENU_ITEMS, CATEGORIES } from '../../constants/menu'
 import HelpAssistant from '../../components/HelpAssistant'
 
@@ -18,16 +17,10 @@ function getGreeting(): string {
 export default function Menu() {
   const navigate = useNavigate()
   const { addToCart, updateQuantity, removeFromCart, cartItems, cartCount } = useCart()
-  const { customerName } = useAuth()
+  const { customerName, tableName } = useAuth()
   const { itemAvailability } = useMenuAvailability()
-  const { orders } = useOrders()
   const [selectedCategory, setSelectedCategory] = useState('All')
 
-  // Queue number = total active orders (not yet served) + 1
-  const queueNumber = useMemo(
-    () => orders.filter(o => o.status !== 'served').length + 1,
-    [orders]
-  )
 
   const filteredItems = useMemo(() => {
     const byCat = selectedCategory === 'All'
@@ -64,23 +57,24 @@ export default function Menu() {
           </div>
         )}
 
-        {/* Queue number banner */}
-        <div
-          className="flex items-center gap-3 rounded-xl px-4 py-3 mb-6"
-          style={{ backgroundColor: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.2)' }}
-        >
+        {/* Table indicator */}
+        {tableName && (
           <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-lg"
-            style={{ backgroundColor: 'rgba(96,165,250,0.15)', color: '#60A5FA', border: '1px solid rgba(96,165,250,0.3)' }}
+            className="flex items-center gap-3 rounded-xl px-4 py-3 mb-6"
+            style={{ backgroundColor: 'rgba(200,134,10,0.08)', border: '1px solid rgba(200,134,10,0.2)' }}
           >
-            <Hash className="w-5 h-5" />
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-lg"
+              style={{ backgroundColor: 'rgba(200,134,10,0.15)', color: '#C8860A', border: '1px solid rgba(200,134,10,0.3)' }}
+            >
+              <Hash className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs text-text-muted">You're seated at</p>
+              <p className="font-bold text-lg" style={{ color: '#C8860A' }}>{tableName}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-text-muted">Your estimated queue number</p>
-            <p className="font-bold text-xl" style={{ color: '#60A5FA' }}>Q-{String(queueNumber).padStart(3, '0')}</p>
-          </div>
-          <p className="ml-auto text-xs text-text-faint text-right">Updates live</p>
-        </div>
+        )}
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
