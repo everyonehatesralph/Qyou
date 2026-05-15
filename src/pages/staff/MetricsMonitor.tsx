@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { metricsCollector, type MetricsSnapshot } from '../../services/metricsCollector'
+import StaffPageShell from '../../components/StaffPageShell'
 
 export default function MetricsMonitor() {
   const [metrics, setMetrics] = useState<MetricsSnapshot | null>(null)
@@ -24,7 +25,7 @@ export default function MetricsMonitor() {
   if (!metrics) return <div className="p-4 text-text-base">Loading metrics...</div>
 
   return (
-    <div className="min-h-screen md:ml-56" style={{ backgroundColor: '#0D0B0A' }}>
+    <StaffPageShell>
       <header
         className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-3"
         style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
@@ -35,7 +36,7 @@ export default function MetricsMonitor() {
         <span className="text-xs" style={{ color: '#5C4F44' }}>Updated: {new Date(metrics.timestamp).toLocaleTimeString()}</span>
       </header>
 
-      <main className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
+      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
 
         {/* Grid Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
@@ -214,7 +215,7 @@ export default function MetricsMonitor() {
           </ul>
         </div>
       </main>
-    </div>
+    </StaffPageShell>
   )
 }
 

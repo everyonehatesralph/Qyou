@@ -2,6 +2,7 @@ import { Settings, Plus, Edit, Trash, X, Check, ToggleLeft, ToggleRight } from '
 import { useState, useCallback } from 'react'
 import { useMenuAvailability } from '../../context/MenuAvailabilityContext'
 import { MENU_ITEMS } from '../../constants/menu'
+import StaffPageShell from '../../components/StaffPageShell'
 
 type EditableItem = { name: string; price: string; category: string }
 export default function MenuManagement() {
@@ -42,7 +43,7 @@ export default function MenuManagement() {
   }, [addForm, items])
   const categories = ['Coffee', 'Tea', 'Pastry', 'Food']
   return (
-    <div className="min-h-screen md:ml-56" style={{ backgroundColor: '#0D0B0A' }}>
+    <StaffPageShell>
       <header
         className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-3"
         style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
@@ -64,7 +65,7 @@ export default function MenuManagement() {
         </button>
       </header>
 
-      <main className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
+      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
         <p className="text-sm" style={{ color: '#9B8B7A' }}>
           Toggle items on/off for today's service. Changes are visible to customers immediately.
         </p>
@@ -262,6 +263,6 @@ export default function MenuManagement() {
           </div>
         </div>
       </main>
-    </div>
+    </StaffPageShell>
   )
 }

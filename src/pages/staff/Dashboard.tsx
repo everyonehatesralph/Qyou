@@ -6,6 +6,7 @@ import { useOrders } from '../../context/OrderContext'
 import type { Order } from '../../context/OrderContext'
 import { useOrderNotification } from '../../hooks/useOrderNotification'
 import { useMemo, useCallback, memo } from 'react'
+import StaffPageShell from '../../components/StaffPageShell'
 
 const TABLES = [
   { id: 1, name: 'Table 1' },
@@ -267,7 +268,7 @@ export default function Dashboard() {
   }, [orders, updateOrderStatus])
 
   return (
-    <div className="min-h-screen md:ml-56" style={{ backgroundColor: '#0D0B0A' }}>
+    <StaffPageShell>
       {/* Top header bar (Square UI pattern) */}
       <header
         className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-3"
@@ -292,7 +293,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
+      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
         {/* Welcome section (Square UI pattern) */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -589,6 +590,6 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
-    </div>
+    </StaffPageShell>
   )
 }

@@ -1,6 +1,7 @@
 import { MapPin, CheckCircle, Lock, Banknote, Users } from 'lucide-react'
 import { useOrders } from '../../context/OrderContext'
 import { useMemo, useCallback } from 'react'
+import StaffPageShell from '../../components/StaffPageShell'
 
 const TABLES = [
   { id: 1, name: 'Table 1' },
@@ -36,7 +37,7 @@ export default function TableAvailability() {
   }, [orders, updateOrderStatus])
 
   return (
-    <div className="min-h-screen md:ml-56" style={{ backgroundColor: '#0D0B0A' }}>
+    <StaffPageShell>
       <header
         className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-3"
         style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
@@ -52,7 +53,7 @@ export default function TableAvailability() {
         </div>
       </header>
 
-      <main className="p-4 sm:p-6 space-y-6 max-w-5xl mx-auto pb-24 md:pb-8">
+      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-5xl mx-auto pb-24 md:pb-8">
         <div>
           <p className="text-sm" style={{ color: '#9B8B7A' }}>
             Manage table occupancy. Free tables become available for new customers.
@@ -182,6 +183,6 @@ export default function TableAvailability() {
           })}
         </div>
       </main>
-    </div>
+    </StaffPageShell>
   )
 }

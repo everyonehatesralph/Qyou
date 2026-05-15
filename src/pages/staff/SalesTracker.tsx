@@ -4,6 +4,7 @@ import {
   Clock, Users, Download, Zap, Coffee, Activity, PieChart,
 } from 'lucide-react'
 import { useOrders } from '../../context/OrderContext'
+import StaffPageShell from '../../components/StaffPageShell'
 // types inferred from useOrders()
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -159,7 +160,7 @@ export default function SalesTracker() {
   }, [completed])
 
   return (
-    <div className="min-h-screen md:ml-56" style={{ backgroundColor: '#0D0B0A' }}>
+    <StaffPageShell>
       {/* Sticky header bar */}
       <header
         className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-3"
@@ -198,7 +199,7 @@ export default function SalesTracker() {
         </div>
       </header>
 
-      <main className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
+      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
 
         {/* ── KPI Cards ──────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
@@ -444,6 +445,6 @@ export default function SalesTracker() {
           </>
         )}
       </main>
-    </div>
+    </StaffPageShell>
   )
 }
