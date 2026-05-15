@@ -1,10 +1,13 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Search, ShoppingCart, ShoppingBag, ClipboardList, LayoutGrid, ChefHat, Settings, QrCode, LogOut, TrendingUp, MapPin, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  Search, ShoppingCart, ShoppingBag, ClipboardList, LayoutGrid,
+  ChefHat, Settings, QrCode, LogOut, TrendingUp, MapPin, BarChart3,
+  ChevronsUpDown, ChevronRight, PanelLeft
+} from 'lucide-react'
 import { useState } from 'react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import ThemeToggle from './ThemeToggle'
-
 
 const customerItems = [
   { path: '/search',      label: 'Search',    icon: Search },
@@ -13,11 +16,14 @@ const customerItems = [
   { path: '/my-orders',   label: 'Orders',    icon: ClipboardList },
 ]
 
-const staffItems = [
+const staffNavMain = [
   { path: '/staff/dashboard', label: 'Dashboard', icon: LayoutGrid },
   { path: '/staff/kitchen',   label: 'Kitchen',   icon: ChefHat },
+  { path: '/staff/tables',    label: 'Tables',    icon: MapPin },
+]
+
+const staffNavTools = [
   { path: '/staff/menu',      label: 'Menu Mgmt', icon: Settings },
-  { path: '/staff/tables',    label: 'Tables',     icon: MapPin },
   { path: '/staff/sales',     label: 'Analytics',  icon: TrendingUp },
   { path: '/staff/metrics',   label: 'Metrics',    icon: BarChart3 },
   { path: '/staff/qr-codes',  label: 'QR Codes',   icon: QrCode },
@@ -33,197 +39,232 @@ export default function Navigation() {
   const isActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
 
-
   // Hide nav on landing page and staff login
   if (location.pathname === '/' || location.pathname === '/staff/login') return null
 
   const handleLogout = () => { staffLogout(); navigate('/') }
 
-  // ── STAFF gets sidebar on desktop, bottom bar on mobile ──
+  // ── STAFF: Square UI sidebar ──────────────────────────────────────────────
   if (isStaff && isStaffRoute) {
     return (
       <>
         {/* Desktop Sidebar */}
         <aside
           className="hidden md:flex fixed top-0 left-0 bottom-0 z-50 flex-col transition-all duration-300"
-          style={{ 
-            width: sidebarExpanded ? '224px' : '80px',
-            backgroundColor: '#0D0B0A', 
-            borderRight: '1px solid #2E2318' 
+          style={{
+            width: sidebarExpanded ? '224px' : '64px',
+            backgroundColor: '#171210',
+            borderRight: '1px solid #2E2318',
           }}
         >
-          {/* Logo */}
-          <button
-            onClick={() => navigate('/staff/dashboard')}
-            className="flex items-center gap-2.5 px-5 py-5 group transition-all duration-300"
+          {/* ─ Brand Header (Square UI pattern) ─ */}
+          <div
+            className="flex items-center gap-2.5 px-3 py-3 shrink-0"
             style={{ borderBottom: '1px solid #2E2318' }}
           >
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0"
-              style={{ backgroundColor: 'rgba(200,134,10,0.15)', border: '1px solid rgba(200,134,10,0.35)' }}
-            >
-              <img src="/assets/bean.png" alt="DeVerse Cafe" className="w-5 h-5 object-contain" />
-            </div>
-            {sidebarExpanded && (
-              <div className="min-w-0">
-                <span className="font-bold text-text-base text-sm block leading-tight">
-                  DeVerse <span className="text-primary">Cafe</span>
-                </span>
-                <span className="text-[10px] text-text-faint">Staff Panel</span>
-              </div>
-            )}
-          </button>
-
-          {/* Nav items */}
-          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {staffItems.map(({ path, label, icon: Icon }) => {
-              const active = isActive(path)
-              return (
-                <button
-                  key={path}
-                  onClick={() => navigate(path)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200"
-                  style={active
-                    ? { backgroundColor: 'rgba(200,134,10,0.15)', color: '#C8860A', border: '1px solid rgba(200,134,10,0.25)' }
-                    : { color: '#9B8B7A', border: '1px solid transparent' }
-                  }
-                  onMouseEnter={e => { if (!active) e.currentTarget.style.backgroundColor = '#171210' }}
-                  onMouseLeave={e => { if (!active) e.currentTarget.style.backgroundColor = 'transparent' }}
-                  title={!sidebarExpanded ? label : ''}
-                >
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  {sidebarExpanded && <span>{label}</span>}
-                  {active && (
-                    <span
-                      className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: '#C8860A' }}
-                    />
-                  )}
-                </button>
-              )
-            })}
-          </nav>
-
-          {/* Footer — Staff profile card */}
-          <div className="px-3 py-4" style={{ borderTop: '1px solid #2E2318' }}>
-            {/* Collapse button */}
             <button
-              onClick={() => setSidebarExpanded(!sidebarExpanded)}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all mb-3"
-              style={{
-                backgroundColor: 'rgba(200,134,10,0.08)',
-                color: '#C8860A',
-                border: '1px solid rgba(200,134,10,0.2)',
-              }}
-              title={sidebarExpanded ? 'Collapse' : 'Expand'}
+              onClick={() => navigate('/staff/dashboard')}
+              className="flex items-center gap-2.5 w-full hover:opacity-80 transition-opacity rounded-md p-1 -m-1"
             >
-              {sidebarExpanded ? (
-                <>
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                  <span>Collapse</span>
-                </>
-              ) : (
-                <ChevronRight className="w-3.5 h-3.5" />
+              <div
+                className="flex w-7 h-7 items-center justify-center rounded-lg shrink-0 overflow-hidden"
+                style={{ backgroundColor: '#F0E6D3' }}
+              >
+                <img src="/assets/bean.png" alt="DeVerse Cafe" className="w-4 h-4 object-contain" />
+              </div>
+              {sidebarExpanded && (
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-medium" style={{ color: '#F0E6D3' }}>
+                    DeVerse Cafe
+                  </span>
+                  <ChevronsUpDown className="w-3 h-3" style={{ color: '#5C4F44' }} />
+                </div>
               )}
             </button>
+          </div>
 
-            {/* Profile card - only show when expanded */}
+          {/* ─ Main Navigation ─ */}
+          <nav className="flex-1 px-2.5 py-3 overflow-y-auto space-y-4">
+            {/* Primary nav */}
+            <div className="space-y-0.5">
+              {staffNavMain.map(({ path, label, icon: Icon }) => {
+                const active = isActive(path)
+                return (
+                  <button
+                    key={path}
+                    onClick={() => navigate(path)}
+                    className="w-full flex items-center gap-2.5 h-7 px-2 rounded-md text-sm transition-all duration-150"
+                    style={active
+                      ? { backgroundColor: 'rgba(200,134,10,0.12)', color: '#C8860A' }
+                      : { color: '#9B8B7A' }
+                    }
+                    onMouseEnter={e => { if (!active) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#F0E6D3' } }}
+                    onMouseLeave={e => { if (!active) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#9B8B7A' } }}
+                    title={!sidebarExpanded ? label : ''}
+                  >
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                    {sidebarExpanded && <span className="text-sm">{label}</span>}
+                    {active && sidebarExpanded && (
+                      <span
+                        className="ml-auto flex w-5 h-5 items-center justify-center rounded text-[10px] font-medium"
+                        style={{ backgroundColor: 'rgba(200,134,10,0.15)', color: '#C8860A' }}
+                      >
+                        ●
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Tools section label */}
+            <div>
+              {sidebarExpanded && (
+                <div className="flex items-center justify-between px-2 h-6 mb-1">
+                  <span
+                    className="text-[10px] font-medium tracking-wider uppercase"
+                    style={{ color: '#5C4F44' }}
+                  >
+                    Tools
+                  </span>
+                </div>
+              )}
+              <div className="space-y-0.5">
+                {staffNavTools.map(({ path, label, icon: Icon }) => {
+                  const active = isActive(path)
+                  return (
+                    <button
+                      key={path}
+                      onClick={() => navigate(path)}
+                      className="w-full flex items-center gap-2.5 h-7 px-2 rounded-md text-sm transition-all duration-150"
+                      style={active
+                        ? { backgroundColor: 'rgba(200,134,10,0.12)', color: '#C8860A' }
+                        : { color: '#9B8B7A' }
+                      }
+                      onMouseEnter={e => { if (!active) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#F0E6D3' } }}
+                      onMouseLeave={e => { if (!active) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#9B8B7A' } }}
+                      title={!sidebarExpanded ? label : ''}
+                    >
+                      <Icon className="w-3.5 h-3.5 shrink-0" />
+                      {sidebarExpanded && <span className="text-sm">{label}</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </nav>
+
+          {/* ─ Footer (Square UI pattern) ─ */}
+          <div className="px-2.5 pb-3 shrink-0" style={{ borderTop: '1px solid #2E2318' }}>
+            {/* Collapse toggle */}
+            <button
+              onClick={() => setSidebarExpanded(!sidebarExpanded)}
+              className="w-full flex items-center gap-2 h-7 px-2 rounded-md text-sm transition-all duration-150 mt-3 mb-2"
+              style={{ color: '#5C4F44' }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#9B8B7A' }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#5C4F44' }}
+            >
+              {sidebarExpanded
+                ? <><PanelLeft className="w-3.5 h-3.5 shrink-0" /><span>Collapse</span></>
+                : <ChevronRight className="w-3.5 h-3.5 shrink-0 mx-auto" />
+              }
+            </button>
+
+            {/* Profile card (Square UI footer promo pattern) */}
             {sidebarExpanded && (
               <div
-                className="rounded-xl p-3 mb-3"
-                style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}
+                className="relative flex flex-col gap-2 rounded-lg p-3 text-sm w-full"
+                style={{ backgroundColor: '#0D0B0A', border: '1px solid #2E2318' }}
               >
-                <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center gap-2.5">
                   <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0"
-                    style={{
-                      background: 'linear-gradient(135deg, #C8860A 0%, #E8C97A 100%)',
-                      color: '#0D0B0A',
-                    }}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
+                    style={{ background: 'linear-gradient(135deg, #C8860A, #E8C97A)', color: '#0D0B0A' }}
                   >
                     S
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-text-base leading-tight">Staff Account</p>
-                    <p className="text-[10px] text-text-faint mt-0.5">Administrator</p>
+                    <p className="text-xs font-medium leading-tight" style={{ color: '#F0E6D3' }}>Staff Account</p>
+                    <p className="text-[10px]" style={{ color: '#5C4F44' }}>Administrator</p>
                   </div>
                   <span
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: '#4ADE80', boxShadow: '0 0 6px rgba(74,222,128,0.5)' }}
-                    title="Online"
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: '#4ADE80', boxShadow: '0 0 6px rgba(74,222,128,0.4)' }}
                   />
                 </div>
 
                 {/* Theme row */}
                 <div
-                  className="flex items-center justify-between px-2 py-2 rounded-lg"
-                  style={{ backgroundColor: '#0D0B0A' }}
+                  className="flex items-center justify-between px-2 py-1.5 rounded-md"
+                  style={{ backgroundColor: '#171210' }}
                 >
-                  <span className="text-[11px] text-text-muted font-medium">Appearance</span>
+                  <span className="text-[10px] font-medium" style={{ color: '#5C4F44' }}>Theme</span>
                   <ThemeToggle variant="nav" />
                 </div>
+
+                {/* Sign out */}
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center gap-1.5 h-7 rounded-md text-xs font-medium transition-all duration-150 active:scale-95"
+                  style={{ color: '#5C4F44' }}
+                  onMouseEnter={e => { e.currentTarget.style.color = '#F87171'; e.currentTarget.style.backgroundColor = 'rgba(248,113,113,0.06)' }}
+                  onMouseLeave={e => { e.currentTarget.style.color = '#5C4F44'; e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  <LogOut className="w-3 h-3" />
+                  Log out
+                </button>
               </div>
             )}
-
-            {/* Logout button */}
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-95"
-              style={{
-                backgroundColor: 'transparent',
-                color: '#9B8B7A',
-                border: '1px solid #2E2318',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(248,113,113,0.4)'; e.currentTarget.style.color = '#F87171'; e.currentTarget.style.backgroundColor = 'rgba(248,113,113,0.05)' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#2E2318'; e.currentTarget.style.color = '#9B8B7A'; e.currentTarget.style.backgroundColor = 'transparent' }}
-              title={!sidebarExpanded ? 'Sign Out' : ''}
-            >
-              <LogOut className="w-3.5 h-3.5 flex-shrink-0" />
-              {sidebarExpanded && 'Sign Out'}
-            </button>
           </div>
         </aside>
 
         {/* Mobile Bottom Bar (staff) */}
         <nav
-          className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass"
-          style={{ borderTop: '1px solid #2E2318' }}
+          className="md:hidden fixed bottom-0 left-0 right-0 z-50"
+          style={{ backgroundColor: '#171210', borderTop: '1px solid #2E2318' }}
         >
-          <div className="grid grid-cols-6">
-            {staffItems.map(({ path, label, icon: Icon }) => {
+          <div className="grid grid-cols-7">
+            {[...staffNavMain, ...staffNavTools].map(({ path, label, icon: Icon }) => {
               const active = isActive(path)
               return (
                 <button
                   key={path}
                   onClick={() => navigate(path)}
-                  className="relative flex flex-col items-center justify-center py-2.5 px-1 transition-all duration-200"
-                  style={{ color: active ? '#C8860A' : '#9B8B7A' }}
+                  className="relative flex flex-col items-center justify-center py-2.5 px-1 transition-all duration-150"
+                  style={{ color: active ? '#C8860A' : '#5C4F44' }}
                 >
                   {active && (
                     <span
-                      className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full"
+                      className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full"
                       style={{ backgroundColor: '#C8860A' }}
                     />
                   )}
-                  <Icon className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
-                  <span className="text-[9px] mt-0.5 font-medium leading-tight">{label}</span>
+                  <Icon className="w-4 h-4" />
+                  <span className="text-[8px] mt-0.5 font-medium leading-tight">{label}</span>
                 </button>
               )
             })}
           </div>
           <div
-            className="flex items-center justify-between px-4 py-1.5"
+            className="flex items-center justify-between px-4 py-1"
             style={{ borderTop: '1px solid #2E2318', backgroundColor: '#0D0B0A' }}
           >
-            <span className="text-[10px] text-text-faint">Staff Mode</span>
-            <button onClick={handleLogout} className="flex items-center gap-1 text-[10px] text-error">
+            <span className="text-[10px]" style={{ color: '#3D3028' }}>Staff Mode</span>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1 text-[10px]"
+              style={{ color: '#F87171' }}
+            >
               <LogOut className="w-3 h-3" /> Logout
             </button>
           </div>
         </nav>
 
-        {/* Spacer: push content right of sidebar on desktop, below top on mobile */}
-        <div className="hidden md:block flex-shrink-0 transition-all duration-300" style={{ width: sidebarExpanded ? '224px' : '80px' }} />
+        {/* Spacer */}
+        <div
+          className="hidden md:block flex-shrink-0 transition-all duration-300"
+          style={{ width: sidebarExpanded ? '224px' : '64px' }}
+        />
       </>
     )
   }
