@@ -42,36 +42,33 @@ export default function SearchPage() {
     <div className="min-h-screen bg-background pt-14 pb-28">
       {/* ── Sticky search bar ──────────────────────────────────────────── */}
       <div
-        className="sticky top-14 z-30 px-4 sm:px-6 pt-4 pb-3"
-        style={{ backgroundColor: 'var(--background)', borderBottom: '1px solid #2E2318' }}
+        className="sticky top-14 z-30 px-4 sm:px-6 py-5"
+        style={{ backgroundColor: 'var(--background)' }}
       >
         <div className="max-w-3xl mx-auto">
           {/* Search input */}
-          <div className="relative mb-3">
-            <SearchIcon
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4"
-              style={{ color: '#9B8B7A' }}
-            />
+          <div className="relative mb-4">
             <input
               autoFocus
               type="text"
               placeholder="Search coffee, pastries, meals…"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              className="w-full pl-10 pr-10 py-3 rounded-xl text-sm outline-none transition-all"
+              className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all font-medium"
               style={{
                 backgroundColor: '#171210',
-                border: query ? '1.5px solid rgba(200,134,10,0.5)' : '1.5px solid #2E2318',
+                border: query ? '2px solid #C8860A' : '1.5px solid #2E2318',
                 color: '#F0E6D3',
+                boxShadow: query ? '0 0 16px rgba(200,134,10,0.15)' : 'none',
               }}
             />
             {query && (
               <button
                 onClick={() => setQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-md hover:bg-surface-3 transition-all"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-surface-3 transition-all"
                 style={{ color: '#9B8B7A' }}
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             )}
           </div>
@@ -87,7 +84,7 @@ export default function SearchPage() {
                   onClick={() => setCategory(cat)}
                   className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0"
                   style={active
-                    ? { backgroundColor: '#C8860A', color: '#0D0B0A' }
+                    ? { backgroundColor: '#C8860A', color: '#0D0B0A', boxShadow: '0 2px 8px rgba(200,134,10,0.25)' }
                     : { backgroundColor: '#171210', color: '#9B8B7A', border: '1px solid #2E2318' }
                   }
                 >
@@ -99,6 +96,9 @@ export default function SearchPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Divider ────────────────────────────────────────────────────── */}
+      <div style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(200,134,10,0.3), transparent)' }} />
 
       {/* ── Results ────────────────────────────────────────────────────── */}
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-5">

@@ -1,16 +1,16 @@
-import { Clock, CheckCircle, Loader2, ChefHat, Bell, Receipt } from 'lucide-react'
+import { Clock, CheckCircle, Loader2, ChefHat, Bell, Receipt, Wallet, MapPinned, UserCheck } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useOrders } from '../../context/OrderContext'
 import InvoiceModal from '../../components/InvoiceModal'
 
 // ─── Pipeline definition — Customer → Cashier → Kitchen → Customer ────────────
 const STEPS = [
-  { key: 'pending',   label: 'Order Placed',       desc: 'Your order has been submitted to the cashier for confirmation.',     color: '#C8860A' },
-  { key: 'confirmed', label: 'Cashier Confirmed',   desc: 'The cashier has confirmed your order and sent it to the kitchen.',  color: '#60A5FA' },
-  { key: 'preparing', label: 'Kitchen Preparing',   desc: 'The kitchen is now preparing your food and drinks.',               color: '#C8860A' },
-  { key: 'ready',     label: 'Ready for You! 🎉',   desc: 'Your order is ready — a staff member will bring it to your table.', color: '#4ADE80' },
-  { key: 'served',    label: 'Served ✓',            desc: 'Enjoy your meal! Thank you for dining with us.',                   color: '#4ADE80' },
+  { key: 'pending', label: 'Order Placed', desc: 'Your order has been submitted to the cashier for confirmation.', color: '#C8860A' },
+  { key: 'confirmed', label: 'Cashier Confirmed', desc: 'The cashier has confirmed your order and sent it to the kitchen.', color: '#60A5FA' },
+  { key: 'preparing', label: 'Kitchen Preparing', desc: 'The kitchen is now preparing your food and drinks.', color: '#C8860A' },
+  { key: 'ready', label: 'Ready for You! 🎉', desc: 'Your order is ready — a staff member will bring it to your table.', color: '#4ADE80' },
+  { key: 'served', label: 'Served ✓', desc: 'Enjoy your meal! Thank you for dining with us.', color: '#4ADE80' },
 ]
 const STATUS_ORDER = ['pending', 'confirmed', 'preparing', 'ready', 'served']
 
@@ -33,6 +33,16 @@ export default function OrderStatus() {
     () => orders.find(o => o.id === orderId),
     [orders, orderId]
   )
+
+  // Auto-redirect to menu when order is served
+  useEffect(() => {
+    if (order && order.status === 'served') {
+      const timer = setTimeout(() => {
+        navigate('/menu')
+      }, 2000) // 2 second delay to show the celebration
+      return () => clearTimeout(timer)
+    }
+  }, [order, navigate])
 
   // Re-read fresh elapsed times on every render (BroadcastChannel drives renders)
   const now = Date.now()
@@ -75,16 +85,68 @@ export default function OrderStatus() {
           <>
             {/* ── Current status banner ── */}
             {order.status === 'ready' ? (
-              <div
-                className="rounded-xl p-4 flex items-center gap-3 mb-5"
-                style={{ backgroundColor: 'rgba(74,222,128,0.1)', border: '2px solid rgba(74,222,128,0.4)' }}
-              >
-                <Bell className="w-6 h-6 animate-bounce flex-shrink-0" style={{ color: '#4ADE80' }} />
-                <div>
-                  <p className="font-bold text-sm" style={{ color: '#4ADE80' }}>Your order is ready!</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'rgba(74,222,128,0.7)' }}>
-                    A staff member will bring it to your table shortly.
-                  </p>
+              <div className="space-y-3 mb-5">
+                {/* Ready announcement */}
+                <div
+                  className="rounded-xl p-4 flex items-center gap-3"
+                  style={{ backgroundColor: 'rgba(74,222,128,0.1)', border: '2px solid rgba(74,222,128,0.4)' }}
+                >
+                  <Bell className="w-6 h-6 animate-bounce flex-shrink-0" style={{ color: '#4ADE80' }} />
+                  <div>
+                    <p className="font-bold text-sm" style={{ color: '#4ADE80' }}>Your order is ready! 🎉</p>
+                    <p className="text-xs mt-0.5 text-text-muted">Choose how you'd like to receive it</p>
+                  </div>
+                </div>
+
+                {/* Pickup options */}
+                <div className="grid grid-cols-1 gap-3">
+                  {/* Option 1: Self pickup */}
+                  <div
+                    className="rounded-xl p-4 flex items-start gap-3.5"
+                    style={{ backgroundColor: '#171210', border: '1.5px solid rgba(200,134,10,0.35)' }}
+                  >
+                    <div
+                      className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: 'rgba(200,134,10,0.12)', border: '1px solid rgba(200,134,10,0.25)' }}
+                    >
+                      <MapPinned className="w-5 h-5" style={{ color: '#C8860A' }} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-text-base">Pick up at the counter</p>
+                      <p className="text-xs text-text-muted mt-0.5">Head to the pickup area and collect your order</p>
+                    </div>
+                  </div>
+
+                  {/* Option 2: Waiter delivery */}
+                  <div
+                    className="rounded-xl p-4 flex items-start gap-3.5"
+                    style={{ backgroundColor: '#171210', border: '1.5px solid rgba(96,165,250,0.35)' }}
+                  >
+                    <div
+                      className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.25)' }}
+                    >
+                      <UserCheck className="w-5 h-5" style={{ color: '#60A5FA' }} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-text-base">Ask a waiter to deliver</p>
+                      <p className="text-xs text-text-muted mt-0.5">Stay seated — a staff member will bring it to your table</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment reminder */}
+                <div
+                  className="rounded-xl p-3.5 flex items-center gap-3"
+                  style={{ backgroundColor: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.25)' }}
+                >
+                  <Wallet className="w-5 h-5 flex-shrink-0" style={{ color: '#FBBF24' }} />
+                  <div>
+                    <p className="font-semibold text-xs" style={{ color: '#FBBF24' }}>Please ready your exact payment</p>
+                    <p className="text-[11px] text-text-muted mt-0.5">
+                      Total: <span className="font-bold" style={{ color: '#C8860A' }}>₱{order.total.toFixed(0)}</span>
+                    </p>
+                  </div>
                 </div>
               </div>
             ) : order.status === 'served' ? (
@@ -93,9 +155,12 @@ export default function OrderStatus() {
                 style={{ backgroundColor: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.25)' }}
               >
                 <CheckCircle className="w-6 h-6 flex-shrink-0" style={{ color: '#4ADE80' }} />
-                <p className="font-semibold text-sm" style={{ color: '#4ADE80' }}>
-                  Enjoy your meal! 🎉 Thank you for dining with us.
-                </p>
+                <div>
+                  <p className="font-semibold text-sm" style={{ color: '#4ADE80' }}>
+                    Enjoy your meal! 🎉
+                  </p>
+                  <p className="text-xs mt-0.5 text-text-muted">Redirecting you to menu in 2 seconds…</p>
+                </div>
               </div>
             ) : (
               <div
@@ -147,15 +212,15 @@ export default function OrderStatus() {
               <p className="text-text-muted text-xs font-semibold uppercase tracking-wide mb-4">Order Progress</p>
               <div className="space-y-0">
                 {STEPS.map((step, idx) => {
-                  const isDone    = idx < currentIdx
-                  const isActive  = idx === currentIdx
-                  const isFuture  = idx > currentIdx
+                  const isDone = idx < currentIdx
+                  const isActive = idx === currentIdx
+                  const isFuture = idx > currentIdx
                   // Get stage timestamp
                   const tsMap: Record<string, string | undefined> = {
                     confirmed: order.confirmedAt,
                     preparing: order.preparingAt,
-                    ready:     order.readyAt,
-                    served:    order.servedAt,
+                    ready: order.readyAt,
+                    served: order.servedAt,
                   }
                   const stageTime = tsMap[step.key]
                   return (
@@ -166,14 +231,14 @@ export default function OrderStatus() {
                           <div
                             className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-500"
                             style={
-                              isDone   ? { backgroundColor: 'rgba(74,222,128,0.15)',   color: '#4ADE80', border: '2px solid rgba(74,222,128,0.4)' }  :
-                              isActive ? { backgroundColor: `rgba(${step.color === '#4ADE80' ? '74,222,128' : step.color === '#60A5FA' ? '96,165,250' : '200,134,10'},0.15)`, color: step.color, border: `2px solid ${step.color}` } :
-                                         { backgroundColor: '#1A1412', color: '#3D3028', border: '2px solid #2E2318' }
+                              isDone ? { backgroundColor: 'rgba(74,222,128,0.15)', color: '#4ADE80', border: '2px solid rgba(74,222,128,0.4)' } :
+                                isActive ? { backgroundColor: `rgba(${step.color === '#4ADE80' ? '74,222,128' : step.color === '#60A5FA' ? '96,165,250' : '200,134,10'},0.15)`, color: step.color, border: `2px solid ${step.color}` } :
+                                  { backgroundColor: '#1A1412', color: '#3D3028', border: '2px solid #2E2318' }
                             }
                           >
-                            {isDone   ? <CheckCircle className="w-5 h-5" /> :
-                             isActive ? <Loader2 className="w-4 h-4 animate-spin" /> :
-                                        <Clock className="w-4 h-4" />}
+                            {isDone ? <CheckCircle className="w-5 h-5" /> :
+                              isActive ? <Loader2 className="w-4 h-4 animate-spin" /> :
+                                <Clock className="w-4 h-4" />}
                           </div>
                         </div>
                         {/* Label */}
@@ -228,10 +293,10 @@ export default function OrderStatus() {
               View Invoice
             </button>
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/menu')}
               className="w-full py-3 text-text-faint hover:text-text-muted text-sm transition-colors text-center"
             >
-              ← Back to Home
+              ← Back to Menu
             </button>
           </>
         )}

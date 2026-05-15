@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Search, ShoppingCart, ShoppingBag, ClipboardList, LayoutGrid, ChefHat, Settings, QrCode, LogOut, TrendingUp, MapPin } from 'lucide-react'
+import { Search, ShoppingCart, ShoppingBag, ClipboardList, LayoutGrid, ChefHat, Settings, QrCode, LogOut, TrendingUp, MapPin, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useState } from 'react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import ThemeToggle from './ThemeToggle'
@@ -18,6 +19,7 @@ const staffItems = [
   { path: '/staff/menu',      label: 'Menu Mgmt', icon: Settings },
   { path: '/staff/tables',    label: 'Tables',     icon: MapPin },
   { path: '/staff/sales',     label: 'Analytics',  icon: TrendingUp },
+  { path: '/staff/metrics',   label: 'Metrics',    icon: BarChart3 },
   { path: '/staff/qr-codes',  label: 'QR Codes',   icon: QrCode },
 ]
 
@@ -26,6 +28,7 @@ export default function Navigation() {
   const location  = useLocation()
   const { cartCount } = useCart()
   const { isStaff, staffLogout } = useAuth()
+  const [sidebarExpanded, setSidebarExpanded] = useState(true)
   const isStaffRoute = location.pathname.startsWith('/staff')
   const isActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
@@ -42,27 +45,33 @@ export default function Navigation() {
       <>
         {/* Desktop Sidebar */}
         <aside
-          className="hidden md:flex fixed top-0 left-0 bottom-0 z-50 w-56 flex-col"
-          style={{ backgroundColor: '#0D0B0A', borderRight: '1px solid #2E2318' }}
+          className="hidden md:flex fixed top-0 left-0 bottom-0 z-50 flex-col transition-all duration-300"
+          style={{ 
+            width: sidebarExpanded ? '224px' : '80px',
+            backgroundColor: '#0D0B0A', 
+            borderRight: '1px solid #2E2318' 
+          }}
         >
           {/* Logo */}
           <button
             onClick={() => navigate('/staff/dashboard')}
-            className="flex items-center gap-2.5 px-5 py-5 group"
+            className="flex items-center gap-2.5 px-5 py-5 group transition-all duration-300"
             style={{ borderBottom: '1px solid #2E2318' }}
           >
             <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden"
+              className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0"
               style={{ backgroundColor: 'rgba(200,134,10,0.15)', border: '1px solid rgba(200,134,10,0.35)' }}
             >
               <img src="/assets/bean.png" alt="DeVerse Cafe" className="w-5 h-5 object-contain" />
             </div>
-            <div>
-              <span className="font-bold text-text-base text-sm block leading-tight">
-                DeVerse <span className="text-primary">Cafe</span>
-              </span>
-              <span className="text-[10px] text-text-faint">Staff Panel</span>
-            </div>
+            {sidebarExpanded && (
+              <div className="min-w-0">
+                <span className="font-bold text-text-base text-sm block leading-tight">
+                  DeVerse <span className="text-primary">Cafe</span>
+                </span>
+                <span className="text-[10px] text-text-faint">Staff Panel</span>
+              </div>
+            )}
           </button>
 
           {/* Nav items */}
@@ -80,12 +89,13 @@ export default function Navigation() {
                   }
                   onMouseEnter={e => { if (!active) e.currentTarget.style.backgroundColor = '#171210' }}
                   onMouseLeave={e => { if (!active) e.currentTarget.style.backgroundColor = 'transparent' }}
+                  title={!sidebarExpanded ? label : ''}
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span>{label}</span>
+                  {sidebarExpanded && <span>{label}</span>}
                   {active && (
                     <span
-                      className="ml-auto w-1.5 h-1.5 rounded-full"
+                      className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0"
                       style={{ backgroundColor: '#C8860A' }}
                     />
                   )}
@@ -96,41 +106,64 @@ export default function Navigation() {
 
           {/* Footer — Staff profile card */}
           <div className="px-3 py-4" style={{ borderTop: '1px solid #2E2318' }}>
-            {/* Profile card */}
-            <div
-              className="rounded-xl p-3 mb-3"
-              style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}
+            {/* Collapse button */}
+            <button
+              onClick={() => setSidebarExpanded(!sidebarExpanded)}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all mb-3"
+              style={{
+                backgroundColor: 'rgba(200,134,10,0.08)',
+                color: '#C8860A',
+                border: '1px solid rgba(200,134,10,0.2)',
+              }}
+              title={sidebarExpanded ? 'Collapse' : 'Expand'}
             >
-              <div className="flex items-center gap-3 mb-3">
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold"
-                  style={{
-                    background: 'linear-gradient(135deg, #C8860A 0%, #E8C97A 100%)',
-                    color: '#0D0B0A',
-                  }}
-                >
-                  S
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-text-base leading-tight">Staff Account</p>
-                  <p className="text-[10px] text-text-faint mt-0.5">Administrator</p>
-                </div>
-                <span
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: '#4ADE80', boxShadow: '0 0 6px rgba(74,222,128,0.5)' }}
-                  title="Online"
-                />
-              </div>
+              {sidebarExpanded ? (
+                <>
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <span>Collapse</span>
+                </>
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5" />
+              )}
+            </button>
 
-              {/* Theme row */}
+            {/* Profile card - only show when expanded */}
+            {sidebarExpanded && (
               <div
-                className="flex items-center justify-between px-2 py-2 rounded-lg"
-                style={{ backgroundColor: '#0D0B0A' }}
+                className="rounded-xl p-3 mb-3"
+                style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}
               >
-                <span className="text-[11px] text-text-muted font-medium">Appearance</span>
-                <ThemeToggle variant="nav" />
+                <div className="flex items-center gap-3 mb-3">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0"
+                    style={{
+                      background: 'linear-gradient(135deg, #C8860A 0%, #E8C97A 100%)',
+                      color: '#0D0B0A',
+                    }}
+                  >
+                    S
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-text-base leading-tight">Staff Account</p>
+                    <p className="text-[10px] text-text-faint mt-0.5">Administrator</p>
+                  </div>
+                  <span
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: '#4ADE80', boxShadow: '0 0 6px rgba(74,222,128,0.5)' }}
+                    title="Online"
+                  />
+                </div>
+
+                {/* Theme row */}
+                <div
+                  className="flex items-center justify-between px-2 py-2 rounded-lg"
+                  style={{ backgroundColor: '#0D0B0A' }}
+                >
+                  <span className="text-[11px] text-text-muted font-medium">Appearance</span>
+                  <ThemeToggle variant="nav" />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Logout button */}
             <button
@@ -143,9 +176,10 @@ export default function Navigation() {
               }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(248,113,113,0.4)'; e.currentTarget.style.color = '#F87171'; e.currentTarget.style.backgroundColor = 'rgba(248,113,113,0.05)' }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = '#2E2318'; e.currentTarget.style.color = '#9B8B7A'; e.currentTarget.style.backgroundColor = 'transparent' }}
+              title={!sidebarExpanded ? 'Sign Out' : ''}
             >
-              <LogOut className="w-3.5 h-3.5" />
-              Sign Out
+              <LogOut className="w-3.5 h-3.5 flex-shrink-0" />
+              {sidebarExpanded && 'Sign Out'}
             </button>
           </div>
         </aside>
@@ -189,7 +223,7 @@ export default function Navigation() {
         </nav>
 
         {/* Spacer: push content right of sidebar on desktop, below top on mobile */}
-        <div className="hidden md:block w-56 flex-shrink-0" />
+        <div className="hidden md:block flex-shrink-0 transition-all duration-300" style={{ width: sidebarExpanded ? '224px' : '80px' }} />
       </>
     )
   }

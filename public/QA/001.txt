@@ -42,15 +42,8 @@ and when placing and order it must ask a customer for some follow up questions l
 also for the owner side i want to add a feature that can show the sales tracker and it will analyze the most selling items and the least selling items
 
 
+done
 
-add time analytics for the sales tracker like:
+next i will add cancelled orders on the cart only not on the order page
 
-1. when is the busiest time?
-2. when is the least busiest time?
-3. average time to serve an order
-4. etc
-
-also add Revenue Trend Graph, Time Filter Controls, Peak Hours Analysis, Category Breakdown, Order Status Funnel, 
-Smart Insights Section, Inventory-Aware Analytics, Customer Analytics, Better KPI Cards, Export & Reports, Add Real-Time Indicators
-
-make it more premium and user-friendly and please make it more modern and professional and make it more responsive for all devices 
+also i want to adjust the layout of the admin page to make it more premium and user-friendly

@@ -5,11 +5,16 @@ import { useOrderNotification } from '../../hooks/useOrderNotification'
 import { useMemo, useCallback, memo } from 'react'
 
 const TABLES = [
-  { id: 1, name: 'Window Seat' },
-  { id: 2, name: 'Center Table' },
-  { id: 3, name: 'Garden View' },
-  { id: 4, name: 'Bar Seat A' },
-  { id: 5, name: 'Bar Seat B' },
+  { id: 1, name: 'Table 1' },
+  { id: 2, name: 'Table 2' },
+  { id: 3, name: 'Table 3' },
+  { id: 4, name: 'Table 4' },
+  { id: 5, name: 'Table 5' },
+  { id: 6, name: 'Table 6' },
+  { id: 7, name: 'Table 7' },
+  { id: 8, name: 'Table 8' },
+  { id: 9, name: 'Table 9' },
+  { id: 10, name: 'Table 10' },
 ]
 
 const STATUS_COLOR: Record<string, string> = {

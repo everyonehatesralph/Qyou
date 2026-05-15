@@ -4,6 +4,8 @@
  * Falls back to StorageEvent for browsers without BroadcastChannel.
  */
 
+import { metricsCollector } from '../services/metricsCollector'
+
 type Listener = (data: unknown) => void
 
 const CHANNEL_NAME = 'deverse_cafe_sync'
@@ -25,11 +27,16 @@ function getChannel(): BroadcastChannel | null {
   try {
     channel = new BroadcastChannel(CHANNEL_NAME)
     channel.onmessage = (ev: MessageEvent<SyncMessage>) => {
+      const startTime = performance.now()
       const msg = ev.data
       // Ignore our own messages
       if (msg.senderId === senderId) return
       const set = listeners.get(msg.type)
-      if (set) set.forEach(fn => fn(msg.payload))
+      if (set) {
+        set.forEach(fn => fn(msg.payload))
+        const latency = performance.now() - startTime
+        metricsCollector.recordCrossTabSyncLatency(latency)
+      }
     }
     return channel
   } catch {
@@ -40,9 +47,13 @@ function getChannel(): BroadcastChannel | null {
 
 /** Broadcast a state change to all other tabs instantly */
 export function broadcast(type: SyncMessage['type'], payload: unknown): void {
+  const startTime = performance.now()
   const ch = getChannel()
   if (ch) {
     ch.postMessage({ type, payload, senderId } satisfies SyncMessage)
+    const latency = performance.now() - startTime
+    metricsCollector.recordBroadcastChannelMessage()
+    metricsCollector.recordCrossTabSyncLatency(latency)
   }
   // Also write to localStorage so StorageEvent fires for legacy fallback
 }

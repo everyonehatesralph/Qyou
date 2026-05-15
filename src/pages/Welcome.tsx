@@ -12,11 +12,16 @@ const features = [
 ]
 
 const TABLES = [
-  { id: 1, name: 'Window Seat' },
-  { id: 2, name: 'Center Table' },
-  { id: 3, name: 'Garden View' },
-  { id: 4, name: 'Bar Seat A' },
-  { id: 5, name: 'Bar Seat B' },
+  { id: 1, name: 'Table 1' },
+  { id: 2, name: 'Table 2' },
+  { id: 3, name: 'Table 3' },
+  { id: 4, name: 'Table 4' },
+  { id: 5, name: 'Table 5' },
+  { id: 6, name: 'Table 6' },
+  { id: 7, name: 'Table 7' },
+  { id: 8, name: 'Table 8' },
+  { id: 9, name: 'Table 9' },
+  { id: 10, name: 'Table 10' },
 ]
 
 export default function Welcome() {
@@ -149,13 +154,20 @@ export default function Welcome() {
         </div>
 
         {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 animate-bounce">
-          <span className="text-[11px] font-medium tracking-wider uppercase" style={{ color: 'rgba(240,230,211,0.35)' }}>
-            How it works
-          </span>
-          <div className="w-5 h-8 rounded-full border-2 flex justify-center pt-1.5" style={{ borderColor: 'rgba(240,230,211,0.2)' }}>
-            <div className="w-1 h-2 rounded-full" style={{ backgroundColor: 'rgba(200,134,10,0.6)' }} />
-          </div>
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 animate-bounce">
+          <button
+            className="w-3 h-3 rounded-full border flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110"
+            style={{
+              backgroundColor: 'rgba(20,20,20,0.55)',
+              borderColor: 'rgba(240,230,211,0.15)',
+              backdropFilter: 'blur(10px)',
+            }}
+          >
+            <div
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: 'rgba(200,134,10,0.9)' }}
+            />
+          </button>
         </div>
       </div>
 

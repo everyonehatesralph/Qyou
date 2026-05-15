@@ -1,4 +1,4 @@
-import { ShoppingBag, Trash2, Plus, Minus, ArrowLeft } from 'lucide-react'
+import { ShoppingBag, Trash2, Plus, Minus, ArrowLeft, XCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useCart } from '../../context/CartContext'
@@ -8,11 +8,11 @@ import OrderCheckoutModal, { type CheckoutOptions } from '../../components/Order
 
 export default function Cart() {
   const navigate = useNavigate()
-  const { cartItems, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart()
+  const { cartItems, removeFromCart, updateQuantity, cartTotal, clearCart, addToCart } = useCart()
   const { customerName, tableId, tableName } = useAuth()
   const { placeOrder: placeOrderRaw } = useOrders()
   const [showCheckout, setShowCheckout] = useState(false)
-  const [placing,      setPlacing]      = useState(false)
+  const [placing, setPlacing] = useState(false)
 
   const handleCheckout = () => {
     if (cartItems.length === 0) return
@@ -112,6 +112,18 @@ export default function Cart() {
             </div>
           </>
         )}
+
+        {/* Cancel Order button — clears entire cart */}
+        {cartItems.length > 0 && (
+          <button
+            onClick={clearCart}
+            className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-95 mb-4"
+            style={{ backgroundColor: 'transparent', color: '#F87171', border: '1px solid rgba(248,113,113,0.3)' }}
+          >
+            <XCircle className="w-4 h-4" />
+            Cancel Order
+          </button>
+        )}
       </div>
 
       {/* Sticky place order */}
@@ -135,6 +147,7 @@ export default function Cart() {
           customerName={customerName}
           onConfirm={handleConfirm}
           onClose={() => setShowCheckout(false)}
+          addToCart={addToCart}
         />
       )}
     </div>

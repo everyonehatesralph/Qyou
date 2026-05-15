@@ -1,9 +1,10 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import Navigation from './components/Navigation'
 import LoadingSpinner from './components/LoadingSpinner'
 import ProtectedRoute from './components/ProtectedRoute'
+import { metricsCollector } from './services/metricsCollector'
 
 // Customer
 const Welcome        = lazy(() => import('./pages/Welcome'))
@@ -22,12 +23,58 @@ const MenuManagement = lazy(() => import('./pages/staff/MenuManagement'))
 const QRCodeGenerator= lazy(() => import('./pages/staff/QRCodeGenerator'))
 const SalesTracker   = lazy(() => import('./pages/staff/SalesTracker'))
 const TableAvailability = lazy(() => import('./pages/staff/TableAvailability'))
+const MetricsMonitor = lazy(() => import('./pages/staff/MetricsMonitor'))
 
 // Shared
 const ExpiredSession = lazy(() => import('./pages/shared/ExpiredSession'))
 const NotFound       = lazy(() => import('./pages/NotFound'))
 
 export default function App() {
+  // Initialize metrics collection
+  useEffect(() => {
+    // Record app startup time
+    const appStartTime = performance.now()
+
+    // Get initial bundle info
+    if (performance.getEntriesByType) {
+      const navigationTiming = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming
+      if (navigationTiming) {
+        const transferSize = navigationTiming.transferSize || 0
+        metricsCollector.recordBundleSize(transferSize / 1024)
+      }
+    }
+
+    // Record when app becomes interactive
+    return () => {
+      const loadTime = performance.now() - appStartTime
+      metricsCollector.recordTimeToInteractive(loadTime)
+    }
+  }, [])
+
+  // Wrap fetch to track active requests
+  useEffect(() => {
+    const originalFetch = window.fetch
+
+    window.fetch = function (...args: any[]) {
+      metricsCollector.recordActiveRequest(true)
+
+      return originalFetch
+        .apply(window, args as any)
+        .then(response => {
+          metricsCollector.recordActiveRequest(false)
+          return response
+        })
+        .catch(error => {
+          metricsCollector.recordActiveRequest(false)
+          throw error
+        })
+    } as any
+
+    return () => {
+      window.fetch = originalFetch
+    }
+  }, [])
+
   return (
     <Router>
       <Navigation />
@@ -54,6 +101,7 @@ export default function App() {
           <Route path="/staff/qr-codes"    element={<ProtectedRoute><QRCodeGenerator /></ProtectedRoute>} />
           <Route path="/staff/sales"       element={<ProtectedRoute><SalesTracker /></ProtectedRoute>} />
           <Route path="/staff/tables"      element={<ProtectedRoute><TableAvailability /></ProtectedRoute>} />
+          <Route path="/staff/metrics"     element={<ProtectedRoute><MetricsMonitor /></ProtectedRoute>} />
           <Route path="*"                  element={<NotFound />} />
         </Routes>
       </Suspense>

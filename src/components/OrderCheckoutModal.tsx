@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { X, UtensilsCrossed, ShoppingBag, CheckCircle, Sparkles } from 'lucide-react'
+import { useState, useMemo, useCallback } from 'react'
+import { X, UtensilsCrossed, ShoppingBag, CheckCircle, Sparkles, Plus, Check } from 'lucide-react'
 import { MENU_ITEMS } from '../constants/menu'
 import type { CartItemType } from '../context/CartContext'
 
@@ -9,6 +9,7 @@ interface Props {
   customerName: string
   onConfirm: (opts: CheckoutOptions) => void
   onClose: () => void
+  addToCart?: (item: { id: number; name: string; price: number; category: string; description: string }) => void
 }
 
 export interface CheckoutOptions {
@@ -45,13 +46,20 @@ function getRecommendations(cartItems: CartItemType[]) {
 
 type Step = 'dine' | 'addons' | 'recommend' | 'confirm'
 
-export default function OrderCheckoutModal({ cartItems, cartTotal, customerName, onConfirm, onClose }: Props) {
+export default function OrderCheckoutModal({ cartItems, cartTotal, customerName, onConfirm, onClose, addToCart }: Props) {
   const [step,       setStep]    = useState<Step>('dine')
   const [dineIn,     setDineIn]  = useState<boolean | null>(null)
   const [addOns,     setAddOns]  = useState<AddOn[]>([])
   const [notes,      setNotes]   = useState('')
 
   const recs = useMemo(() => getRecommendations(cartItems), [cartItems])
+  const [addedRecs, setAddedRecs] = useState<Set<number>>(new Set())
+
+  const handleAddRec = useCallback((item: typeof MENU_ITEMS[0]) => {
+    if (!addToCart || addedRecs.has(item.id)) return
+    addToCart({ id: item.id, name: item.name, price: item.price, category: item.category, description: item.description })
+    setAddedRecs(prev => new Set([...prev, item.id]))
+  }, [addToCart, addedRecs])
 
   const addOnTotal = addOns.reduce((s, a) => s + a.price, 0)
   const grandTotal = cartTotal + addOnTotal
@@ -210,29 +218,52 @@ export default function OrderCheckoutModal({ cartItems, cartTotal, customerName,
                 <p className="text-text-faint text-sm text-center py-6">You've got great taste — your order looks complete!</p>
               ) : (
                 <div className="space-y-3">
-                  {recs.map(item => (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-3 p-3 rounded-xl"
-                      style={{ backgroundColor: '#211A15', border: '1px solid #2E2318' }}
-                    >
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-lg"
-                        style={{ backgroundColor: 'rgba(200,134,10,0.1)' }}
+                  {recs.map(item => {
+                    const wasAdded = addedRecs.has(item.id)
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => handleAddRec(item)}
+                        disabled={wasAdded}
+                        className="w-full flex items-center gap-3 p-3.5 rounded-xl transition-all text-left active:scale-[0.98]"
+                        style={{
+                          backgroundColor: wasAdded ? 'rgba(74,222,128,0.05)' : '#211A15',
+                          border: wasAdded ? '1.5px solid rgba(74,222,128,0.3)' : '1.5px solid #2E2318',
+                        }}
                       >
-                        ☕
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-text-base text-sm font-semibold truncate">{item.name}</p>
-                        <p className="text-text-muted text-xs truncate">{item.description}</p>
-                      </div>
-                      <span className="font-bold text-sm flex-shrink-0" style={{ color: '#C8860A' }}>₱{item.price}</span>
-                    </div>
-                  ))}
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-lg"
+                          style={{ backgroundColor: 'rgba(200,134,10,0.1)' }}
+                        >
+                          ☕
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-text-base text-sm font-semibold truncate">{item.name}</p>
+                          <p className="text-text-muted text-xs truncate">{item.description}</p>
+                        </div>
+                        <span className="font-bold text-sm flex-shrink-0 mr-2" style={{ color: '#C8860A' }}>₱{item.price}</span>
+                        {wasAdded ? (
+                          <span
+                            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                            style={{ backgroundColor: 'rgba(74,222,128,0.15)' }}
+                          >
+                            <Check className="w-4 h-4" style={{ color: '#4ADE80' }} />
+                          </span>
+                        ) : (
+                          <span
+                            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                            style={{ backgroundColor: '#C8860A' }}
+                          >
+                            <Plus className="w-4 h-4" style={{ color: '#0D0B0A' }} />
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
               )}
               <p className="text-text-faint text-xs text-center mt-4">
-                To add these, close and add them from the menu.
+                {addedRecs.size > 0 ? `${addedRecs.size} item${addedRecs.size > 1 ? 's' : ''} added to your order ✓` : 'Tap an item to add it to your order'}
               </p>
             </div>
           )}

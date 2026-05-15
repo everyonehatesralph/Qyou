@@ -30,6 +30,7 @@ const CARD_STYLE: Record<OrderStatus, { border: string; bg: string; badge: strin
   ready:     { border: 'rgba(74,222,128,0.5)',   bg: 'rgba(74,222,128,0.07)',  badge: 'rgba(74,222,128,0.15)',  text: '#4ADE80' },
   served:    { border: '#2E2318',                bg: '#171210',                badge: '#211A15',                text: '#5C4F44' },
   paid:      { border: '#2E2318',                bg: '#171210',                badge: '#211A15',                text: '#3A3330' },
+  cancelled: { border: 'rgba(239,68,68,0.3)',    bg: 'rgba(239,68,68,0.04)',   badge: 'rgba(239,68,68,0.12)',   text: '#EF4444' },
 }
 
 function elapsed(iso: string) {
