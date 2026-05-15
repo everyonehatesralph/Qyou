@@ -1,4 +1,7 @@
-import { LayoutGrid, Users, TrendingUp, Coffee, Clock, CheckCircle, Bell, ChefHat, Volume2, Banknote } from 'lucide-react'
+import {
+  LayoutGrid, TrendingUp, TrendingDown, Coffee, Clock, CheckCircle,
+  Bell, ChefHat, Volume2, Banknote, DollarSign, UtensilsCrossed
+} from 'lucide-react'
 import { useOrders } from '../../context/OrderContext'
 import type { Order } from '../../context/OrderContext'
 import { useOrderNotification } from '../../hooks/useOrderNotification'
@@ -18,16 +21,16 @@ const TABLES = [
 ]
 
 const STATUS_COLOR: Record<string, string> = {
-  pending:   'text-warning',
-  confirmed: 'text-info',
-  preparing: 'text-primary',
-  ready:     'text-success',
-  served:    'text-text-muted',
-  paid:      'text-text-faint',
+  pending:   '#FBBF24',
+  confirmed: '#60A5FA',
+  preparing: '#C8860A',
+  ready:     '#4ADE80',
+  served:    '#9B8B7A',
+  paid:      '#5C4F44',
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  pending:   'Awaiting Confirmation',
+  pending:   'Awaiting',
   confirmed: 'Sent to Kitchen',
   preparing: 'In Preparation',
   ready:     'Ready to Serve',
@@ -41,7 +44,68 @@ function elapsed(iso: string) {
   return `${Math.floor(secs / 60)}m ago`
 }
 
-// ─── Memoized Pending Order Card ──────────────────────────────────────────────
+function getGreeting(): string {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
+// ─── Stat Card (Square UI pattern) ───────────────────────────────────────────
+function StatCard({
+  title, value, icon: Icon, trend, trendValue, color, glowColor,
+}: {
+  title: string
+  value: number | string
+  icon: typeof Bell
+  trend?: 'up' | 'down'
+  trendValue?: string
+  color: string
+  glowColor: string
+}) {
+  return (
+    <div
+      className="rounded-xl p-4"
+      style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm font-medium" style={{ color: '#9B8B7A' }}>{title}</span>
+        <Icon className="w-4 h-4" style={{ color: '#5C4F44' }} />
+      </div>
+      <div
+        className="rounded-lg p-4 flex items-center justify-between"
+        style={{ backgroundColor: '#0D0B0A', border: '1px solid #2E2318' }}
+      >
+        <span
+          className="text-2xl sm:text-3xl font-medium tracking-tight"
+          style={{ color }}
+        >
+          {value}
+        </span>
+        {trend && trendValue && (
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-px" style={{ backgroundColor: '#2E2318' }} />
+            <div
+              className="flex items-center gap-1.5"
+              style={{
+                color: trend === 'up' ? '#4ADE80' : '#F87171',
+                textShadow: `0 1px 6px ${glowColor}`,
+              }}
+            >
+              {trend === 'up'
+                ? <TrendingUp className="w-3.5 h-3.5" />
+                : <TrendingDown className="w-3.5 h-3.5" />
+              }
+              <span className="text-sm font-medium">{trendValue}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Pending Order Card ──────────────────────────────────────────────────────
 const PendingCard = memo(function PendingCard({
   order,
   onConfirm,
@@ -51,74 +115,109 @@ const PendingCard = memo(function PendingCard({
 }) {
   return (
     <div
-      className="rounded-xl p-5 flex flex-col gap-3 transition-all duration-300"
-      style={{
-        backgroundColor: 'rgba(251,191,36,0.06)',
-        border: '2px solid rgba(251,191,36,0.45)',
-      }}
+      className="rounded-xl overflow-hidden"
+      style={{ backgroundColor: '#171210', border: '1.5px solid rgba(251,191,36,0.35)' }}
     >
-      <div className="flex items-start justify-between">
+      {/* Card header */}
+      <div className="flex items-start justify-between p-4 pb-3">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-text-base font-bold text-lg">#{order.id}</span>
+            <span className="text-sm font-semibold" style={{ color: '#F0E6D3' }}>
+              #{order.id}
+            </span>
             <span
               className="text-[10px] font-bold px-1.5 py-0.5 rounded animate-pulse"
-              style={{ backgroundColor: 'rgba(251,191,36,0.2)', color: '#FBBF24' }}
+              style={{ backgroundColor: 'rgba(251,191,36,0.15)', color: '#FBBF24' }}
             >
               NEW
             </span>
           </div>
-          <p className="text-text-muted text-xs mt-0.5">
+          <p className="text-xs mt-0.5" style={{ color: '#9B8B7A' }}>
             {order.tableName} · {order.customerName}
           </p>
         </div>
         <div className="text-right">
-          <span className="font-bold text-sm" style={{ color: '#C8860A' }}>
+          <span className="font-semibold text-sm" style={{ color: '#C8860A' }}>
             ₱{order.total.toFixed(0)}
           </span>
-          <p className="text-text-faint text-[10px] flex items-center gap-1 justify-end mt-0.5">
+          <p className="text-[10px] flex items-center gap-1 justify-end mt-0.5" style={{ color: '#5C4F44' }}>
             <Clock className="w-3 h-3" />
             {elapsed(order.createdAt)}
           </p>
         </div>
       </div>
-      {/* Items */}
+
+      {/* Items panel (inner muted bg — Square UI pattern) */}
       <div
-        className="rounded-lg p-3 space-y-1"
-        style={{ backgroundColor: 'rgba(13,11,10,0.3)' }}
+        className="mx-3 mb-3 rounded-lg p-3 space-y-1.5"
+        style={{ backgroundColor: '#0D0B0A', border: '1px solid #2E2318' }}
       >
         {order.items.map(item => (
           <div key={item.id} className="flex justify-between items-center text-sm">
-            <span className="text-text-base font-medium">{item.name}</span>
-            <span className="text-text-muted">×{item.quantity}</span>
+            <span style={{ color: '#F0E6D3' }}>{item.name}</span>
+            <span style={{ color: '#5C4F44' }}>×{item.quantity}</span>
           </div>
         ))}
         {order.notes && (
           <div
-            className="pt-2 mt-1 text-xs text-text-muted"
-            style={{ borderTop: '1px dashed rgba(255,255,255,0.06)' }}
+            className="pt-2 mt-1 text-xs"
+            style={{ borderTop: '1px dashed #2E2318', color: '#9B8B7A' }}
           >
             📝 {order.notes}
           </div>
         )}
       </div>
+
       {/* Confirm button */}
-      <button
-        onClick={() => onConfirm(order.id)}
-        className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
-        style={{ backgroundColor: '#60A5FA', color: '#0D0B0A' }}
-      >
-        <CheckCircle className="w-4 h-4" />
-        Confirm & Send to Kitchen
-      </button>
+      <div className="px-3 pb-3">
+        <button
+          onClick={() => onConfirm(order.id)}
+          className="w-full py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.97]"
+          style={{ backgroundColor: 'rgba(96,165,250,0.15)', color: '#60A5FA', border: '1px solid rgba(96,165,250,0.3)' }}
+        >
+          <CheckCircle className="w-4 h-4" />
+          Confirm & Send to Kitchen
+        </button>
+      </div>
     </div>
   )
 })
 
+// ─── Section Header ──────────────────────────────────────────────────────────
+function SectionHeader({ icon: Icon, title, badge, badgeColor }: {
+  icon: typeof Bell
+  title: string
+  badge?: number
+  badgeColor?: string
+}) {
+  return (
+    <div
+      className="flex items-center justify-between py-3 px-4 rounded-t-xl"
+      style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
+    >
+      <div className="flex items-center gap-2">
+        <Icon className="w-4 h-4" style={{ color: '#5C4F44' }} />
+        <h3 className="text-sm font-medium" style={{ color: '#F0E6D3' }}>{title}</h3>
+      </div>
+      {badge !== undefined && badge > 0 && (
+        <span
+          className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+          style={{
+            backgroundColor: `${badgeColor}20`,
+            color: badgeColor,
+            border: `1px solid ${badgeColor}40`,
+          }}
+        >
+          {badge}
+        </span>
+      )}
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const { orders, updateOrderStatus, isConnected } = useOrders()
 
-  // Alert cashier when new pending orders come in
   useOrderNotification(orders, o => o.status === 'pending')
 
   const pendingOrders = useMemo(
@@ -126,7 +225,7 @@ export default function Dashboard() {
     [orders]
   )
   const activeOrders = useMemo(
-    () => orders.filter(o => !['served', 'paid', 'pending'].includes(o.status)),
+    () => orders.filter(o => !['served', 'paid', 'pending', 'cancelled'].includes(o.status)),
     [orders]
   )
   const servedOrders = useMemo(
@@ -141,9 +240,15 @@ export default function Dashboard() {
     () => orders.filter(o => o.status === 'ready').length,
     [orders]
   )
-  // Table is occupied if it has any order that's NOT paid
+  const todayRevenue = useMemo(() => {
+    const today = new Date().toDateString()
+    return orders
+      .filter(o => o.status === 'paid' && new Date(o.createdAt).toDateString() === today)
+      .reduce((s, o) => s + o.total, 0)
+  }, [orders])
+
   const occupiedTableIds = useMemo(
-    () => new Set(orders.filter(o => o.status !== 'paid').map(o => o.tableId)),
+    () => new Set(orders.filter(o => o.status !== 'paid' && o.status !== 'cancelled').map(o => o.tableId)),
     [orders]
   )
 
@@ -155,7 +260,6 @@ export default function Dashboard() {
     updateOrderStatus(orderId, 'paid')
   }, [updateOrderStatus])
 
-  // Mark ALL orders for a table as paid (clear the table)
   const clearTable = useCallback((tableId: number) => {
     orders
       .filter(o => o.tableId === tableId && o.status !== 'paid')
@@ -163,100 +267,160 @@ export default function Dashboard() {
   }, [orders, updateOrderStatus])
 
   return (
-    <div className="min-h-screen bg-background md:ml-56 pt-4 md:pt-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-24 md:pb-8">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <LayoutGrid className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-bold text-text-base">Cashier Dashboard</h1>
-          <div className="ml-auto flex items-center gap-3">
-            <span className="flex items-center gap-1.5 text-xs">
-              <span
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: isConnected ? '#4ADE80' : '#F87171' }}
-              />
-              <span className="text-text-muted">{isConnected ? 'Live' : 'Offline'}</span>
-            </span>
-            <span className="flex items-center gap-1 text-xs text-text-muted">
-              <Volume2 className="w-3.5 h-3.5" /> Alerts on
-            </span>
+    <div className="min-h-screen md:ml-56" style={{ backgroundColor: '#0D0B0A' }}>
+      {/* Top header bar (Square UI pattern) */}
+      <header
+        className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-3"
+        style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
+      >
+        <div className="flex items-center gap-2" style={{ color: '#5C4F44' }}>
+          <LayoutGrid className="w-4 h-4" />
+          <span className="text-sm font-medium">Dashboard</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 text-xs">
+            <span
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: isConnected ? '#4ADE80' : '#F87171' }}
+            />
+            <span style={{ color: '#9B8B7A' }}>{isConnected ? 'Live' : 'Offline'}</span>
+          </span>
+          <div className="h-4 w-px" style={{ backgroundColor: '#2E2318' }} />
+          <span className="flex items-center gap-1 text-xs" style={{ color: '#5C4F44' }}>
+            <Volume2 className="w-3.5 h-3.5" /> Alerts
+          </span>
+        </div>
+      </header>
+
+      <main className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
+        {/* Welcome section (Square UI pattern) */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight" style={{ color: '#F0E6D3' }}>
+              {getGreeting()}, Staff!
+            </h1>
+            <p className="text-sm mt-0.5" style={{ color: '#9B8B7A' }}>
+              Here's what's happening at the cafe today
+            </p>
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          {[
-            { label: 'Awaiting Confirmation', value: pendingOrders.length, icon: Bell,       color: 'text-warning' },
-            { label: 'In Kitchen',            value: inKitchenCount,       icon: ChefHat,    color: 'text-primary' },
-            { label: 'Ready to Serve',        value: readyCount,           icon: Coffee,     color: 'text-success' },
-            { label: 'Occupied Tables',       value: occupiedTableIds.size, icon: Users,     color: 'text-info' },
-          ].map(stat => (
-            <div key={stat.label} className="card p-4">
-              <div className="flex items-start justify-between mb-2">
-                <p className="text-text-muted text-xs">{stat.label}</p>
-                <stat.icon className={`w-5 h-5 ${stat.color} opacity-60`} />
+        {/* Stats Cards (Square UI inner-panel pattern) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            title="Awaiting Confirmation"
+            value={pendingOrders.length}
+            icon={Bell}
+            color="#FBBF24"
+            glowColor="rgba(251,191,36,0.25)"
+            trend={pendingOrders.length > 0 ? 'up' : undefined}
+            trendValue={pendingOrders.length > 0 ? 'New' : undefined}
+          />
+          <StatCard
+            title="In Kitchen"
+            value={inKitchenCount}
+            icon={ChefHat}
+            color="#C8860A"
+            glowColor="rgba(200,134,10,0.25)"
+          />
+          <StatCard
+            title="Ready to Serve"
+            value={readyCount}
+            icon={Coffee}
+            color="#4ADE80"
+            glowColor="rgba(74,222,128,0.25)"
+            trend={readyCount > 0 ? 'up' : undefined}
+            trendValue={readyCount > 0 ? 'Pickup' : undefined}
+          />
+          <StatCard
+            title="Today's Revenue"
+            value={`₱${todayRevenue.toFixed(0)}`}
+            icon={DollarSign}
+            color="#F0E6D3"
+            glowColor="rgba(200,134,10,0.25)"
+          />
+        </div>
+
+        {/* Incoming Orders */}
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{ border: '1px solid #2E2318' }}
+        >
+          <SectionHeader
+            icon={Bell}
+            title="Incoming Orders"
+            badge={pendingOrders.length}
+            badgeColor="#FBBF24"
+          />
+          <div className="p-4" style={{ backgroundColor: '#0D0B0A' }}>
+            {pendingOrders.length === 0 ? (
+              <div className="py-10 text-center">
+                <Coffee className="w-10 h-10 mx-auto mb-2" style={{ color: '#2E2318' }} />
+                <p className="text-sm" style={{ color: '#5C4F44' }}>No pending orders</p>
+                <p className="text-xs mt-1" style={{ color: '#3D3028' }}>
+                  New customer orders will appear here for confirmation.
+                </p>
               </div>
-              <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* ── Incoming Orders (need cashier confirmation) ── */}
-        <div className="mb-8">
-          <h2 className="text-text-muted text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2">
-            <Bell className="w-4 h-4 text-warning" />
-            Incoming Orders
-            {pendingOrders.length > 0 && (
-              <span
-                className="badge text-xs animate-pulse"
-                style={{ backgroundColor: 'rgba(251,191,36,0.15)', color: '#FBBF24', border: '1px solid rgba(251,191,36,0.3)' }}
-              >
-                {pendingOrders.length} new
-              </span>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {pendingOrders.map(order => (
+                  <PendingCard key={order.id} order={order} onConfirm={confirmOrder} />
+                ))}
+              </div>
             )}
-          </h2>
-          {pendingOrders.length === 0 ? (
-            <div className="card p-10 text-center">
-              <Coffee className="w-10 h-10 text-text-faint mx-auto mb-2" />
-              <p className="text-text-muted text-sm">No pending orders</p>
-              <p className="text-text-faint text-xs mt-1">New customer orders will appear here for confirmation.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {pendingOrders.map(order => (
-                <PendingCard key={order.id} order={order} onConfirm={confirmOrder} />
-              ))}
-            </div>
-          )}
+          </div>
         </div>
 
-        {/* ── Active Orders (in kitchen / ready) ── */}
+        {/* Active Orders */}
         {activeOrders.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-text-muted text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-primary" />
-              Active Orders ({activeOrders.length})
-            </h2>
-            <div className="space-y-2">
+          <div
+            className="rounded-xl overflow-hidden"
+            style={{ border: '1px solid #2E2318' }}
+          >
+            <SectionHeader
+              icon={TrendingUp}
+              title="Active Orders"
+              badge={activeOrders.length}
+              badgeColor="#C8860A"
+            />
+            <div className="divide-y" style={{ backgroundColor: '#0D0B0A', borderColor: '#2E2318' }}>
               {activeOrders.map(order => (
-                <div key={order.id} className="card p-4 flex items-center gap-4">
+                <div
+                  key={order.id}
+                  className="flex items-center gap-4 px-4 py-3 transition-colors"
+                  style={{ borderColor: '#1A1412' }}
+                >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-text-base font-semibold text-sm">#{order.id}</span>
-                      <span className="text-text-muted text-xs">·</span>
-                      <span className="text-text-muted text-xs">{order.tableName}</span>
-                      <span className="text-text-muted text-xs">·</span>
-                      <span className="text-text-muted text-xs">{order.customerName}</span>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-sm font-medium" style={{ color: '#F0E6D3' }}>
+                        #{order.id}
+                      </span>
+                      <span style={{ color: '#2E2318' }}>·</span>
+                      <span className="text-xs" style={{ color: '#9B8B7A' }}>
+                        {order.tableName}
+                      </span>
+                      <span style={{ color: '#2E2318' }}>·</span>
+                      <span className="text-xs" style={{ color: '#9B8B7A' }}>
+                        {order.customerName}
+                      </span>
                     </div>
-                    <p className="text-text-faint text-xs truncate">
+                    <p className="text-xs truncate" style={{ color: '#5C4F44' }}>
                       {order.items.map(i => `${i.name} ×${i.quantity}`).join(', ')}
                     </p>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-primary font-bold text-sm">₱{order.total.toFixed(0)}</p>
-                    <span className={`text-xs font-semibold ${STATUS_COLOR[order.status]}`}>
-                      {STATUS_LABEL[order.status]}
-                    </span>
+                  <div className="text-right flex-shrink-0 flex items-center gap-3">
+                    <div className="h-8 w-px" style={{ backgroundColor: '#2E2318' }} />
+                    <div>
+                      <p className="font-semibold text-sm" style={{ color: '#C8860A' }}>
+                        ₱{order.total.toFixed(0)}
+                      </p>
+                      <span
+                        className="text-[10px] font-semibold"
+                        style={{ color: STATUS_COLOR[order.status] }}
+                      >
+                        {STATUS_LABEL[order.status]}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -264,37 +428,54 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ── Served Orders (awaiting payment) ── */}
+        {/* Served Orders (awaiting payment) */}
         {servedOrders.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-text-muted text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Banknote className="w-4 h-4" style={{ color: '#4ADE80' }} />
-              Awaiting Payment ({servedOrders.length})
-            </h2>
-            <div className="space-y-2">
+          <div
+            className="rounded-xl overflow-hidden"
+            style={{ border: '1px solid #2E2318' }}
+          >
+            <SectionHeader
+              icon={Banknote}
+              title="Awaiting Payment"
+              badge={servedOrders.length}
+              badgeColor="#4ADE80"
+            />
+            <div className="divide-y" style={{ backgroundColor: '#0D0B0A', borderColor: '#2E2318' }}>
               {servedOrders.map(order => (
-                <div key={order.id} className="card p-4 flex items-center gap-4">
+                <div
+                  key={order.id}
+                  className="flex items-center gap-4 px-4 py-3"
+                  style={{ borderColor: '#1A1412' }}
+                >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-text-base font-semibold text-sm">#{order.id}</span>
-                      <span className="text-text-muted text-xs">·</span>
-                      <span className="text-text-muted text-xs">{order.tableName}</span>
-                      <span className="text-text-muted text-xs">·</span>
-                      <span className="text-text-muted text-xs">{order.customerName}</span>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-sm font-medium" style={{ color: '#F0E6D3' }}>
+                        #{order.id}
+                      </span>
+                      <span style={{ color: '#2E2318' }}>·</span>
+                      <span className="text-xs" style={{ color: '#9B8B7A' }}>
+                        {order.tableName} · {order.customerName}
+                      </span>
                     </div>
-                    <p className="text-text-faint text-xs truncate">
+                    <p className="text-xs truncate" style={{ color: '#5C4F44' }}>
                       {order.items.map(i => `${i.name} ×${i.quantity}`).join(', ')}
                     </p>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
-                    <p className="text-primary font-bold text-sm">₱{order.total.toFixed(0)}</p>
+                    <p className="font-semibold text-sm" style={{ color: '#C8860A' }}>
+                      ₱{order.total.toFixed(0)}
+                    </p>
                     <button
                       onClick={() => markPaid(order.id)}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
-                      style={{ backgroundColor: '#4ADE80', color: '#0D0B0A' }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95"
+                      style={{
+                        backgroundColor: 'rgba(74,222,128,0.1)',
+                        color: '#4ADE80',
+                        border: '1px solid rgba(74,222,128,0.3)',
+                      }}
                     >
                       <Banknote className="w-3.5 h-3.5" />
-                      Already Paid
+                      Paid
                     </button>
                   </div>
                 </div>
@@ -303,101 +484,111 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ── Table Availability ── */}
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-text-muted text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
-            Table Availability
-            <span className="text-xs font-normal normal-case text-text-faint">
-              ({TABLES.length - occupiedTableIds.size} free / {TABLES.length} total)
-            </span>
-          </h2>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 pb-6">
-          {TABLES.map(table => {
-            const occupied = occupiedTableIds.has(table.id)
-            const tableOrders = orders.filter(o => o.tableId === table.id && o.status !== 'paid')
-            const allServed = tableOrders.length > 0 && tableOrders.every(o => o.status === 'served')
-            const totalSpent = tableOrders.reduce((s, o) => s + o.total, 0)
-            return (
-              <div
-                key={table.id}
-                className="rounded-xl p-4 transition-all"
-                style={{
-                  backgroundColor: occupied ? 'rgba(200,134,10,0.04)' : '#171210',
-                  border: occupied
-                    ? allServed ? '1.5px solid rgba(74,222,128,0.4)' : '1.5px solid rgba(200,134,10,0.35)'
-                    : '1.5px solid #2E2318',
-                }}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <p className="font-bold text-text-base text-sm">{table.name}</p>
-                  <span
-                    className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                    style={occupied
-                      ? { backgroundColor: 'rgba(200,134,10,0.15)', color: '#C8860A', border: '1px solid rgba(200,134,10,0.3)' }
-                      : { backgroundColor: 'rgba(74,222,128,0.1)', color: '#4ADE80', border: '1px solid rgba(74,222,128,0.25)' }
-                    }
-                  >
-                    {occupied ? 'OCCUPIED' : 'AVAILABLE'}
-                  </span>
-                </div>
-                {tableOrders.length > 0 && (
-                  <div className="space-y-1.5 mb-3">
-                    {tableOrders.map(o => (
-                      <div key={o.id} className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className="text-text-muted font-mono">#{o.id}</span>
-                          <span className="text-text-faint">·</span>
-                          <span className="text-text-muted truncate">{o.customerName}</span>
-                        </div>
-                        <span className={`font-semibold flex-shrink-0 ${STATUS_COLOR[o.status]}`}>
-                          {STATUS_LABEL[o.status]}
-                        </span>
-                      </div>
-                    ))}
-                    {totalSpent > 0 && (
-                      <div
-                        className="flex items-center justify-between text-xs pt-1.5 mt-1"
-                        style={{ borderTop: '1px dashed rgba(255,255,255,0.06)' }}
-                      >
-                        <span className="text-text-faint">Total</span>
-                        <span className="font-bold" style={{ color: '#C8860A' }}>₱{totalSpent.toFixed(0)}</span>
-                      </div>
-                    )}
+        {/* Table Availability */}
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{ border: '1px solid #2E2318' }}
+        >
+          <div
+            className="flex items-center justify-between py-3 px-4"
+            style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
+          >
+            <div className="flex items-center gap-2">
+              <UtensilsCrossed className="w-4 h-4" style={{ color: '#5C4F44' }} />
+              <h3 className="text-sm font-medium" style={{ color: '#F0E6D3' }}>
+                Table Availability
+              </h3>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <span style={{ color: '#4ADE80' }}>{TABLES.length - occupiedTableIds.size} free</span>
+              <span style={{ color: '#2E2318' }}>/</span>
+              <span style={{ color: '#5C4F44' }}>{TABLES.length} total</span>
+            </div>
+          </div>
+          <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" style={{ backgroundColor: '#0D0B0A' }}>
+            {TABLES.map(table => {
+              const occupied = occupiedTableIds.has(table.id)
+              const tableOrders = orders.filter(o => o.tableId === table.id && o.status !== 'paid' && o.status !== 'cancelled')
+              const allServed = tableOrders.length > 0 && tableOrders.every(o => o.status === 'served')
+              const totalSpent = tableOrders.reduce((s, o) => s + o.total, 0)
+
+              return (
+                <div
+                  key={table.id}
+                  className="rounded-xl p-3.5 transition-all"
+                  style={{
+                    backgroundColor: '#171210',
+                    border: occupied
+                      ? allServed ? '1px solid rgba(74,222,128,0.35)' : '1px solid rgba(200,134,10,0.3)'
+                      : '1px solid #2E2318',
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-semibold text-sm" style={{ color: '#F0E6D3' }}>
+                      {table.name}
+                    </p>
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: occupied ? '#C8860A' : '#4ADE80' }}
+                    />
                   </div>
-                )}
-                {occupied && (
-                  <div className="space-y-2">
-                    {allServed && (
+
+                  {tableOrders.length > 0 ? (
+                    <div
+                      className="rounded-lg p-2.5 mb-2.5 space-y-1.5"
+                      style={{ backgroundColor: '#0D0B0A', border: '1px solid #2E2318' }}
+                    >
+                      {tableOrders.map(o => (
+                        <div key={o.id} className="flex items-center justify-between text-[10px]">
+                          <span style={{ color: '#9B8B7A' }}>{o.customerName}</span>
+                          <span style={{ color: STATUS_COLOR[o.status] }}>
+                            {STATUS_LABEL[o.status]}
+                          </span>
+                        </div>
+                      ))}
+                      {totalSpent > 0 && (
+                        <div
+                          className="flex items-center justify-between text-[10px] pt-1.5"
+                          style={{ borderTop: '1px dashed #2E2318' }}
+                        >
+                          <span style={{ color: '#5C4F44' }}>Total</span>
+                          <span className="font-bold" style={{ color: '#C8860A' }}>₱{totalSpent.toFixed(0)}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="py-2 text-center">
+                      <span className="text-[10px]" style={{ color: '#3D3028' }}>Available</span>
+                    </div>
+                  )}
+
+                  {occupied && (
+                    <div className="space-y-1.5">
+                      {allServed && (
+                        <button
+                          onClick={() => clearTable(table.id)}
+                          className="w-full py-2 rounded-lg text-[11px] font-semibold flex items-center justify-center gap-1 transition-all active:scale-95"
+                          style={{ backgroundColor: 'rgba(74,222,128,0.1)', color: '#4ADE80', border: '1px solid rgba(74,222,128,0.25)' }}
+                        >
+                          <Banknote className="w-3 h-3" />
+                          Clear — Paid
+                        </button>
+                      )}
                       <button
                         onClick={() => clearTable(table.id)}
-                        className="w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95"
-                        style={{ backgroundColor: '#4ADE80', color: '#0D0B0A' }}
+                        className="w-full py-1.5 rounded-lg text-[10px] font-medium flex items-center justify-center transition-all active:scale-95"
+                        style={{ color: '#5C4F44' }}
                       >
-                        <Banknote className="w-3.5 h-3.5" />
-                        Clear — Paid
+                        Free Table
                       </button>
-                    )}
-                    <button
-                      onClick={() => clearTable(table.id)}
-                      className="w-full py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95"
-                      style={{ backgroundColor: 'transparent', color: '#F87171', border: '1px solid rgba(248,113,113,0.3)' }}
-                    >
-                      Free Table
-                    </button>
-                  </div>
-                )}
-                {!occupied && (
-                  <div className="flex items-center justify-center py-2">
-                    <span className="text-text-faint text-xs">Ready for customers</span>
-                  </div>
-                )}
-              </div>
-            )
-          })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   )
 }
-
