@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useMemo, useState } from 'react'
 import { useOrders, getMyOrderIds } from '../../context/OrderContext'
 import type { Order } from '../../context/OrderContext'
+import { useReadyNotification } from '../../hooks/useReadyNotification'
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string; icon: typeof Clock }> = {
   pending: { color: '#FBBF24', bg: 'rgba(251,191,36,0.1)', label: 'Awaiting Cashier', icon: Clock },
@@ -121,6 +122,7 @@ export default function MyOrders() {
   const { orders, cancelOrder } = useOrders()
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [showCelebration, setShowCelebration] = useState(true)
+  useReadyNotification(orders)
   const myOrderIds = useMemo(() => getMyOrderIds(), [orders])
 
   const myOrders = useMemo(() => {

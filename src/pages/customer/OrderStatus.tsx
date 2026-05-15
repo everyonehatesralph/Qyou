@@ -2,6 +2,7 @@ import { Clock, CheckCircle, Loader2, ChefHat, Bell, Receipt, Wallet, MapPinned,
 import { useNavigate, useParams } from 'react-router-dom'
 import { useState, useMemo, useEffect } from 'react'
 import { useOrders } from '../../context/OrderContext'
+import { useReadyNotification } from '../../hooks/useReadyNotification'
 import InvoiceModal from '../../components/InvoiceModal'
 
 // ─── Pipeline definition — Customer → Cashier → Kitchen → Customer ────────────
@@ -27,6 +28,7 @@ export default function OrderStatus() {
   // Use atomic OrderContext — only re-renders when orders change, not cart/auth
   const { orders, isConnected } = useOrders()
   const [showInvoice, setShowInvoice] = useState(false)
+  useReadyNotification(orders)
 
   // Memoize order lookup to avoid re-scanning array on unrelated renders
   const order = useMemo(
