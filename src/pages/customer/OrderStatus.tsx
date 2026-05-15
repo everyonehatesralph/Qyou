@@ -28,7 +28,7 @@ export default function OrderStatus() {
   // Use atomic OrderContext — only re-renders when orders change, not cart/auth
   const { orders, isConnected } = useOrders()
   const [showInvoice, setShowInvoice] = useState(false)
-  useReadyNotification(orders)
+  useReadyNotification(orders) // ringtone + vibration fires here too
 
   // Memoize order lookup to avoid re-scanning array on unrelated renders
   const order = useMemo(

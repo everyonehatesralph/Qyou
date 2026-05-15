@@ -1,44 +1,95 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { getMyOrderIds } from '../context/OrderContext'
 import type { Order } from '../context/OrderContext'
 
+const RINGTONE_PATH = '/sounds/your-phone-lingoging.mp3'
+
 /**
- * Plays a ringtone + vibrates when any of the customer's orders
+ * Audio unlock utility.
+ * Browsers block audio playback until the user has interacted with the page.
+ * This pre-loads the ringtone and "unlocks" the audio context on first tap/click.
+ */
+let audioUnlocked = false
+let preloadedAudio: HTMLAudioElement | null = null
+
+function ensureAudioUnlock() {
+  if (audioUnlocked) return
+
+  const unlock = () => {
+    if (audioUnlocked) return
+    audioUnlocked = true
+
+    // Pre-load the ringtone
+    preloadedAudio = new Audio(RINGTONE_PATH)
+    preloadedAudio.preload = 'auto'
+    preloadedAudio.load()
+
+    // Play a silent frame to unlock audio pipeline
+    preloadedAudio.volume = 0
+    preloadedAudio.play().then(() => {
+      preloadedAudio!.pause()
+      preloadedAudio!.currentTime = 0
+      preloadedAudio!.volume = 1.0
+    }).catch(() => {
+      // Still blocked — will retry on next interaction
+      audioUnlocked = false
+    })
+
+    document.removeEventListener('click', unlock, true)
+    document.removeEventListener('touchstart', unlock, true)
+    document.removeEventListener('touchend', unlock, true)
+  }
+
+  document.addEventListener('click', unlock, true)
+  document.addEventListener('touchstart', unlock, true)
+  document.addEventListener('touchend', unlock, true)
+}
+
+/**
+ * Plays the ringtone. Returns a promise that resolves when playback starts.
+ */
+function playRingtone(): Promise<void> {
+  return new Promise((resolve) => {
+    try {
+      // Use preloaded audio or create new
+      const audio = preloadedAudio || new Audio(RINGTONE_PATH)
+      audio.currentTime = 0
+      audio.volume = 1.0
+      audio.play().then(resolve).catch(() => {
+        console.warn('[ReadyNotification] Ringtone blocked — tap the page first')
+        resolve()
+      })
+    } catch {
+      resolve()
+    }
+  })
+}
+
+/**
+ * Vibrates the device with a strong pattern.
+ */
+function vibrateDevice() {
+  if ('vibrate' in navigator) {
+    // Strong pattern: long-short-long-short-long
+    navigator.vibrate([500, 150, 500, 150, 300])
+  }
+}
+
+/**
+ * Hook: fires ringtone + vibration when any of this customer's orders
  * transitions to "ready" status.
  *
- * Uses /sounds/your-phone-lingoging.mp3 as the notification ringtone.
- * Vibration pattern: long buzz → pause → long buzz → pause → short buzz
+ * Returns { readyOrderId } — the ID of the order that just became ready,
+ * so the UI can show a notification overlay.
  */
 export function useReadyNotification(orders: Order[]) {
-  const audioRef = useRef<HTMLAudioElement | null>(null)
   const prevReadyIdsRef = useRef<Set<string>>(new Set())
   const initializedRef = useRef(false)
+  const [newReadyOrderId, setNewReadyOrderId] = useState<string | null>(null)
 
-  const playRingtone = useCallback(() => {
-    try {
-      // Stop any currently playing ringtone
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current.currentTime = 0
-      }
-
-      const audio = new Audio('/sounds/your-phone-lingoging.mp3')
-      audio.volume = 1.0
-      audioRef.current = audio
-      audio.play().catch(() => {
-        // Browser may block autoplay — silently fail
-        console.warn('Ringtone blocked by browser autoplay policy')
-      })
-    } catch (e) {
-      console.warn('Ringtone unavailable:', e)
-    }
-  }, [])
-
-  const vibrate = useCallback(() => {
-    if ('vibrate' in navigator) {
-      // Strong vibration pattern: buzz-pause-buzz-pause-buzz
-      navigator.vibrate([400, 200, 400, 200, 200])
-    }
+  // Start listening for audio unlock as soon as hook mounts
+  useEffect(() => {
+    ensureAudioUnlock()
   }, [])
 
   useEffect(() => {
@@ -48,36 +99,38 @@ export function useReadyNotification(orders: Order[]) {
       myOrders.filter(o => o.status === 'ready').map(o => o.id)
     )
 
-    // Skip notification on first mount (don't ring for already-ready orders)
+    // Skip on first mount
     if (!initializedRef.current) {
       initializedRef.current = true
       prevReadyIdsRef.current = currentReadyIds
       return
     }
 
-    // Check if any NEW order just became ready
-    let hasNew = false
+    // Find newly ready orders
+    let newReadyId: string | null = null
     currentReadyIds.forEach(id => {
       if (!prevReadyIdsRef.current.has(id)) {
-        hasNew = true
+        newReadyId = id
       }
     })
 
-    if (hasNew) {
+    if (newReadyId) {
       playRingtone()
-      vibrate()
+      vibrateDevice()
+      setNewReadyOrderId(newReadyId)
     }
 
     prevReadyIdsRef.current = currentReadyIds
-  }, [orders, playRingtone, vibrate])
+  }, [orders])
 
-  // Cleanup audio on unmount
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current = null
-      }
+  const dismissNotification = useCallback(() => {
+    setNewReadyOrderId(null)
+    // Stop ringtone when dismissed
+    if (preloadedAudio) {
+      preloadedAudio.pause()
+      preloadedAudio.currentTime = 0
     }
   }, [])
+
+  return { newReadyOrderId, dismissNotification }
 }

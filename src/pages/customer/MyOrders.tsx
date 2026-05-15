@@ -1,4 +1,4 @@
-import { ClipboardList, ChefHat, Clock, CheckCircle, ArrowRight, Loader2, Coffee, X, Heart } from 'lucide-react'
+import { ClipboardList, ChefHat, Clock, CheckCircle, ArrowRight, Loader2, Coffee, X, Heart, Bell } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useMemo, useState } from 'react'
 import { useOrders, getMyOrderIds } from '../../context/OrderContext'
@@ -122,7 +122,7 @@ export default function MyOrders() {
   const { orders, cancelOrder } = useOrders()
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [showCelebration, setShowCelebration] = useState(true)
-  useReadyNotification(orders)
+  const { newReadyOrderId, dismissNotification } = useReadyNotification(orders)
   const myOrderIds = useMemo(() => getMyOrderIds(), [orders])
 
   const myOrders = useMemo(() => {
@@ -282,6 +282,55 @@ export default function MyOrders() {
           </>
         )}
       </div>
+      {/* Order Ready notification overlay */}
+      {newReadyOrderId && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+          onClick={dismissNotification}
+        >
+          <div
+            className="rounded-2xl p-6 max-w-sm w-full text-center"
+            style={{ backgroundColor: '#171210', border: '2px solid rgba(74,222,128,0.4)', boxShadow: '0 0 60px rgba(74,222,128,0.15)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Animated bell */}
+            <div
+              className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
+              style={{ backgroundColor: 'rgba(74,222,128,0.12)', border: '2px solid rgba(74,222,128,0.35)' }}
+            >
+              <Bell className="w-10 h-10 animate-bounce" style={{ color: '#4ADE80' }} />
+            </div>
+
+            <h3 className="text-xl font-bold mb-1" style={{ color: '#4ADE80' }}>
+              Your Order is Ready! 🎉
+            </h3>
+            <p className="text-text-muted text-sm mb-2">
+              Order #{newReadyOrderId}
+            </p>
+            <p className="text-text-faint text-xs mb-5">
+              Head to the pickup area or ask a waiter to bring it to you
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={dismissNotification}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all active:scale-95"
+                style={{ backgroundColor: '#211A15', color: '#9B8B7A', border: '1px solid #2E2318' }}
+              >
+                Dismiss
+              </button>
+              <button
+                onClick={() => { dismissNotification(); navigate(`/order/${newReadyOrderId}`) }}
+                className="flex-1 py-3 rounded-xl text-sm font-bold transition-all active:scale-95"
+                style={{ backgroundColor: '#4ADE80', color: '#0D0B0A' }}
+              >
+                View Order →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Cancel confirmation modal */}
       {cancellingId && (
