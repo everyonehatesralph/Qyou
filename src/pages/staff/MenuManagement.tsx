@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react'
 import { useMenuAvailability } from '../../context/MenuAvailabilityContext'
 import { MENU_ITEMS } from '../../constants/menu'
 import StaffPageShell from '../../components/StaffPageShell'
+import StaffHeader from '../../components/StaffHeader'
 
 type EditableItem = { name: string; price: string; category: string }
 export default function MenuManagement() {
@@ -44,26 +45,23 @@ export default function MenuManagement() {
   const categories = ['Coffee', 'Tea', 'Pastry', 'Food']
   return (
     <StaffPageShell>
-      <header
-        className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-3"
-        style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
-      >
-        <div className="flex items-center gap-2" style={{ color: '#5C4F44' }}>
-          <Settings className="w-4 h-4" />
-          <span className="text-sm font-medium">Menu Management</span>
-        </div>
-        <button
-          onClick={() => setShowAdd(!showAdd)}
-          className="flex items-center gap-1.5 h-7 px-3 rounded-md text-xs font-semibold transition-all active:scale-95"
-          style={showAdd
-            ? { backgroundColor: 'rgba(248,113,113,0.1)', color: '#F87171', border: '1px solid rgba(248,113,113,0.25)' }
-            : { backgroundColor: 'rgba(200,134,10,0.12)', color: '#C8860A', border: '1px solid rgba(200,134,10,0.25)' }
-          }
-        >
-          {showAdd ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-          {showAdd ? 'Cancel' : 'Add Item'}
-        </button>
-      </header>
+      <StaffHeader
+        icon={Settings}
+        title="Menu Management"
+        actions={
+          <button
+            onClick={() => setShowAdd(!showAdd)}
+            className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-sm font-medium transition-all"
+            style={showAdd
+              ? { backgroundColor: 'rgba(248,113,113,0.08)', color: '#F87171', border: '1px solid rgba(248,113,113,0.2)' }
+              : { color: '#9B8B7A', border: '1px solid #2E2318' }
+            }
+          >
+            {showAdd ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+            <span className="text-sm">{showAdd ? 'Cancel' : 'Add Item'}</span>
+          </button>
+        }
+      />
 
       <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
         <p className="text-sm" style={{ color: '#9B8B7A' }}>

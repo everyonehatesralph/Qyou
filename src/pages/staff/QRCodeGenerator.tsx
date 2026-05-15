@@ -2,6 +2,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { Download, Printer, QrCode, Wifi, CheckCircle, Copy, RefreshCw, Globe } from 'lucide-react'
 import { useCallback, useState, useEffect } from 'react'
 import StaffPageShell from '../../components/StaffPageShell'
+import StaffHeader from '../../components/StaffHeader'
 
 const TABLES = [
   { id: 1, name: 'Table 1' },
@@ -245,16 +246,13 @@ export default function QRCodeGenerator() {
 
   return (
     <StaffPageShell>
-      <header
-        className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-3"
-        style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
-      >
-        <div className="flex items-center gap-2" style={{ color: '#5C4F44' }}>
-          <QrCode className="w-4 h-4" />
-          <span className="text-sm font-medium">Table QR Codes</span>
-        </div>
-        <span className="text-xs" style={{ color: '#5C4F44' }}>Fixed & permanent</span>
-      </header>
+      <StaffHeader
+        icon={QrCode}
+        title="Table QR Codes"
+        actions={
+          <span className="text-xs" style={{ color: '#5C4F44' }}>Fixed & permanent</span>
+        }
+      />
 
       <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-6xl mx-auto pb-24 md:pb-8">
 

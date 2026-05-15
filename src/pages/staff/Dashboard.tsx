@@ -7,6 +7,7 @@ import type { Order } from '../../context/OrderContext'
 import { useOrderNotification } from '../../hooks/useOrderNotification'
 import { useMemo, useCallback, memo } from 'react'
 import StaffPageShell from '../../components/StaffPageShell'
+import StaffHeader, { HeaderButton, HeaderDivider } from '../../components/StaffHeader'
 
 const TABLES = [
   { id: 1, name: 'Table 1' },
@@ -269,29 +270,21 @@ export default function Dashboard() {
 
   return (
     <StaffPageShell>
-      {/* Top header bar (Square UI pattern) */}
-      <header
-        className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-3"
-        style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
-      >
-        <div className="flex items-center gap-2" style={{ color: '#5C4F44' }}>
-          <LayoutGrid className="w-4 h-4" />
-          <span className="text-sm font-medium">Dashboard</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-xs">
-            <span
-              className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: isConnected ? '#4ADE80' : '#F87171' }}
+      <StaffHeader
+        icon={LayoutGrid}
+        title="Dashboard"
+        actions={
+          <>
+            <HeaderButton
+              variant="status"
+              active={isConnected}
+              label={isConnected ? 'Live' : 'Offline'}
             />
-            <span style={{ color: '#9B8B7A' }}>{isConnected ? 'Live' : 'Offline'}</span>
-          </span>
-          <div className="h-4 w-px" style={{ backgroundColor: '#2E2318' }} />
-          <span className="flex items-center gap-1 text-xs" style={{ color: '#5C4F44' }}>
-            <Volume2 className="w-3.5 h-3.5" /> Alerts
-          </span>
-        </div>
-      </header>
+            <HeaderDivider />
+            <HeaderButton icon={Volume2} label="Alerts" variant="ghost" />
+          </>
+        }
+      />
 
       <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
         {/* Welcome section (Square UI pattern) */}

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { metricsCollector, type MetricsSnapshot } from '../../services/metricsCollector'
 import StaffPageShell from '../../components/StaffPageShell'
+import StaffHeader from '../../components/StaffHeader'
+import { BarChart3 } from 'lucide-react'
 
 export default function MetricsMonitor() {
   const [metrics, setMetrics] = useState<MetricsSnapshot | null>(null)
@@ -26,15 +28,13 @@ export default function MetricsMonitor() {
 
   return (
     <StaffPageShell>
-      <header
-        className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-3"
-        style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
-      >
-        <div className="flex items-center gap-2" style={{ color: '#5C4F44' }}>
-          <span className="text-sm font-medium">Performance Metrics</span>
-        </div>
-        <span className="text-xs" style={{ color: '#5C4F44' }}>Updated: {new Date(metrics.timestamp).toLocaleTimeString()}</span>
-      </header>
+      <StaffHeader
+        icon={BarChart3}
+        title="Performance Metrics"
+        actions={
+          <span className="text-xs" style={{ color: '#5C4F44' }}>Updated: {new Date(metrics.timestamp).toLocaleTimeString()}</span>
+        }
+      />
 
       <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
 

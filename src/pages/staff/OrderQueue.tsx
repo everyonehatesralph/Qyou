@@ -4,6 +4,7 @@ import type { OrderStatus, Order } from '../../context/OrderContext'
 import { useOrderNotification } from '../../hooks/useOrderNotification'
 import { useMemo, useState, useCallback, memo } from 'react'
 import StaffPageShell from '../../components/StaffPageShell'
+import StaffHeader, { HeaderButton, HeaderDivider } from '../../components/StaffHeader'
 
 // ─── Pipeline definition ──────────────────────────────────────────────────────
 type Stage = {
@@ -172,30 +173,19 @@ export default function OrderQueue() {
 
   return (
     <StaffPageShell>
-      {/* Sticky header bar */}
-      <header
-        className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-3"
-        style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
-      >
-        <div className="flex items-center gap-2" style={{ color: '#5C4F44' }}>
-          <ChefHat className="w-4 h-4" />
-          <span className="text-sm font-medium">Kitchen Queue</span>
-        </div>
-        <div className="flex items-center gap-3">
-          {totalActive > 0 && (
-            <span
-              className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-              style={{ backgroundColor: 'rgba(200,134,10,0.15)', color: '#C8860A', border: '1px solid rgba(200,134,10,0.3)' }}
-            >
-              {totalActive} active
-            </span>
-          )}
-          <div className="h-4 w-px" style={{ backgroundColor: '#2E2318' }} />
-          <span className="flex items-center gap-1 text-xs" style={{ color: '#5C4F44' }}>
-            <Volume2 className="w-3.5 h-3.5" /> Alerts
-          </span>
-        </div>
-      </header>
+      <StaffHeader
+        icon={ChefHat}
+        title="Kitchen Queue"
+        actions={
+          <>
+            {totalActive > 0 && (
+              <HeaderButton variant="status" active label={`${totalActive} active`} />
+            )}
+            <HeaderDivider />
+            <HeaderButton icon={Volume2} label="Alerts" variant="ghost" />
+          </>
+        }
+      />
 
       <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
 

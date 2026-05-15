@@ -2,6 +2,7 @@ import { MapPin, CheckCircle, Lock, Banknote, Users } from 'lucide-react'
 import { useOrders } from '../../context/OrderContext'
 import { useMemo, useCallback } from 'react'
 import StaffPageShell from '../../components/StaffPageShell'
+import StaffHeader from '../../components/StaffHeader'
 
 const TABLES = [
   { id: 1, name: 'Table 1' },
@@ -38,20 +39,17 @@ export default function TableAvailability() {
 
   return (
     <StaffPageShell>
-      <header
-        className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-3"
-        style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
-      >
-        <div className="flex items-center gap-2" style={{ color: '#5C4F44' }}>
-          <MapPin className="w-4 h-4" />
-          <span className="text-sm font-medium">Table Availability</span>
-        </div>
-        <div className="flex items-center gap-2 text-xs">
-          <span style={{ color: '#4ADE80' }}>{freeCount} free</span>
-          <span style={{ color: '#2E2318' }}>/</span>
-          <span style={{ color: '#5C4F44' }}>{TABLES.length} total</span>
-        </div>
-      </header>
+      <StaffHeader
+        icon={MapPin}
+        title="Table Availability"
+        actions={
+          <div className="flex items-center gap-2 text-xs">
+            <span style={{ color: '#4ADE80' }}>{freeCount} free</span>
+            <span style={{ color: '#2E2318' }}>/</span>
+            <span style={{ color: '#5C4F44' }}>{TABLES.length} total</span>
+          </div>
+        }
+      />
 
       <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-5xl mx-auto pb-24 md:pb-8">
         <div>

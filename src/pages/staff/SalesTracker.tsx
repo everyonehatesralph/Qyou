@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { useOrders } from '../../context/OrderContext'
 import StaffPageShell from '../../components/StaffPageShell'
+import StaffHeader, { HeaderDivider } from '../../components/StaffHeader'
 // types inferred from useOrders()
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -161,43 +162,40 @@ export default function SalesTracker() {
 
   return (
     <StaffPageShell>
-      {/* Sticky header bar */}
-      <header
-        className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-3"
-        style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
-      >
-        <div className="flex items-center gap-2">
-          <BarChart2 className="w-4 h-4" style={{ color: '#5C4F44' }} />
-          <span className="text-sm font-medium" style={{ color: '#5C4F44' }}>Sales Analytics</span>
-          <span className="flex items-center gap-1.5 ml-1">
-            <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#4ADE80' }} />
-            <span className="text-[10px]" style={{ color: '#5C4F44' }}>Live</span>
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {([['today', 'Today'], ['7d', '7D'], ['30d', '30D'], ['all', 'All']] as [TimeFilter, string][]).map(([key, label]) => (
+      <StaffHeader
+        icon={BarChart2}
+        title="Sales Analytics"
+        actions={
+          <>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#4ADE80' }} />
+              <span className="text-[10px]" style={{ color: '#5C4F44' }}>Live</span>
+            </span>
+            <HeaderDivider />
+            {([['today', 'Today'], ['7d', '7D'], ['30d', '30D'], ['all', 'All']] as [TimeFilter, string][]).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setTimeFilter(key)}
+                className="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all"
+                style={timeFilter === key
+                  ? { backgroundColor: 'rgba(200,134,10,0.12)', color: '#C8860A' }
+                  : { color: '#5C4F44' }
+                }
+              >
+                {label}
+              </button>
+            ))}
+            <HeaderDivider />
             <button
-              key={key}
-              onClick={() => setTimeFilter(key)}
-              className="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all"
-              style={timeFilter === key
-                ? { backgroundColor: 'rgba(200,134,10,0.12)', color: '#C8860A' }
-                : { color: '#5C4F44' }
-              }
+              onClick={exportCSV}
+              className="flex items-center gap-1 h-7 px-2.5 rounded-md text-sm font-medium transition-all"
+              style={{ color: '#9B8B7A', border: '1px solid #2E2318' }}
             >
-              {label}
+              <Download className="w-3 h-3" /><span className="text-sm">CSV</span>
             </button>
-          ))}
-          <div className="h-4 w-px mx-1" style={{ backgroundColor: '#2E2318' }} />
-          <button
-            onClick={exportCSV}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all"
-            style={{ color: '#5C4F44' }}
-          >
-            <Download className="w-3 h-3" />CSV
-          </button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
 
