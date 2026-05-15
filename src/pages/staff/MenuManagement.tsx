@@ -42,23 +42,30 @@ export default function MenuManagement() {
   }, [addForm, items])
   const categories = ['Coffee', 'Tea', 'Pastry', 'Food']
   return (
-    <div className="min-h-screen bg-background md:ml-56 pt-4 md:pt-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
-          <div className="flex items-center gap-3">
-            <Settings className="w-6 h-6 text-primary" />
-            <h1 className="text-2xl font-bold text-text-base">Menu Management</h1>
-          </div>
-          <button
-            onClick={() => setShowAdd(!showAdd)}
-            className="btn-primary px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold text-background"
-          >
-            {showAdd ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-            {showAdd ? 'Cancel' : 'Add Item'}
-          </button>
+    <div className="min-h-screen md:ml-56" style={{ backgroundColor: '#0D0B0A' }}>
+      <header
+        className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-3"
+        style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
+      >
+        <div className="flex items-center gap-2" style={{ color: '#5C4F44' }}>
+          <Settings className="w-4 h-4" />
+          <span className="text-sm font-medium">Menu Management</span>
         </div>
-        <p className="text-text-muted text-sm mb-6">
+        <button
+          onClick={() => setShowAdd(!showAdd)}
+          className="flex items-center gap-1.5 h-7 px-3 rounded-md text-xs font-semibold transition-all active:scale-95"
+          style={showAdd
+            ? { backgroundColor: 'rgba(248,113,113,0.1)', color: '#F87171', border: '1px solid rgba(248,113,113,0.25)' }
+            : { backgroundColor: 'rgba(200,134,10,0.12)', color: '#C8860A', border: '1px solid rgba(200,134,10,0.25)' }
+          }
+        >
+          {showAdd ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+          {showAdd ? 'Cancel' : 'Add Item'}
+        </button>
+      </header>
+
+      <main className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
+        <p className="text-sm" style={{ color: '#9B8B7A' }}>
           Toggle items on/off for today's service. Changes are visible to customers immediately.
         </p>
         {/* Add Item Form */}
@@ -99,7 +106,7 @@ export default function MenuManagement() {
           </div>
         )}
         {/* Table */}
-        <div className="card overflow-hidden">
+        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #2E2318' }}>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -254,7 +261,7 @@ export default function MenuManagement() {
             <span className="text-text-muted text-xs">Item hidden from customer menu</span>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

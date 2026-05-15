@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback } from 'react'
 import {
   TrendingUp, TrendingDown, BarChart2, DollarSign, ShoppingBag, Award,
-  Clock, Users, Download, Zap, Coffee, Activity, PieChart, Filter,
+  Clock, Users, Download, Zap, Coffee, Activity, PieChart,
 } from 'lucide-react'
 import { useOrders } from '../../context/OrderContext'
 // types inferred from useOrders()
@@ -159,44 +159,46 @@ export default function SalesTracker() {
   }, [completed])
 
   return (
-    <div className="min-h-screen bg-background md:ml-56 pt-4 md:pt-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-24 md:pb-8">
-
-        {/* ── Header ─────────────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
-          <div className="flex items-center gap-3 flex-1">
-            <BarChart2 className="w-6 h-6 text-primary" />
-            <h1 className="text-2xl font-bold text-text-base">Sales Analytics</h1>
-            {/* Live pulse */}
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span className="text-text-faint text-[10px]">Live</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Time filters */}
-            {([['today', 'Today'], ['7d', '7 Days'], ['30d', '30 Days'], ['all', 'All Time']] as [TimeFilter, string][]).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setTimeFilter(key)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                style={timeFilter === key
-                  ? { backgroundColor: '#C8860A', color: '#0D0B0A' }
-                  : { backgroundColor: '#211A15', color: '#9B8B7A', border: '1px solid #2E2318' }
-                }
-              >
-                <Filter className="w-3 h-3 inline mr-1" />{label}
-              </button>
-            ))}
-            <button
-              onClick={exportCSV}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all"
-              style={{ backgroundColor: '#211A15', color: '#9B8B7A', border: '1px solid #2E2318' }}
-            >
-              <Download className="w-3 h-3" />Export CSV
-            </button>
-          </div>
+    <div className="min-h-screen md:ml-56" style={{ backgroundColor: '#0D0B0A' }}>
+      {/* Sticky header bar */}
+      <header
+        className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-3"
+        style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
+      >
+        <div className="flex items-center gap-2">
+          <BarChart2 className="w-4 h-4" style={{ color: '#5C4F44' }} />
+          <span className="text-sm font-medium" style={{ color: '#5C4F44' }}>Sales Analytics</span>
+          <span className="flex items-center gap-1.5 ml-1">
+            <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#4ADE80' }} />
+            <span className="text-[10px]" style={{ color: '#5C4F44' }}>Live</span>
+          </span>
         </div>
+        <div className="flex items-center gap-1.5">
+          {([['today', 'Today'], ['7d', '7D'], ['30d', '30D'], ['all', 'All']] as [TimeFilter, string][]).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setTimeFilter(key)}
+              className="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all"
+              style={timeFilter === key
+                ? { backgroundColor: 'rgba(200,134,10,0.12)', color: '#C8860A' }
+                : { color: '#5C4F44' }
+              }
+            >
+              {label}
+            </button>
+          ))}
+          <div className="h-4 w-px mx-1" style={{ backgroundColor: '#2E2318' }} />
+          <button
+            onClick={exportCSV}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all"
+            style={{ color: '#5C4F44' }}
+          >
+            <Download className="w-3 h-3" />CSV
+          </button>
+        </div>
+      </header>
+
+      <main className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
 
         {/* ── KPI Cards ──────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
@@ -441,7 +443,7 @@ export default function SalesTracker() {
             </div>
           </>
         )}
-      </div>
+      </main>
     </div>
   )
 }

@@ -170,33 +170,40 @@ export default function OrderQueue() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-background md:ml-56 pt-4 md:pt-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-24 md:pb-8">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <ChefHat className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-bold text-text-base">Kitchen Queue</h1>
-          <div className="ml-auto flex items-center gap-3">
-            {totalActive > 0 && (
-              <span
-                className="text-xs font-bold px-2.5 py-1 rounded-full"
-                style={{ backgroundColor: 'rgba(200,134,10,0.15)', color: '#C8860A', border: '1px solid rgba(200,134,10,0.3)' }}
-              >
-                {totalActive} active
-              </span>
-            )}
-            <span className="flex items-center gap-1 text-xs text-text-muted">
-              <Volume2 className="w-3.5 h-3.5" /> Alerts on
-            </span>
-          </div>
+    <div className="min-h-screen md:ml-56" style={{ backgroundColor: '#0D0B0A' }}>
+      {/* Sticky header bar */}
+      <header
+        className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-3"
+        style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
+      >
+        <div className="flex items-center gap-2" style={{ color: '#5C4F44' }}>
+          <ChefHat className="w-4 h-4" />
+          <span className="text-sm font-medium">Kitchen Queue</span>
         </div>
+        <div className="flex items-center gap-3">
+          {totalActive > 0 && (
+            <span
+              className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+              style={{ backgroundColor: 'rgba(200,134,10,0.15)', color: '#C8860A', border: '1px solid rgba(200,134,10,0.3)' }}
+            >
+              {totalActive} active
+            </span>
+          )}
+          <div className="h-4 w-px" style={{ backgroundColor: '#2E2318' }} />
+          <span className="flex items-center gap-1 text-xs" style={{ color: '#5C4F44' }}>
+            <Volume2 className="w-3.5 h-3.5" /> Alerts
+          </span>
+        </div>
+      </header>
+
+      <main className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
 
         {/* ── Column lanes ── */}
         {totalActive === 0 ? (
-          <div className="card p-16 text-center mb-8">
-            <ChefHat className="w-14 h-14 text-text-faint mx-auto mb-3" />
-            <p className="text-text-muted font-medium">No orders in kitchen</p>
-            <p className="text-text-faint text-sm mt-1">Orders confirmed by the cashier will appear here.</p>
+          <div className="py-16 text-center rounded-xl" style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}>
+            <ChefHat className="w-14 h-14 mx-auto mb-3" style={{ color: '#2E2318' }} />
+            <p className="font-medium" style={{ color: '#5C4F44' }}>No orders in kitchen</p>
+            <p className="text-sm mt-1" style={{ color: '#3D3028' }}>Orders confirmed by the cashier will appear here.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-8">
@@ -250,22 +257,27 @@ export default function OrderQueue() {
 
         {/* ── Served today ── */}
         {servedOrders.length > 0 && (
-          <div>
-            <h2 className="text-text-muted text-xs font-semibold uppercase tracking-widest mb-3">
-              Completed today ({servedOrders.length})
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #2E2318' }}>
+            <div
+              className="flex items-center justify-between py-3 px-4"
+              style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
+            >
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4" style={{ color: '#5C4F44' }} />
+                <h3 className="text-sm font-medium" style={{ color: '#F0E6D3' }}>Completed Today</h3>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(74,222,128,0.1)', color: '#4ADE80', border: '1px solid rgba(74,222,128,0.25)' }}>
+                {servedOrders.length}
+              </span>
+            </div>
+            <div className="divide-y" style={{ backgroundColor: '#0D0B0A', borderColor: '#1A1412' }}>
               {servedOrders.map(order => (
-                <div
-                  key={order.id}
-                  className="rounded-xl p-3 flex items-center gap-3"
-                  style={{ backgroundColor: '#171210', border: '1px solid #2E2318', opacity: 0.6 }}
-                >
-                  <CheckCircle className="w-4 h-4 flex-shrink-0" style={{ color: '#4ADE80' }} />
-                  <span className="text-text-muted text-sm font-mono">#{order.id}</span>
-                  <span className="text-text-faint text-xs">·</span>
-                  <span className="text-text-muted text-sm truncate">{order.tableName}</span>
-                  <span className="ml-auto text-text-faint text-sm font-medium flex-shrink-0">
+                <div key={order.id} className="flex items-center gap-3 px-4 py-2.5" style={{ borderColor: '#1A1412', opacity: 0.7 }}>
+                  <CheckCircle className="w-3.5 h-3.5 shrink-0" style={{ color: '#4ADE80' }} />
+                  <span className="text-sm font-mono" style={{ color: '#9B8B7A' }}>#{order.id}</span>
+                  <span style={{ color: '#2E2318' }}>·</span>
+                  <span className="text-sm truncate" style={{ color: '#9B8B7A' }}>{order.tableName}</span>
+                  <span className="ml-auto text-sm font-medium shrink-0" style={{ color: '#5C4F44' }}>
                     ₱{order.total.toFixed(0)}
                   </span>
                 </div>
@@ -273,7 +285,7 @@ export default function OrderQueue() {
             </div>
           </div>
         )}
-      </div>
+      </main>
     </div>
   )
 }

@@ -36,16 +36,28 @@ export default function TableAvailability() {
   }, [orders, updateOrderStatus])
 
   return (
-    <div className="min-h-screen bg-background md:ml-56 pt-4 md:pt-6">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24 md:pb-8">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-2">
-          <MapPin className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-bold text-text-base">Table Availability</h1>
+    <div className="min-h-screen md:ml-56" style={{ backgroundColor: '#0D0B0A' }}>
+      <header
+        className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-3"
+        style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
+      >
+        <div className="flex items-center gap-2" style={{ color: '#5C4F44' }}>
+          <MapPin className="w-4 h-4" />
+          <span className="text-sm font-medium">Table Availability</span>
         </div>
-        <p className="text-text-muted text-sm mb-6">
-          Manage table occupancy. Free tables become available for new customers.
-        </p>
+        <div className="flex items-center gap-2 text-xs">
+          <span style={{ color: '#4ADE80' }}>{freeCount} free</span>
+          <span style={{ color: '#2E2318' }}>/</span>
+          <span style={{ color: '#5C4F44' }}>{TABLES.length} total</span>
+        </div>
+      </header>
+
+      <main className="p-4 sm:p-6 space-y-6 max-w-5xl mx-auto pb-24 md:pb-8">
+        <div>
+          <p className="text-sm" style={{ color: '#9B8B7A' }}>
+            Manage table occupancy. Free tables become available for new customers.
+          </p>
+        </div>
 
         {/* Summary */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
@@ -169,7 +181,7 @@ export default function TableAvailability() {
             )
           })}
         </div>
-      </div>
+      </main>
     </div>
   )
 }

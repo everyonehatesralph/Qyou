@@ -243,16 +243,19 @@ export default function QRCodeGenerator() {
   const wifiQrString = makeWifiQrString(wifi)
 
   return (
-    <div className="min-h-screen bg-background md:ml-56 pt-4 md:pt-6">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 pb-24 md:pb-8">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-2">
-          <QrCode className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-bold text-text-base">Table QR Codes</h1>
+    <div className="min-h-screen md:ml-56" style={{ backgroundColor: '#0D0B0A' }}>
+      <header
+        className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 sm:px-6 py-3"
+        style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
+      >
+        <div className="flex items-center gap-2" style={{ color: '#5C4F44' }}>
+          <QrCode className="w-4 h-4" />
+          <span className="text-sm font-medium">Table QR Codes</span>
         </div>
-        <p className="text-text-muted text-sm mb-6">
-          Fixed & permanent — print once, works forever.
-        </p>
+        <span className="text-xs" style={{ color: '#5C4F44' }}>Fixed & permanent</span>
+      </header>
+
+      <main className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto pb-24 md:pb-8">
 
         {/* ── WiFi QR Config ─────────────────────────────────────────────── */}
         <div
@@ -521,7 +524,7 @@ export default function QRCodeGenerator() {
             </div>
           </>
         )}
-      </div>
+      </main>
     </div>
   )
 }
