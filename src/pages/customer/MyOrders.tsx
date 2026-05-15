@@ -156,7 +156,7 @@ function LiveQueueBoard({ orders }: { orders: Order[] }) {
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold"
                   style={{ backgroundColor: 'rgba(200,134,10,0.12)', color: '#C8860A', border: '1px solid rgba(200,134,10,0.2)' }}
                 >
-                  #{o.id}
+                  {o.tableName}
                 </span>
               ))}
             </div>
@@ -194,7 +194,7 @@ function LiveQueueBoard({ orders }: { orders: Order[] }) {
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold"
                   style={{ backgroundColor: 'rgba(74,222,128,0.12)', color: '#4ADE80', border: '1px solid rgba(74,222,128,0.25)' }}
                 >
-                  #{o.id}
+                  {o.tableName}
                 </span>
               ))}
             </div>
