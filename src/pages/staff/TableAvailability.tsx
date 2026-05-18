@@ -1,5 +1,6 @@
 import { MapPin, CheckCircle, Lock, Banknote, Users } from 'lucide-react'
 import { useOrders } from '../../context/OrderContext'
+import { useSidebar } from '../../context/SidebarContext'
 import { useMemo, useCallback } from 'react'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
@@ -24,6 +25,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function TableAvailability() {
   const { orders, updateOrderStatus } = useOrders()
+  const { expanded: sidebarExpanded, toggle: toggleSidebar } = useSidebar()
 
   const occupiedTableIds = useMemo(
     () => new Set(orders.filter(o => o.status !== 'paid').map(o => o.tableId)),
@@ -49,9 +51,11 @@ export default function TableAvailability() {
             <span style={{ color: '#5C4F44' }}>{TABLES.length} total</span>
           </div>
         }
+        sidebarExpanded={sidebarExpanded}
+        onSidebarToggle={toggleSidebar}
       />
 
-      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-5xl mx-auto pb-24 md:pb-8">
+      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 pb-24 md:pb-8">
         <div>
           <p className="text-sm" style={{ color: '#9B8B7A' }}>
             Manage table occupancy. Free tables become available for new customers.
@@ -59,7 +63,7 @@ export default function TableAvailability() {
         </div>
 
         {/* Summary */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
           <div className="rounded-xl p-4" style={{ backgroundColor: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.25)' }}>
             <p className="text-text-muted text-xs mb-1">Available</p>
             <p className="text-2xl font-bold" style={{ color: '#4ADE80' }}>{freeCount}</p>
@@ -68,14 +72,14 @@ export default function TableAvailability() {
             <p className="text-text-muted text-xs mb-1">Occupied</p>
             <p className="text-2xl font-bold" style={{ color: '#C8860A' }}>{occupiedTableIds.size}</p>
           </div>
-          <div className="rounded-xl p-4 col-span-2 sm:col-span-1" style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}>
+          <div className="rounded-xl p-4 col-span-2 md:col-span-1" style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}>
             <p className="text-text-muted text-xs mb-1">Total Tables</p>
             <p className="text-2xl font-bold text-text-base">{TABLES.length}</p>
           </div>
         </div>
 
         {/* Table grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {TABLES.map(table => {
             const occupied = occupiedTableIds.has(table.id)
             const tableOrders = orders.filter(o => o.tableId === table.id && o.status !== 'paid')

@@ -26,6 +26,7 @@ import { OrderProvider, useOrders } from './OrderContext'
 import { AuthProvider, useAuth } from './AuthContext'
 import { MenuAvailabilityProvider, useMenuAvailability } from './MenuAvailabilityContext'
 import { ThemeProvider } from './ThemeContext'
+import { SidebarProvider } from './SidebarContext'
 
 // Re-export types for backward compat
 export type { CartItemType } from './CartContext'
@@ -35,15 +36,17 @@ export type { Order, OrderStatus, OrderItem } from './OrderContext'
 export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <MenuAvailabilityProvider>
-          <OrderProvider>
-            <CartProvider>
-              {children}
-            </CartProvider>
-          </OrderProvider>
-        </MenuAvailabilityProvider>
-      </AuthProvider>
+      <SidebarProvider>
+        <AuthProvider>
+          <MenuAvailabilityProvider>
+            <OrderProvider>
+              <CartProvider>
+                {children}
+              </CartProvider>
+            </OrderProvider>
+          </MenuAvailabilityProvider>
+        </AuthProvider>
+      </SidebarProvider>
     </ThemeProvider>
   )
 }
@@ -70,6 +73,7 @@ export function useApp() {
       auth.tableId,
       auth.tableName,
       auth.customerName,
+      'dineIn', // default to dine-in for backward compat
       notes,
     )
     cart.clearCart()

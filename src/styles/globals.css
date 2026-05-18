@@ -113,7 +113,56 @@
     --btn-ghost-bg: #2C231B;
     --btn-ghost-hover: #2E2318;
   }
+  /* ── Scrollbar styling ── */
+  /* Dark theme scrollbar */
+  html.dark ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
 
+  html.dark ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  html.dark ::-webkit-scrollbar-thumb {
+    background: rgba(200, 134, 10, 0.5);
+    border-radius: 4px;
+    transition: background 0.3s ease;
+  }
+
+  html.dark ::-webkit-scrollbar-thumb:hover {
+    background: rgba(200, 134, 10, 0.8);
+  }
+
+  /* Light theme scrollbar */
+  html.light ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  html.light ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  html.light ::-webkit-scrollbar-thumb {
+    background: rgba(176, 117, 8, 0.4);
+    border-radius: 4px;
+    transition: background 0.3s ease;
+  }
+
+  html.light ::-webkit-scrollbar-thumb:hover {
+    background: rgba(176, 117, 8, 0.7);
+  }
+
+  /* Firefox scrollbar */
+  * {
+    scrollbar-color: rgba(200, 134, 10, 0.5) transparent;
+    scrollbar-width: thin;
+  }
+
+  html.light * {
+    scrollbar-color: rgba(176, 117, 8, 0.4) transparent;
+  }
   #root {
     min-height: 100vh;
     width: 100%;

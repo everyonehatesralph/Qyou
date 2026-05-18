@@ -1,6 +1,7 @@
 import { Settings, Plus, Edit, Trash, X, Check, ToggleLeft, ToggleRight } from 'lucide-react'
 import { useState, useCallback } from 'react'
 import { useMenuAvailability } from '../../context/MenuAvailabilityContext'
+import { useSidebar } from '../../context/SidebarContext'
 import { MENU_ITEMS } from '../../constants/menu'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
@@ -8,6 +9,7 @@ import StaffHeader from '../../components/StaffHeader'
 type EditableItem = { name: string; price: string; category: string }
 export default function MenuManagement() {
   const { itemAvailability, toggleItemAvailability } = useMenuAvailability()
+  const { expanded: sidebarExpanded, toggle: toggleSidebar } = useSidebar()
   const [items, setItems]           = useState(MENU_ITEMS)
   const [editingId, setEditingId]   = useState<number | null>(null)
   const [editForm, setEditForm]     = useState<EditableItem>({ name: '', price: '', category: '' })
@@ -61,9 +63,11 @@ export default function MenuManagement() {
             <span className="text-sm">{showAdd ? 'Cancel' : 'Add Item'}</span>
           </button>
         }
+        sidebarExpanded={sidebarExpanded}
+        onSidebarToggle={toggleSidebar}
       />
 
-      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
+      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 pb-24 md:pb-8">
         <p className="text-sm" style={{ color: '#9B8B7A' }}>
           Toggle items on/off for today's service. Changes are visible to customers immediately.
         </p>

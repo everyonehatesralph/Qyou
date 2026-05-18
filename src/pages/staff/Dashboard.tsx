@@ -5,6 +5,7 @@ import {
 import { useOrders } from '../../context/OrderContext'
 import type { Order } from '../../context/OrderContext'
 import { useOrderNotification } from '../../hooks/useOrderNotification'
+import { useSidebar } from '../../context/SidebarContext'
 import { useMemo, useCallback, memo } from 'react'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader, { HeaderButton, HeaderDivider } from '../../components/StaffHeader'
@@ -219,6 +220,7 @@ function SectionHeader({ icon: Icon, title, badge, badgeColor }: {
 
 export default function Dashboard() {
   const { orders, updateOrderStatus, isConnected } = useOrders()
+  const { expanded: sidebarExpanded, toggle: toggleSidebar } = useSidebar()
 
   useOrderNotification(orders, o => o.status === 'pending')
 
@@ -284,9 +286,11 @@ export default function Dashboard() {
             <HeaderButton icon={Volume2} label="Alerts" variant="ghost" />
           </>
         }
+        sidebarExpanded={sidebarExpanded}
+        onSidebarToggle={toggleSidebar}
       />
 
-      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
+      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 pb-24 md:pb-8">
         {/* Welcome section (Square UI pattern) */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

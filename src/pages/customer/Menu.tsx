@@ -34,8 +34,8 @@ export default function Menu() {
     [cartItems]
   )
   return (
-    <div className="min-h-screen bg-background pt-14">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-36 md:pb-12">
+    <div className="min-h-screen bg-background pt-14 pb-28">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {/* Customer greeting */}
         {customerName && (
           <div

@@ -1,5 +1,6 @@
 import type { ReactNode, ComponentType } from 'react'
-import { PanelLeft } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import ThemeToggle from './ThemeToggle'
 
 interface Props {
   /** Page icon (lucide component) */
@@ -8,8 +9,9 @@ interface Props {
   title: string
   /** Optional right-side actions */
   actions?: ReactNode
-  /** Optional sidebar toggle callback */
-  onToggleSidebar?: () => void
+  /** Optional sidebar state for collapse/expand button */
+  sidebarExpanded?: boolean
+  onSidebarToggle?: () => void
 }
 
 /**
@@ -20,21 +22,27 @@ interface Props {
  *   - Page icon + title breadcrumb
  *   - Action buttons on the right (h-7 outlined)
  */
-export default function StaffHeader({ icon: Icon, title, actions, onToggleSidebar }: Props) {
+export default function StaffHeader({ icon: Icon, title, actions, sidebarExpanded, onSidebarToggle }: Props) {
   return (
     <header
       className="flex items-center justify-between gap-4 px-4 sm:px-6 py-3 sticky top-0 z-10 w-full shrink-0"
       style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
     >
-      {/* Left: Trigger + Breadcrumb */}
+      {/* Left: Sidebar toggle + Icon + Breadcrumb */}
       <div className="flex items-center gap-3">
-        {onToggleSidebar && (
+        {/* Sidebar collapse/expand button (desktop only) */}
+        {onSidebarToggle && (
           <button
-            onClick={onToggleSidebar}
-            className="flex items-center justify-center w-7 h-7 rounded-md transition-colors md:hidden"
-            style={{ color: '#9B8B7A' }}
+            onClick={onSidebarToggle}
+            className="hidden md:flex items-center justify-center w-7 h-7 rounded-md transition-colors"
+            style={{ color: '#9B8B7A', border: '1px solid #2E2318' }}
+            title={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
           >
-            <PanelLeft className="w-4 h-4" />
+            {sidebarExpanded ? (
+              <ChevronLeft className="w-4 h-4" />
+            ) : (
+              <ChevronRight className="w-4 h-4" />
+            )}
           </button>
         )}
         <div className="flex items-center gap-2" style={{ color: '#9B8B7A' }}>
@@ -44,11 +52,14 @@ export default function StaffHeader({ icon: Icon, title, actions, onToggleSideba
       </div>
 
       {/* Right: Action buttons */}
-      {actions && (
-        <div className="flex items-center gap-2">
-          {actions}
+      <div className="flex items-center gap-2">
+        {actions}
+        
+        {/* Theme toggle */}
+        <div className="hidden md:flex">
+          <ThemeToggle variant="nav" />
         </div>
-      )}
+      </div>
     </header>
   )
 }

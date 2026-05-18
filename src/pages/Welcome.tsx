@@ -133,8 +133,8 @@ export default function Welcome() {
                 boxShadow: '0 0 40px rgba(200,134,10,0.35), 0 4px 20px rgba(0,0,0,0.3)',
               }}
             >
-              <Coffee className="w-5 h-5" />
-              Start Ordering
+              <Coffee className="w-4 h-4" />
+              Make Ordering
               <ArrowRight className="w-4 h-4" />
             </button>
             <button

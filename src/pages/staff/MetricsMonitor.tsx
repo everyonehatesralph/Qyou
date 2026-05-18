@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { metricsCollector, type MetricsSnapshot } from '../../services/metricsCollector'
+import { useSidebar } from '../../context/SidebarContext'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 import { BarChart3 } from 'lucide-react'
 
 export default function MetricsMonitor() {
+  const { expanded: sidebarExpanded, toggle: toggleSidebar } = useSidebar()
   const [metrics, setMetrics] = useState<MetricsSnapshot | null>(null)
   const [liveLatency, setLiveLatency] = useState(0)
 
@@ -34,9 +36,11 @@ export default function MetricsMonitor() {
         actions={
           <span className="text-xs" style={{ color: '#5C4F44' }}>Updated: {new Date(metrics.timestamp).toLocaleTimeString()}</span>
         }
+        sidebarExpanded={sidebarExpanded}
+        onSidebarToggle={toggleSidebar}
       />
 
-      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
+      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 pb-24 md:pb-8">
 
         {/* Grid Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">

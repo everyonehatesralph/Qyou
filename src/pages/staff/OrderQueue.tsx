@@ -2,6 +2,7 @@ import { ChefHat, CheckCircle, Clock, Loader2, Bell, Volume2, X, Flame } from 'l
 import { useOrders } from '../../context/OrderContext'
 import type { OrderStatus, Order } from '../../context/OrderContext'
 import { useOrderNotification } from '../../hooks/useOrderNotification'
+import { useSidebar } from '../../context/SidebarContext'
 import { useMemo, useState, useCallback, memo } from 'react'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader, { HeaderButton, HeaderDivider } from '../../components/StaffHeader'
@@ -137,6 +138,7 @@ const OrderCard = memo(function OrderCard({ order, stage, onAdvance, onDismiss }
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function OrderQueue() {
   const { orders, updateOrderStatus } = useOrders()
+  const { expanded: sidebarExpanded, toggle: toggleSidebar } = useSidebar()
   const [dismissed, setDismissed]     = useState<Set<string>>(new Set())
 
   useOrderNotification(orders, o => o.status === 'confirmed')
@@ -185,9 +187,11 @@ export default function OrderQueue() {
             <HeaderButton icon={Volume2} label="Alerts" variant="ghost" />
           </>
         }
+        sidebarExpanded={sidebarExpanded}
+        onSidebarToggle={toggleSidebar}
       />
 
-      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
+      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 pb-24 md:pb-8">
 
         {/* ── Column lanes ── */}
         {totalActive === 0 ? (

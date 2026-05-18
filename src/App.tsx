@@ -14,6 +14,7 @@ const SearchPage     = lazy(() => import('./pages/customer/Search'))
 const Cart           = lazy(() => import('./pages/customer/Cart'))
 const OrderStatus    = lazy(() => import('./pages/customer/OrderStatus'))
 const MyOrders       = lazy(() => import('./pages/customer/MyOrders'))
+const TakeawayPickup = lazy(() => import('./pages/customer/TakeawayPickup'))
 
 // Staff (protected)
 const StaffLogin     = lazy(() => import('./pages/staff/StaffLogin'))
@@ -89,6 +90,7 @@ export default function App() {
           <Route path="/cart"              element={<Cart />} />
           <Route path="/order/:orderId"    element={<OrderStatus />} />
           <Route path="/my-orders"         element={<MyOrders />} />
+          <Route path="/takeaway-pickup"   element={<TakeawayPickup />} />
           <Route path="/expired"           element={<ExpiredSession />} />
 
           {/* Staff login — open */}

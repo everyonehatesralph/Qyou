@@ -47,3 +47,11 @@ done
 next i will add cancelled orders on the cart only not on the order page
 
 also i want to adjust the layout of the admin page to make it more premium and user-friendly
+
+
+i also want to add QR code for the take away orders so that the staffs can easily identify the order and prepare 
+it accordingly.
+
+
+
+

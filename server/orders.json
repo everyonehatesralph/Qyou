@@ -1,5 +1,187 @@
 [
   {
+    "id": "37447",
+    "tableId": 0,
+    "tableName": "Table null",
+    "customerName": "",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 3,
+        "name": "Matcha Latte",
+        "price": 175,
+        "quantity": 1
+      }
+    ],
+    "total": 295,
+    "status": "served",
+    "orderType": "takeaway",
+    "takeawayCode": "T-JBOZ",
+    "createdAt": "2026-05-18T15:04:31.791Z",
+    "notes": "Take Away | + Caramel Syrup | + Whipped Cream | + Extra Sugar",
+    "confirmedAt": "2026-05-18T15:04:33.781Z",
+    "preparingAt": "2026-05-18T15:04:35.579Z",
+    "readyAt": "2026-05-18T15:04:36.087Z",
+    "servedAt": "2026-05-18T15:04:37.272Z"
+  },
+  {
+    "id": "31129",
+    "tableId": 1,
+    "tableName": "Table 1",
+    "customerName": "Ralph Joshua",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      },
+      {
+        "id": 3,
+        "name": "Matcha Latte",
+        "price": 175,
+        "quantity": 1
+      },
+      {
+        "id": 5,
+        "name": "Chamomile Honey Tea",
+        "price": 110,
+        "quantity": 1
+      },
+      {
+        "id": 7,
+        "name": "Butter Croissant",
+        "price": 95,
+        "quantity": 1
+      }
+    ],
+    "total": 665,
+    "status": "paid",
+    "orderType": "takeaway",
+    "takeawayCode": "T-8YRA",
+    "createdAt": "2026-05-18T14:28:12.730Z",
+    "notes": "Take Away | + Extra Sugar | + Less Ice",
+    "confirmedAt": "2026-05-18T14:28:18.778Z",
+    "preparingAt": "2026-05-18T14:28:33.254Z",
+    "readyAt": "2026-05-18T14:28:33.667Z",
+    "servedAt": "2026-05-18T14:28:34.065Z"
+  },
+  {
+    "id": "21502",
+    "tableId": 0,
+    "tableName": "Table null",
+    "customerName": "",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 3,
+        "name": "Matcha Latte",
+        "price": 175,
+        "quantity": 1
+      }
+    ],
+    "total": 295,
+    "status": "paid",
+    "orderType": "takeaway",
+    "takeawayCode": "T-NIMN",
+    "createdAt": "2026-05-18T14:16:03.542Z",
+    "notes": "Take Away | + Extra Sugar | + Less Ice",
+    "confirmedAt": "2026-05-18T14:16:08.400Z",
+    "preparingAt": "2026-05-18T14:16:12.036Z",
+    "readyAt": "2026-05-18T14:16:16.181Z",
+    "servedAt": "2026-05-18T14:16:19.826Z"
+  },
+  {
+    "id": "83313",
+    "tableId": 0,
+    "tableName": "Table null",
+    "customerName": "",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 3,
+        "name": "Matcha Latte",
+        "price": 175,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      }
+    ],
+    "total": 460,
+    "status": "paid",
+    "createdAt": "2026-05-18T13:54:37.491Z",
+    "notes": "Dine In | + Extra Espresso Shot | + Oat Milk Upgrade | + Extra Sugar | + Less Ice",
+    "confirmedAt": "2026-05-18T13:54:40.783Z",
+    "preparingAt": "2026-05-18T13:54:43.104Z",
+    "readyAt": "2026-05-18T13:54:43.730Z",
+    "servedAt": "2026-05-18T13:54:44.369Z"
+  },
+  {
+    "id": "21335",
+    "tableId": 1,
+    "tableName": "Table 1",
+    "customerName": "Ralph Joshua",
+    "items": [
+      {
+        "id": 1,
+        "name": "Signature Espresso",
+        "price": 120,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Caramel Macchiato",
+        "price": 165,
+        "quantity": 1
+      },
+      {
+        "id": 3,
+        "name": "Matcha Latte",
+        "price": 175,
+        "quantity": 1
+      },
+      {
+        "id": 4,
+        "name": "Cold Brew",
+        "price": 155,
+        "quantity": 1
+      }
+    ],
+    "total": 615,
+    "status": "paid",
+    "createdAt": "2026-05-15T16:28:18.857Z",
+    "notes": "Dine In | + Extra Sugar | + Less Ice",
+    "confirmedAt": "2026-05-15T16:28:22.594Z",
+    "preparingAt": "2026-05-15T16:28:27.614Z",
+    "readyAt": "2026-05-15T16:28:28.241Z",
+    "servedAt": "2026-05-15T16:28:29.312Z"
+  },
+  {
     "id": "99236",
     "tableId": 1,
     "tableName": "Window Seat",

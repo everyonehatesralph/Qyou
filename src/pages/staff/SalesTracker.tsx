@@ -4,6 +4,7 @@ import {
   Clock, Users, Download, Zap, Coffee, Activity, PieChart,
 } from 'lucide-react'
 import { useOrders } from '../../context/OrderContext'
+import { useSidebar } from '../../context/SidebarContext'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader, { HeaderDivider } from '../../components/StaffHeader'
 // types inferred from useOrders()
@@ -26,6 +27,7 @@ type TimeFilter = 'today' | '7d' | '30d' | 'all'
 
 export default function SalesTracker() {
   const { orders } = useOrders()
+  const { expanded: sidebarExpanded, toggle: toggleSidebar } = useSidebar()
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all')
 
   // ── Filter orders by time ─────────────────────────────────────────────────
@@ -195,9 +197,11 @@ export default function SalesTracker() {
             </button>
           </>
         }
+        sidebarExpanded={sidebarExpanded}
+        onSidebarToggle={toggleSidebar}
       />
 
-      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-8">
+      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 pb-24 md:pb-8">
 
         {/* ── KPI Cards ──────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">

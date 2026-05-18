@@ -1,6 +1,7 @@
 import { QRCodeSVG } from 'qrcode.react'
 import { Download, Printer, QrCode, Wifi, CheckCircle, Copy, RefreshCw, Globe } from 'lucide-react'
 import { useCallback, useState, useEffect } from 'react'
+import { useSidebar } from '../../context/SidebarContext'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 
@@ -60,6 +61,7 @@ function makeWifiQrString(wifi: WifiConfig): string {
 }
 
 export default function QRCodeGenerator() {
+  const { expanded: sidebarExpanded, toggle: toggleSidebar } = useSidebar()
   const [baseUrl,  setBaseUrl]  = useState<string>(() => getStoredUrl())
   const [editUrl,  setEditUrl]  = useState<string>('')
   const [editing,  setEditing]  = useState(false)
@@ -252,9 +254,11 @@ export default function QRCodeGenerator() {
         actions={
           <span className="text-xs" style={{ color: '#5C4F44' }}>Fixed & permanent</span>
         }
+        sidebarExpanded={sidebarExpanded}
+        onSidebarToggle={toggleSidebar}
       />
 
-      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 max-w-6xl mx-auto pb-24 md:pb-8">
+      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 pb-24 md:pb-8">
 
         {/* ── WiFi QR Config ─────────────────────────────────────────────── */}
         <div
@@ -472,7 +476,7 @@ export default function QRCodeGenerator() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
               {TABLES.map(table => (
                 <div key={table.id} className="card p-6 flex flex-col items-center text-center">
                   <h2 className="text-text-base font-semibold mb-0.5">{table.name}</h2>

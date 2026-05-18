@@ -29,15 +29,15 @@ export default function Cart() {
     ].filter(Boolean).join(' | ')
 
     setTimeout(() => {
-      const orderId = placeOrderRaw(cartItems, tableId, tableName, customerName, fullNotes)
+      const orderId = placeOrderRaw(cartItems, tableId, tableName, customerName, opts.dineIn ? 'dineIn' : 'takeaway', fullNotes)
       clearCart()
       navigate(`/order/${orderId}`, { replace: true })
     }, 400)
   }
 
   return (
-    <div className="min-h-screen bg-background pt-14">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 pb-36 md:pb-12">
+    <div className="min-h-screen bg-background pt-14 pb-28">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <button onClick={() => navigate('/menu')} className="p-2 rounded-lg text-text-muted hover:text-text-base hover:bg-surface-2 transition-all">
@@ -128,7 +128,7 @@ export default function Cart() {
 
       {/* Sticky place order */}
       {cartItems.length > 0 && (
-        <div className="fixed bottom-20 md:bottom-6 left-0 right-0 px-4 md:px-0 md:flex md:justify-center z-30">
+        <div className="fixed bottom-20 left-0 right-0 px-4 flex justify-center z-30">
           <button
             onClick={handleCheckout}
             disabled={placing}

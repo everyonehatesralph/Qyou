@@ -15,15 +15,15 @@ export default function ThemeToggle({ variant = 'nav' }: ThemeToggleProps) {
         onClick={toggleTheme}
         className="fixed top-5 right-5 z-50 w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 active:scale-90"
         style={{
-          backgroundColor: isDark ? 'rgba(240,230,211,0.1)' : 'rgba(0,0,0,0.08)',
-          border: `1px solid ${isDark ? 'rgba(240,230,211,0.15)' : 'rgba(0,0,0,0.1)'}`,
+          backgroundColor: isDark ? 'rgba(200,134,10,0.12)' : 'rgba(176,117,8,0.08)',
+          border: `1px solid ${isDark ? 'rgba(200,134,10,0.3)' : 'rgba(176,117,8,0.2)'}`,
           backdropFilter: 'blur(12px)',
         }}
         title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       >
         {isDark
           ? <Sun className="w-5 h-5" style={{ color: '#E8C97A' }} />
-          : <Moon className="w-5 h-5" style={{ color: '#6B5E52' }} />
+          : <Moon className="w-5 h-5" style={{ color: '#8B6F47' }} />
         }
       </button>
     )
@@ -35,8 +35,8 @@ export default function ThemeToggle({ variant = 'nav' }: ThemeToggleProps) {
       onClick={toggleTheme}
       className="p-1.5 rounded-lg transition-all duration-300 active:scale-90"
       style={{
-        backgroundColor: isDark ? 'rgba(200,134,10,0.1)' : 'rgba(0,0,0,0.06)',
-        color: isDark ? '#E8C97A' : '#6B5E52',
+        backgroundColor: isDark ? 'rgba(200,134,10,0.15)' : 'rgba(176,117,8,0.1)',
+        color: isDark ? '#E8C97A' : '#8B6F47',
       }}
       title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
     >

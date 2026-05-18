@@ -13,6 +13,7 @@ export interface OrderItem {
   quantity: number
 }
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'served' | 'paid' | 'cancelled'
+export type OrderType = 'dineIn' | 'takeaway'
 export interface Order {
   id: string
   tableId: number
@@ -21,6 +22,8 @@ export interface Order {
   items: OrderItem[]
   total: number
   status: OrderStatus
+  orderType: OrderType
+  takeawayCode: string
   createdAt: string
   notes?: string
   confirmedAt?: string
@@ -32,7 +35,7 @@ export interface Order {
 }
 
 // ─── localStorage helpers ──────────────────────────────────────────────────────
-const LS_ORDERS = 'deverse_orders'
+const LS_ORDERS    = 'deverse_orders'
 const LS_MY_ORDERS = 'deverse_my_orders'
 
 function loadOrders(): Order[] {
@@ -70,6 +73,16 @@ function makeOrderId() {
   return Math.floor(10000 + Math.random() * 90000).toString()
 }
 
+// Generate short takeaway code for easy reference (e.g., "T-42K9")
+function makeTakeawayCode(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  let code = ''
+  for (let i = 0; i < 4; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return `T-${code}`
+}
+
 // ─── Context ──────────────────────────────────────────────────────────────────
 interface OrderContextType {
   orders: Order[]
@@ -78,6 +91,7 @@ interface OrderContextType {
     tableId: number | null,
     tableName: string,
     customerName: string,
+    orderType: OrderType,
     notes?: string,
   ) => string
   updateOrderStatus: (orderId: string, status: OrderStatus) => void
@@ -106,7 +120,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       setIsConnected(true)
       setSyncMode(orderSync.mode)
       persistOrders(serverOrders)
-
+      
       // Track SSE latency
       const latency = Math.random() * 10 + 5 // Simulated 5-15ms latency
       metricsCollector.recordSSEUpdateLatency(latency)
@@ -143,21 +157,24 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     tableId: number | null,
     tableName: string,
     customerName: string,
+    orderType: OrderType,
     notes?: string,
   ): string => {
     const startTime = performance.now()
     metricsCollector.recordOrderInFlight(true)
-
+    
     const id = makeOrderId()
     const newOrder: Order = {
       id,
-      tableId: tableId ?? 0,
-      tableName: tableName || `Table ${tableId}`,
+      tableId:      tableId ?? 0,
+      tableName:    tableName || `Table ${tableId}`,
       customerName,
-      items: cartItems.map(ci => ({ id: ci.id, name: ci.name, price: ci.price, quantity: ci.quantity })),
-      total: cartItems.reduce((s, i) => s + i.price * i.quantity, 0),
-      status: 'pending',
-      createdAt: new Date().toISOString(),
+      items:        cartItems.map(ci => ({ id: ci.id, name: ci.name, price: ci.price, quantity: ci.quantity })),
+      total:        cartItems.reduce((s, i) => s + i.price * i.quantity, 0),
+      status:       'pending',
+      orderType,
+      takeawayCode: orderType === 'takeaway' ? makeTakeawayCode() : '',
+      createdAt:    new Date().toISOString(),
       notes,
     }
 
@@ -190,9 +207,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const STAGE_TS: Partial<Record<OrderStatus, keyof Order>> = {
       confirmed: 'confirmedAt',
       preparing: 'preparingAt',
-      ready: 'readyAt',
-      served: 'servedAt',
-      paid: 'paidAt',
+      ready:     'readyAt',
+      served:    'servedAt',
+      paid:      'paidAt',
     }
     const tsKey = STAGE_TS[status]
 
@@ -213,7 +230,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   // ── Cancel order ──
   const cancelOrder = useCallback((orderId: string) => {
     const timestamp = new Date().toISOString()
-
+    
     // Can only cancel pending or confirmed orders
     const order = orders.find(o => o.id === orderId)
     if (!order || !['pending', 'confirmed'].includes(order.status)) {
