@@ -6,8 +6,10 @@ import LoadingSpinner from './components/LoadingSpinner'
 import ProtectedRoute from './components/ProtectedRoute'
 import { metricsCollector } from './services/metricsCollector'
 
+// Product landing page
+const Landing        = lazy(() => import('./pages/Landing'))
+
 // Customer
-const Welcome        = lazy(() => import('./pages/Welcome'))
 const TokenValidation= lazy(() => import('./pages/customer/TokenValidation'))
 const Menu           = lazy(() => import('./pages/customer/Menu'))
 const SearchPage     = lazy(() => import('./pages/customer/Search'))
@@ -81,8 +83,10 @@ export default function App() {
       <Navigation />
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>
+          {/* Product landing page */}
+          <Route path="/"                  element={<Landing />} />
+
           {/* Customer routes — open access */}
-          <Route path="/"                  element={<Welcome />} />
           <Route path="/table/:tableId"    element={<TokenValidation />} />
           <Route path="/t/:tableId"        element={<TokenValidation />} />
           <Route path="/menu"              element={<Menu />} />

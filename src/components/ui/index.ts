@@ -1,4 +1,4 @@
-export { default as Button } from './Button'
+export { default as Button, buttonClasses } from './Button'
 export type { ButtonProps, ButtonVariant, ButtonSize } from './Button'
 export { default as IconButton } from './IconButton'
 export { default as Card } from './Card'

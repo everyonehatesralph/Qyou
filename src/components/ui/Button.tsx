@@ -23,6 +23,22 @@ const SIZES: Record<ButtonSize, string> = {
   lg: 'h-[52px] px-5 text-base',
 }
 
+/** Button styling for elements that must be links (`<a>`, router `<Link>`). */
+export function buttonClasses(
+  { variant = 'secondary', size = 'md', fullWidth }: Pick<ButtonProps, 'variant' | 'size' | 'fullWidth'> = {},
+  className?: string,
+): string {
+  return cn(
+    'inline-flex items-center justify-center gap-2 rounded-control font-medium whitespace-nowrap select-none',
+    'transition-[background-color,border-color,transform] duration-150 active:scale-[0.98]',
+    'disabled:pointer-events-none disabled:opacity-45 [&>svg]:h-[18px] [&>svg]:w-[18px] [&>svg]:shrink-0',
+    VARIANTS[variant],
+    SIZES[size],
+    fullWidth && 'w-full',
+    className,
+  )
+}
+
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { variant = 'secondary', size = 'md', fullWidth, leftIcon, className, children, type = 'button', ...rest },
   ref,
@@ -31,15 +47,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
     <button
       ref={ref}
       type={type}
-      className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-control font-medium whitespace-nowrap select-none',
-        'transition-[background-color,border-color,transform] duration-150 active:scale-[0.98]',
-        'disabled:pointer-events-none disabled:opacity-45',
-        VARIANTS[variant],
-        SIZES[size],
-        fullWidth && 'w-full',
-        className,
-      )}
+      className={buttonClasses({ variant, size, fullWidth }, className)}
       {...rest}
     >
       {leftIcon && <span className="-ml-0.5 flex shrink-0 [&>svg]:h-[18px] [&>svg]:w-[18px]">{leftIcon}</span>}
