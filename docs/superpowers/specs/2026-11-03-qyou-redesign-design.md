@@ -375,3 +375,22 @@ Requested by the owner, with a delivery-app menu as the reference: guests choose
 
 - The thin accent reading-progress line under the landing header is removed (owner: it looked
   like a stray line over the content passing behind the header).
+
+## Revision 9 (2026-11-04): For your team, and the phones
+
+Requested by the owner: the team section looked templated; prefer a minimal style with
+good motion; use a current iPhone-style phone; phones neither too big nor too small on mobile.
+
+- **For your team:** a numbered list (01–04) with hairline dividers and one framed screen
+  beside it that plays a short scene for the open item: an order arriving and being
+  confirmed, tickets moving across the kitchen board and turning amber at 10 minutes, a
+  sold-out switch greying the guest's card, and revenue counting up as the hours fill in.
+  Scenes cut with a lift-and-settle transition. The tour advances every 6.5 s while on screen,
+  pauses on hover, stops when someone opens an item, has a Pause button, and never plays
+  with reduced motion. While it plays, the open title fills in as its time runs (no bar).
+  On phones the screen stays pinned above the list. The four ticket-icon cards are gone.
+- **Phones:** one frame everywhere, modeled on current iPhones (thin even bezels, a small
+  camera pill, a flat graphite edge, action and volume buttons left, side button and camera
+  control right; no Apple marks). Screens are drawn at 260×564 and scaled to fit, so the
+  phone keeps its proportions at every size. On phones both landing phones are
+  min(52vw, 208px) wide, and their screens show the photo menu.

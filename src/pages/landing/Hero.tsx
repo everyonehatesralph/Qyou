@@ -45,14 +45,15 @@ function Scene({ px, py, scroll }: { px: MotionValue<number>; py: MotionValue<nu
 
   return (
     // A picture of the product; the headline and copy beside it say the same in words
-    <div className="relative mx-auto h-[540px] w-full max-w-[460px] [perspective:1600px] sm:h-[600px]" aria-hidden>
+    // On phones the scene is as tall as its phone (52% of the screen, like the one in How it works)
+    <div className="relative mx-auto h-[calc(min(52vw,208px)*2.3+32px)] w-full max-w-[460px] [perspective:1600px] sm:h-[600px]" aria-hidden>
       <motion.div style={{ rotateY, rotateX, y: reduce ? 0 : lift }} className="preserve-3d absolute inset-0">
         {/* Back: now-serving ticket */}
         <motion.div
           initial={{ opacity: 0, rotate: 14, y: 40 }}
           animate={{ opacity: 1, rotate: 9, y: 0 }}
           transition={{ duration: 1, delay: 0.5, ease: EASE }}
-          className="absolute right-0 top-6 w-[176px] drop-shadow-xl sm:-right-6 sm:w-[200px]"
+          className="absolute right-0 top-6 w-[148px] drop-shadow-xl sm:-right-6 sm:w-[200px]"
           style={{ z: -140 }}
         >
           <Ticket
@@ -62,7 +63,7 @@ function Scene({ px, py, scroll }: { px: MotionValue<number>; py: MotionValue<nu
             stub={<p className="font-mono text-[10px] uppercase tracking-widest">Table 4 · {RESTAURANT.shortName}</p>}
           >
             <p className="font-mono text-[10px] uppercase tracking-widest">Now serving</p>
-            <p className="font-display text-[64px] leading-[0.9] tracking-[-0.04em]">042</p>
+            <p className="font-display text-[52px] leading-[0.9] tracking-[-0.04em] sm:text-[64px]">042</p>
           </Ticket>
         </motion.div>
 
@@ -71,7 +72,7 @@ function Scene({ px, py, scroll }: { px: MotionValue<number>; py: MotionValue<nu
           initial={{ opacity: 0, y: 60 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1.1, delay: 0.25, ease: EASE }}
-          className="absolute left-1/2 top-0 w-[250px] sm:w-[272px]"
+          className="absolute left-1/2 top-0 w-[min(52vw,208px)] sm:w-[272px]"
           style={{ x: '-50%' }}
         >
           <PhoneFrame>
@@ -84,7 +85,7 @@ function Scene({ px, py, scroll }: { px: MotionValue<number>; py: MotionValue<nu
           initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.9, delay: 0.9, ease: EASE }}
-          className="absolute bottom-6 left-0 w-[132px] sm:-left-4"
+          className="absolute bottom-6 left-0 w-[120px] sm:-left-4 sm:w-[132px]"
           style={{ z: 90, rotate: -6 }}
         >
           <div data-theme="light" className="rounded-[14px] bg-surface p-3 text-center text-ink shadow-lift">
@@ -92,7 +93,7 @@ function Scene({ px, py, scroll }: { px: MotionValue<number>; py: MotionValue<nu
             <div className="mx-auto mt-2 w-fit">
               <QRCodeSVG value="https://qyou.app/t/4" size={84} fgColor="black" bgColor="white" level="M" title="QR code for Table 4" />
             </div>
-            <p className="mt-2 text-[10px] font-semibold">Scan to order · Table 4</p>
+            <p className="mt-2 text-[10px] font-semibold">Scan to order<span className="block">Table 4</span></p>
           </div>
         </motion.div>
 
@@ -101,16 +102,17 @@ function Scene({ px, py, scroll }: { px: MotionValue<number>; py: MotionValue<nu
           initial={{ opacity: 0, y: 20, scale: 0.9 }}
           animate={{ opacity: 1, y: [0, -8, 0], scale: 1 }}
           transition={{ opacity: { delay: 1.4, duration: 0.5 }, scale: { delay: 1.4, duration: 0.5 }, y: { delay: 1.9, duration: 4, repeat: Infinity, ease: 'easeInOut' } }}
-          className="absolute right-0 top-[52%] sm:-right-8"
+          className="absolute -right-1 top-[56%] sm:-right-8 sm:top-[52%]"
           style={{ z: 140 }}
         >
-          <div data-theme="light" className="flex w-[214px] items-center gap-3 rounded-[16px] bg-surface p-3 text-ink shadow-lift">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-status-ready-bg text-status-ready-text">
-              <BellRing className="h-5 w-5 animate-ring" />
+          {/* Compact on phones so it sits beside the phone instead of over it */}
+          <div data-theme="light" className="flex items-center gap-2.5 rounded-[16px] bg-surface p-2.5 text-ink shadow-lift sm:w-[214px] sm:gap-3 sm:p-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-status-ready-bg text-status-ready-text sm:h-10 sm:w-10">
+              <BellRing className="h-[18px] w-[18px] animate-ring sm:h-5 sm:w-5" />
             </span>
             <span className="min-w-0">
-              <span className="block text-[13px] font-semibold">Your order is ready</span>
-              <span className="block text-[12px] text-ink-muted">Table 4 · Order Nº 0427</span>
+              <span className="block text-[12px] font-semibold sm:text-[13px]">Your order is ready</span>
+              <span className="block text-[12px] text-ink-muted">Table 4<span className="hidden sm:inline"> · Order Nº 0427</span></span>
             </span>
           </div>
         </motion.div>

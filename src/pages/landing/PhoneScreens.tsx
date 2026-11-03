@@ -1,26 +1,42 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
-import { BellRing, Check, Minus, Plus, Search } from 'lucide-react'
+import { BellRing, Check, Flame, Minus, Plus, Search } from 'lucide-react'
 import { LetterTile, cn } from '../../components/ui'
+import ItemPhoto from '../../components/ItemPhoto'
 import { RESTAURANT } from '../../config/restaurant'
 import { MENU_ITEMS } from '../../constants/menu'
 import { peso } from '../../utils/formatters'
+import { useFitScale } from './motion'
 
 const item = (id: number) => MENU_ITEMS.find(i => i.id === id)!
 
+// Screens are drawn at this size and scaled to fit, so every phone keeps the same
+// proportions however wide it is shown
+const SCREEN_W = 260
+const SCREEN_H = 564
+
 /**
- * A phone: dark frame in both modes, light screen like a product shot.
- * Children render inside the screen.
+ * A current phone: thin even bezels, a small camera pill, a flat graphite edge with
+ * the action and volume buttons on the left, the side button and camera control on
+ * the right. The screen is light in both modes, like a product shot.
  */
 export function PhoneFrame({ children, className }: { children: ReactNode; className?: string }) {
+  const [screen, scale] = useFitScale<HTMLDivElement>(SCREEN_W)
   return (
-    <div data-theme="dark" className={cn('relative rounded-[2.9rem] border border-line-strong bg-bg p-[9px] shadow-lift', className)}>
-      <span aria-hidden className="absolute -left-[3px] top-28 h-12 w-[3px] rounded-l-sm bg-surface-3" />
-      <span aria-hidden className="absolute -right-[3px] top-36 h-20 w-[3px] rounded-r-sm bg-surface-3" />
-      <div data-theme="light" className="relative aspect-[9/19.5] overflow-hidden rounded-[2.35rem] bg-bg text-ink">
-        <span aria-hidden data-theme="dark" className="absolute left-1/2 top-2 z-30 h-[22px] w-[86px] -translate-x-1/2 rounded-full bg-bg" />
-        {children}
+    <div className={cn('phone-body relative rounded-[17%/7.9%] p-[1.1%]', className)}>
+      <span aria-hidden className="phone-button absolute -left-[2px] top-[16.5%] h-[4%] w-[3px] rounded-l-[2px]" />
+      <span aria-hidden className="phone-button absolute -left-[2px] top-[23.5%] h-[7.5%] w-[3px] rounded-l-[2px]" />
+      <span aria-hidden className="phone-button absolute -left-[2px] top-[32.5%] h-[7.5%] w-[3px] rounded-l-[2px]" />
+      <span aria-hidden className="phone-button absolute -right-[2px] top-[25%] h-[11.5%] w-[3px] rounded-r-[2px]" />
+      <span aria-hidden className="phone-button absolute -right-[1.5px] top-[53%] h-[6.5%] w-[2px] rounded-r-[2px] opacity-80" />
+      <div className="phone-bezel rounded-[16%/7.4%] p-[2.1%]">
+        <div ref={screen} data-theme="light" className="relative aspect-[9/19.5] overflow-hidden rounded-[14.5%/6.7%] bg-bg text-ink">
+          <div className="absolute left-0 top-0 origin-top-left" style={{ width: SCREEN_W, height: SCREEN_H, transform: `scale(${scale})` }}>
+            <span aria-hidden className="phone-island absolute left-1/2 top-[9px] z-30 h-[19px] w-[64px] -translate-x-1/2 rounded-full" />
+            {children}
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -38,39 +54,58 @@ function AppHeader({ sub = 'Hi Ana · Table 4' }: { sub?: string }) {
   )
 }
 
-function MenuRow({ id, qty, soldOut }: { id: number; qty: number; soldOut?: boolean }) {
+/** A card from the guest menu: photo, + (or the stepper), name and price. */
+function PhotoCard({ id, qty, soldOut }: { id: number; qty: number; soldOut?: boolean }) {
   const it = item(id)
   return (
-    <li className={cn('flex items-center gap-2.5 px-3.5 py-2.5', soldOut && 'bg-surface-2')}>
-      <LetterTile text={it.name} size="sm" className={cn('h-8 w-8 text-sm', soldOut && 'opacity-60')} />
-      <div className="min-w-0 flex-1">
-        <p className={cn('truncate text-[12px] font-medium', soldOut ? 'text-ink-muted' : 'text-ink')}>{it.name}</p>
-        <p className="text-[11px] text-ink-muted">{soldOut ? 'Sold out today' : peso(it.price)}</p>
+    <div className="relative min-w-0">
+      <ItemPhoto item={it} eager dimmed={soldOut} className="aspect-square rounded-[10px] border border-line" />
+      <div className="absolute inset-x-0 top-0 aspect-square">
+        {soldOut ? (
+          <span className="absolute left-1.5 top-1.5 rounded-full bg-surface px-1.5 py-0.5 text-[9px] font-semibold text-ink">Sold out</span>
+        ) : (
+          <span className="absolute bottom-1.5 right-1.5">
+            <AnimatePresence mode="popLayout" initial={false}>
+              {qty > 0 ? (
+                <motion.span
+                  key="stepper"
+                  initial={{ scale: 0.6, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.6, opacity: 0 }}
+                  className="flex h-7 items-center gap-1.5 rounded-full border border-line bg-surface px-1.5 text-[11px] font-semibold shadow-lift"
+                >
+                  <Minus className="h-3 w-3" />
+                  <motion.span key={qty} initial={{ y: -6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-2.5 text-center tabular-nums">
+                    {qty}
+                  </motion.span>
+                  <Plus className="h-3 w-3" />
+                </motion.span>
+              ) : (
+                <motion.span key="add" exit={{ scale: 0.6, opacity: 0 }} className="flex h-7 w-7 items-center justify-center rounded-full border border-line bg-surface shadow-lift">
+                  <Plus className="h-3 w-3" />
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </span>
+        )}
       </div>
-      {!soldOut && (
-        <AnimatePresence mode="popLayout" initial={false}>
-          {qty > 0 ? (
-            <motion.span
-              key="stepper"
-              initial={{ scale: 0.6, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.6, opacity: 0 }}
-              className="flex h-7 items-center gap-1.5 rounded-full border border-line-strong px-1.5 text-[11px] font-semibold"
-            >
-              <Minus className="h-3 w-3" />
-              <motion.span key={qty} initial={{ y: -6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-2.5 text-center tabular-nums">
-                {qty}
-              </motion.span>
-              <Plus className="h-3 w-3" />
-            </motion.span>
-          ) : (
-            <motion.span key="add" exit={{ scale: 0.6, opacity: 0 }} className="flex h-7 w-7 items-center justify-center rounded-full border border-line-strong">
-              <Plus className="h-3 w-3" />
-            </motion.span>
-          )}
-        </AnimatePresence>
-      )}
-    </li>
+      <p className={cn('mt-1.5 truncate text-[11px] font-semibold', soldOut ? 'text-ink-muted' : 'text-ink')}>{it.name}</p>
+      <p className="text-[11px] tabular-nums text-ink-muted">{soldOut ? 'Sold out today' : peso(it.price)}</p>
+    </div>
+  )
+}
+
+/** Section tabs with the underline under the current one. */
+function SectionTabs({ current = 0 }: { current?: number }) {
+  return (
+    <div className="flex gap-3.5 border-b border-line px-3.5 text-[11px] font-semibold">
+      {['Popular', 'Coffee', 'Tea', 'Pastry'].map((t, i) => (
+        <span key={t} className={cn('relative pb-2 pt-1', i === current ? 'text-ink' : 'text-ink-muted')}>
+          {t}
+          {i === current && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-ink" />}
+        </span>
+      ))}
+    </div>
   )
 }
 
@@ -99,22 +134,18 @@ export function MenuScreen() {
     <div className="absolute inset-0">
       <AppHeader />
       <div className="mx-3.5 flex h-8 items-center gap-1.5 rounded-full border border-line-strong bg-surface px-3 text-[11px] text-ink-muted">
-        <Search className="h-3 w-3" /> Search the menu
+        <Search className="h-3 w-3" /> Search {RESTAURANT.shortName}
       </div>
-      <div className="flex gap-1 px-3.5 py-2.5">
-        {['All', 'Coffee', 'Tea', 'Pastry'].map((c, i) => (
-          <span key={c} className={cn('rounded-full border px-2.5 py-1 text-[10px] font-medium', i === 0 ? 'border-ink bg-ink text-bg' : 'border-line bg-surface text-ink-muted')}>
-            {c}
-          </span>
-        ))}
+      <div className="mt-2"><SectionTabs /></div>
+      <p className="flex items-center gap-1 px-3.5 pt-3 font-display text-[14px]">
+        <Flame className="h-3.5 w-3.5 text-accent-text" /> Popular
+      </p>
+      <div className="grid grid-cols-2 gap-x-2.5 gap-y-3 px-3.5 pt-2">
+        <PhotoCard id={2} qty={1} />
+        <PhotoCard id={3} qty={0} />
+        <PhotoCard id={7} qty={1} />
+        <PhotoCard id={8} qty={0} soldOut />
       </div>
-      <ul className="divide-y divide-line border-y border-line bg-surface">
-        <MenuRow id={2} qty={1} />
-        <MenuRow id={3} qty={0} />
-        <MenuRow id={7} qty={1} />
-        <MenuRow id={8} qty={0} soldOut />
-        <MenuRow id={4} qty={0} />
-      </ul>
       <CartBar count={2} total={item(2).price + item(7).price} />
     </div>
   )
@@ -172,11 +203,11 @@ export function OrderScreen() {
   return (
     <div className="absolute inset-0">
       <AppHeader />
-      <p className="px-3.5 pb-1.5 pt-1 font-display text-[13px]">Coffee</p>
-      <ul className="divide-y divide-line border-y border-line bg-surface">
-        {ids.map((id, i) => <MenuRow key={id} id={id} qty={qty[i]} />)}
-        <MenuRow id={4} qty={0} />
-      </ul>
+      <SectionTabs />
+      <div className="grid grid-cols-2 gap-x-2.5 gap-y-3 px-3.5 pt-3">
+        {ids.map((id, i) => <PhotoCard key={id} id={id} qty={qty[i]} />)}
+        <PhotoCard id={4} qty={0} />
+      </div>
       <CartBar count={count} total={total} />
     </div>
   )
