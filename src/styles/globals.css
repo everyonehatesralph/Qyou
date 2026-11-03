@@ -196,6 +196,19 @@
       radial-gradient(circle var(--notch) at 0 var(--notch-y), transparent 98%, black 100%) left / 51% 100% no-repeat,
       radial-gradient(circle var(--notch) at 100% var(--notch-y), transparent 98%, black 100%) right / 51% 100% no-repeat;
   }
+  /* Hero "Qyou." ticket: a perforated inner edge and a soft lift in the accent */
+  .hero-ticket::before {
+    content: "";
+    position: absolute;
+    inset: 0.07em 0.1em;
+    border: max(1px, 0.022em) dashed currentColor;
+    border-radius: 0.05em;
+    opacity: 0.45;
+    pointer-events: none;
+  }
+  .hero-ticket-lift {
+    filter: drop-shadow(0 0.1em 0.12em color-mix(in srgb, var(--accent) 30%, transparent));
+  }
   /* Tear-off line drawn across a ticket */
   .perforation {
     background-image: linear-gradient(to right, var(--border-strong) 55%, transparent 0);

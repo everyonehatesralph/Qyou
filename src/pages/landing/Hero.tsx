@@ -1,9 +1,9 @@
-import { useRef, type PointerEvent, type ReactNode } from 'react'
+import { useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform, type MotionValue } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
 import { ArrowRight, BellRing } from 'lucide-react'
-import { Ticket, buttonClasses } from '../../components/ui'
+import { Ticket, buttonClasses, cn } from '../../components/ui'
 import { PRODUCT } from '../../config/product'
 import { RESTAURANT } from '../../config/restaurant'
 import { MenuScreen, PhoneFrame } from './PhoneScreens'
@@ -13,14 +13,18 @@ const EASE = [0.22, 1, 0.36, 1] as const
 const SPRING = { stiffness: 120, damping: 20, mass: 0.8 }
 
 /** A headline line that slides up from behind a mask. */
-function Line({ children, delay }: { children: ReactNode; delay: number }) {
+function Line({ children, delay, className }: { children: ReactNode; delay: number; className?: string }) {
+  const [landed, setLanded] = useState(false)
   return (
-    <span className="block overflow-hidden pb-[0.06em]">
+    // Clip only the bottom edge, and only while the line rises, so the tilted
+    // ticket and its shadow are never cut
+    <span className={cn('block pb-[0.06em]', !landed && '[clip-path:inset(-1em_-1em_0_-1em)]', className)}>
       <motion.span
         className="block"
-        initial={{ y: '105%' }}
+        initial={{ y: '115%' }}
         animate={{ y: 0 }}
         transition={{ duration: 0.9, delay, ease: EASE }}
+        onAnimationComplete={() => setLanded(true)}
       >
         {children}
       </motion.span>
@@ -143,10 +147,19 @@ export default function Hero() {
 
           <h1 className="mt-6 font-display text-[clamp(3.1rem,11vw,5.6rem)] leading-[0.92] tracking-[-0.045em] text-ink">
             <Line delay={0.1}>Don't queue.</Line>
-            <Line delay={0.22}>
+            {/* A little air so the ticket clears the descenders above */}
+            <Line delay={0.22} className="mt-[0.05em]">
               Just{' '}
-              <span className="ticket relative inline-block -rotate-2 rounded-[0.12em] bg-accent px-[0.16em] text-on-accent [--notch:0.1em]">
-                Qyou.
+              {/* The queue ticket stamps down once its line is in */}
+              <span className="hero-ticket-lift inline-block">
+                <motion.span
+                  className="ticket hero-ticket relative inline-block rounded-[0.1em] bg-accent px-[0.24em] pb-[0.1em] pt-[0.08em] text-on-accent [--notch:0.11em]"
+                  initial={{ rotate: 0, scale: 1 }}
+                  animate={{ rotate: -2.5, scale: [1, 1.08, 1] }}
+                  transition={{ delay: 0.85, duration: 0.55, ease: EASE }}
+                >
+                  Qyou.
+                </motion.span>
               </span>
             </Line>
           </h1>
