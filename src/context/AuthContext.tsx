@@ -23,12 +23,37 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
+// A guest's table check-in survives reloads for a meal's length, so orders always carry the table
+const LS_TABLE_SESSION = 'qyou_table_session'
+const TABLE_SESSION_MS = 6 * 60 * 60_000
+
+interface TableSession { tableId: number; tableName: string; customerName: string; at: number }
+
+function loadTableSession(): TableSession | null {
+  try {
+    const raw = localStorage.getItem(LS_TABLE_SESSION)
+    if (!raw) return null
+    const s = JSON.parse(raw) as TableSession
+    if (Number.isInteger(s.tableId) && s.tableId > 0 && Date.now() - s.at < TABLE_SESSION_MS) return s
+    localStorage.removeItem(LS_TABLE_SESSION)
+  } catch { /* noop */ }
+  return null
+}
+
+function saveTableSession(s: TableSession | null) {
+  try {
+    if (s) localStorage.setItem(LS_TABLE_SESSION, JSON.stringify(s))
+    else localStorage.removeItem(LS_TABLE_SESSION)
+  } catch { /* noop */ }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [saved] = useState(loadTableSession)
   const [isStaff, setIsStaff]           = useState(false)
   const [authReady, setAuthReady]       = useState(() => !orderSync.staff.mightHaveSession())
-  const [customerName, setCustomerName] = useState('')
-  const [tableId, setTableId]           = useState<number | null>(null)
-  const [tableName, setTableName]       = useState('')
+  const [customerName, setCustomerNameRaw] = useState(saved?.customerName ?? '')
+  const [tableId, setTableId]           = useState<number | null>(saved?.tableId ?? null)
+  const [tableName, setTableName]       = useState(saved?.tableName ?? '')
 
   // Staff stay signed in across reloads on their own device
   useEffect(() => {
@@ -53,11 +78,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const setTableSession = useCallback((tid: number, tname: string, cname: string) => {
-    setTableId(tid); setTableName(tname); setCustomerName(cname)
+    setTableId(tid); setTableName(tname); setCustomerNameRaw(cname)
+    saveTableSession({ tableId: tid, tableName: tname, customerName: cname, at: Date.now() })
+  }, [])
+
+  const setCustomerName = useCallback((name: string) => {
+    setCustomerNameRaw(name)
+    const s = loadTableSession()
+    if (s) saveTableSession({ ...s, customerName: name })
   }, [])
 
   const clearSession = useCallback(() => {
-    setTableId(null); setTableName(''); setCustomerName('')
+    setTableId(null); setTableName(''); setCustomerNameRaw('')
+    saveTableSession(null)
   }, [])
 
   const value = useMemo(() => ({
@@ -66,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     tableId, tableName, setTableSession, clearSession,
   }), [
     isStaff, authReady, staffLogin, staffLogout,
-    customerName, tableId, tableName, setTableSession, clearSession,
+    customerName, setCustomerName, tableId, tableName, setTableSession, clearSession,
   ])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

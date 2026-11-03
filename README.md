@@ -26,9 +26,27 @@ client (`src/services/orderSync.ts`):
 
 Either way the server prices every order from its own menu (the browser only sends item ids
 and quantities), order ids are random UUIDs made on the phone (a retry can't create a second
-order), and only signed-in staff can change an order's status. Guests' phones receive their own
-orders plus a public board (table, pickup code, status), never other guests' items or dine-in
-names.
+order), and only signed-in staff can change an order's status or the menu. Guests' phones
+receive their own orders plus a public board (table, pickup code, status), never other guests'
+items or dine-in names.
+
+## Order rules
+
+- **Menu**: staff edits (price, name, new items, sold out) save to the backend and reach every
+  phone at once. New prices apply to new orders; placed orders keep theirs. The cart always
+  shows live prices and blocks checkout while it holds a sold-out item.
+- **Add-ons** are menu items of their own (category "Add-ons"), charged and listed on the order.
+- **Tables**: an order needs a table check-in (`/t/<id>`), which a phone keeps for 6 hours.
+  Several phones can order at one table. A table is occupied while it has orders that are
+  neither paid nor cancelled. **Free table** marks ready and served orders paid and cancels
+  orders the kitchen hasn't finished; the dialog says which before staff confirm.
+- **Alerts**: the dashboard rings for each new order and the kitchen for each confirmed one;
+  a guest's phone rings when its order is ready, on any page. Each order rings once per device
+  (remembered by id), so reloads and reconnects neither repeat nor miss a ring. Staff screens
+  say when the browser still blocks sound.
+- **Analytics** (dashboard and Analytics page, from `src/services/analytics.ts`): a sale is a
+  served or paid order; revenue is the total of sales, add-ons included; "Paid today" counts
+  paid orders by when they were paid. Staff screens hold 90 days of orders.
 
 ## Screens
 
@@ -80,12 +98,11 @@ This is a working prototype, not yet production-ready:
 
 - Staff share one 6-digit PIN per restaurant (a Supabase Auth account), so there is no
   per-person audit trail.
-- Menu name/price edits and sold-out switches are not shared across devices, and the server
-  doesn't know about sold-out switches yet. Prices on the menu come from
-  `src/constants/menu.ts`; the server charges what the database's `menu_items` says (a test
-  checks they match).
-- Add-on prices are shown at checkout but not included in the stored order total.
-- "Free table" marks a table's unpaid (and cancelled) orders as paid.
+- A phone only rings while Qyou is open in its browser; a locked phone or a closed tab
+  can't ring (that needs push notifications).
+- Days in analytics follow the clock of the device showing them.
+- The table list lives in `src/config/restaurant.ts`; the server checks that an order has a
+  table, not that the table exists.
 
 ## License
 

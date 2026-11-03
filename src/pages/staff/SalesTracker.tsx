@@ -9,12 +9,16 @@ import { ColumnChart } from '../../components/Charts'
 import { Button, Card, EmptyState, Segmented, cn } from '../../components/ui'
 import { STATUS_GROUP_CLASSES, STATUS_META } from '../../theme/status'
 import { peso } from '../../utils/formatters'
+import { useMenuState } from '../../context/MenuContext'
+import { orderRef } from '../../services/orderModel'
+import {
+  PIPELINE, byHour, categoryMix, dailyTrend, inRange, isSale, itemSales, pipeline, salesCsv, summarize,
+  type Range,
+} from '../../services/analytics'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function minutesBetween(a: string, b: string) {
-  return Math.max(0, (new Date(b).getTime() - new Date(a).getTime()) / 60000)
-}
-function hourLabel(h: number) {
+function hourLabel(h: number | null) {
+  if (h === null) return '—'
   if (h === 0) return '12am'
   if (h < 12) return `${h}am`
   if (h === 12) return '12pm'
@@ -24,7 +28,6 @@ function dayLabel(d: number) {
   return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]
 }
 
-type TimeFilter = 'today' | '7d' | '30d' | 'all'
 
 function Panel({ title, children, className }: { title: string; children: ReactNode; className?: string }) {
   return (
@@ -46,133 +49,59 @@ function Bar({ value, max, fill = 'bg-chart' }: { value: number; max: number; fi
 
 export default function SalesTracker() {
   const { orders } = useOrders()
+  const { byId } = useMenuState()
   const { expanded: sidebarExpanded, toggle: toggleSidebar } = useSidebar()
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>('all')
+  // Staff screens hold the last 90 days of orders, so that's the longest range
+  const [timeFilter, setTimeFilter] = useState<Range>('30d')
 
-  // ── Filter orders by time ─────────────────────────────────────────────────
-  const completed = useMemo(() => {
-    const now = Date.now()
-    return orders.filter(o => {
-      if (o.status !== 'served' && o.status !== 'paid') return false
-      const t = new Date(o.createdAt).getTime()
-      if (timeFilter === 'today') return new Date(o.createdAt).toDateString() === new Date().toDateString()
-      if (timeFilter === '7d') return now - t < 7 * 86400000
-      if (timeFilter === '30d') return now - t < 30 * 86400000
-      return true
-    })
-  }, [orders, timeFilter])
+  // Every number below follows the definitions in src/services/analytics.ts
+  const inPeriod = useMemo(() => orders.filter(o => inRange(o, timeFilter)), [orders, timeFilter])
+  const completed = useMemo(() => inPeriod.filter(isSale), [inPeriod])
+  const summary = useMemo(() => summarize(completed), [completed])
+  const { revenue: totalRevenue, sales: totalOrders, averageOrder: avgOrderVal, guests: uniqueCustomers, averageServeMin } = summary
 
-  // ── KPI stats ─────────────────────────────────────────────────────────────
-  const totalRevenue = completed.reduce((s, o) => s + o.total, 0)
-  const totalOrders = completed.length
-  const avgOrderVal = totalOrders > 0 ? totalRevenue / totalOrders : 0
-  const uniqueCustomers = new Set(completed.map(o => o.customerName)).size
-
-  // ── Avg serve time (pending → served) ─────────────────────────────────────
-  const avgServeMin = useMemo(() => {
-    const times = completed
-      .filter(o => o.servedAt)
-      .map(o => minutesBetween(o.createdAt, o.servedAt!))
-    return times.length > 0 ? times.reduce((a, b) => a + b, 0) / times.length : 0
-  }, [completed])
-
-  // ── Per-item stats ────────────────────────────────────────────────────────
-  const itemStats = useMemo(() => {
-    const map = new Map<number, { id: number; name: string; category: string; qty: number; rev: number }>()
-    completed.forEach(o => o.items.forEach(i => {
-      const e = map.get(i.id)
-      if (e) { e.qty += i.quantity; e.rev += i.price * i.quantity }
-      else map.set(i.id, { id: i.id, name: i.name, category: 'Menu', qty: i.quantity, rev: i.price * i.quantity })
-    }))
-    return [...map.values()].sort((a, b) => b.qty - a.qty)
-  }, [completed])
-
+  const itemStats = useMemo(() => itemSales(completed, byId), [completed, byId])
   const topItems = itemStats.slice(0, 5)
   const bottomItems = itemStats.length > 5 ? itemStats.slice(-3).reverse() : []
   const maxQty = itemStats[0]?.qty ?? 1
 
-  // ── Peak hours (0-23) ─────────────────────────────────────────────────────
   const hourlyData = useMemo(() => {
-    const counts = Array(24).fill(0) as number[]
-    const revenue = Array(24).fill(0) as number[]
-    completed.forEach(o => {
-      const h = new Date(o.createdAt).getHours()
-      counts[h]++
-      revenue[h] += o.total
-    })
-    const maxC = Math.max(...counts, 1)
-    return { counts, revenue, max: maxC }
+    const h = byHour(completed)
+    return { ...h, max: Math.max(...h.counts, 1) }
   }, [completed])
+  const { busiest: busiestHour, quietest: quietestHour } = hourlyData
 
-  const busiestHour = hourlyData.counts.indexOf(Math.max(...hourlyData.counts))
-  const quietestHour = useMemo(() => {
-    const c = hourlyData.counts
-    // find quietest among hours that had at least 1 order
-    const active = c.map((v, i) => ({ v, i })).filter(x => x.v > 0)
-    if (active.length === 0) return 0
-    return active.reduce((a, b) => a.v < b.v ? a : b).i
-  }, [hourlyData])
+  // Always the last 7 days, whatever range is picked above
+  const dailyTrendData = useMemo(() => dailyTrend(orders.filter(isSale), 7).map((d, i, all) => ({
+    label: i === all.length - 1 ? 'Today' : i === all.length - 2 ? 'Yest.' : dayLabel(d.day.getDay()),
+    orders: d.orders,
+    revenue: d.revenue,
+  })), [orders])
 
-  // ── Daily trend (last 7 days) ─────────────────────────────────────────────
-  const dailyTrend = useMemo(() => {
-    const days: { label: string; orders: number; revenue: number }[] = []
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i)
-      const ds = d.toDateString()
-      const dayOrders = completed.filter(o => new Date(o.createdAt).toDateString() === ds)
-      days.push({
-        label: i === 0 ? 'Today' : i === 1 ? 'Yest.' : dayLabel(d.getDay()),
-        orders: dayOrders.length,
-        revenue: dayOrders.reduce((s, o) => s + o.total, 0),
-      })
-    }
-    return days
-  }, [completed])
+  // Where this period's orders are now, cancelled ones aside
+  const funnel = useMemo(() => pipeline(inPeriod), [inPeriod])
+  const funnelMax = Math.max(PIPELINE.reduce((a, s) => a + funnel[s], 0), 1)
 
-  // ── Order status funnel ───────────────────────────────────────────────────
-  const funnel = useMemo(() => {
-    const s = { pending: 0, confirmed: 0, preparing: 0, ready: 0, served: 0, paid: 0 }
-    orders.forEach(o => { if (o.status in s) s[o.status as keyof typeof s]++ })
-    return s
-  }, [orders])
-  const funnelMax = Math.max(Object.values(funnel).reduce((a, b) => a + b, 0), 1)
-
-  // ── Category breakdown ────────────────────────────────────────────────────
-  const categoryData = useMemo(() => {
-    const map = new Map<string, { qty: number; rev: number }>()
-    completed.forEach(o => o.items.forEach(i => {
-      const cat = i.name.toLowerCase().includes('coffee') || i.name.toLowerCase().includes('latte') || i.name.toLowerCase().includes('espresso') ? 'Coffee'
-        : i.name.toLowerCase().includes('tea') || i.name.toLowerCase().includes('matcha') ? 'Tea'
-        : i.name.toLowerCase().includes('cake') || i.name.toLowerCase().includes('croissant') || i.name.toLowerCase().includes('muffin') ? 'Pastry'
-        : 'Food'
-      const e = map.get(cat)
-      if (e) { e.qty += i.quantity; e.rev += i.price * i.quantity }
-      else map.set(cat, { qty: i.quantity, rev: i.price * i.quantity })
-    }))
-    return [...map.entries()].sort((a, b) => b[1].rev - a[1].rev)
-  }, [completed])
-  const catMaxRev = categoryData[0]?.[1].rev ?? 1
+  const categoryData = useMemo(() => categoryMix(completed, byId), [completed, byId])
+  const catMaxRev = categoryData[0]?.[1].revenue ?? 1
 
   // ── Insights ──────────────────────────────────────────────────────────────
   const insights = useMemo(() => {
     const msgs: string[] = []
-    if (busiestHour >= 0 && totalOrders > 0) msgs.push(`Peak hour is ${hourLabel(busiestHour)} with ${hourlyData.counts[busiestHour]} orders.`)
-    if (quietestHour >= 0 && totalOrders > 0) msgs.push(`Quietest hour is ${hourLabel(quietestHour)}; a good time for promotions.`)
-    if (avgServeMin > 0) msgs.push(`Average time from order to served is ${avgServeMin.toFixed(1)} minutes.`)
+    if (busiestHour !== null) msgs.push(`Peak hour is ${hourLabel(busiestHour)} with ${hourlyData.counts[busiestHour]} ${hourlyData.counts[busiestHour] === 1 ? 'sale' : 'sales'}.`)
+    if (quietestHour !== null && quietestHour !== busiestHour) msgs.push(`Quietest hour is ${hourLabel(quietestHour)}; a good time for promotions.`)
+    if (averageServeMin !== null) msgs.push(`Average time from order to served is ${averageServeMin.toFixed(1)} minutes.`)
     if (topItems[0]) msgs.push(`“${topItems[0].name}” is your top seller (${topItems[0].qty} sold).`)
     if (bottomItems[0]) msgs.push(`“${bottomItems[0].name}” sells the least; worth reviewing.`)
     if (avgOrderVal > 0) msgs.push(`Average order value is ${peso(avgOrderVal)}.`)
-    if (uniqueCustomers > 0) msgs.push(`${uniqueCustomers} different guests ordered.`)
+    if (uniqueCustomers > 0) msgs.push(`${uniqueCustomers} different ${uniqueCustomers === 1 ? 'guest' : 'guests'} ordered.`)
     return msgs
-  }, [busiestHour, quietestHour, avgServeMin, topItems, bottomItems, avgOrderVal, uniqueCustomers, hourlyData, totalOrders])
+  }, [busiestHour, quietestHour, averageServeMin, topItems, bottomItems, avgOrderVal, uniqueCustomers, hourlyData])
 
   // ── CSV Export ─────────────────────────────────────────────────────────────
   const exportCSV = useCallback(() => {
-    const header = 'Order ID,Customer,Table,Items,Total,Status,Created,Served\n'
-    const rows = completed.map(o =>
-      `${o.id},"${o.customerName}","${o.tableName}","${o.items.map(i => `${i.name}x${i.quantity}`).join('; ')}",${o.total},${o.status},${o.createdAt},${o.servedAt || ''}`
-    ).join('\n')
-    const blob = new Blob([header + rows], { type: 'text/csv' })
+    // The byte-order mark makes Excel read ₱ and accented names correctly
+    const blob = new Blob(['\uFEFF' + salesCsv(completed, orderRef)], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url; a.download = `qyou-sales-${new Date().toISOString().slice(0, 10)}.csv`; a.click()
@@ -190,7 +119,7 @@ export default function SalesTracker() {
       />
 
       <main className="mx-auto max-w-6xl space-y-5 px-4 py-5 sm:px-6 sm:py-6">
-        <Segmented<TimeFilter>
+        <Segmented<Range>
           label="Time range"
           value={timeFilter}
           onChange={setTimeFilter}
@@ -198,7 +127,7 @@ export default function SalesTracker() {
             { value: 'today', label: 'Today' },
             { value: '7d', label: '7 days' },
             { value: '30d', label: '30 days' },
-            { value: 'all', label: 'All' },
+            { value: '90d', label: '90 days' },
           ]}
           className="max-w-md"
         />
@@ -208,29 +137,29 @@ export default function SalesTracker() {
           <KpiCard label="Orders" value={totalOrders} />
           <KpiCard label="Average order" value={peso(avgOrderVal)} />
           <KpiCard label="Guests" value={uniqueCustomers} />
-          <KpiCard label="Average serve" value={`${avgServeMin.toFixed(avgServeMin < 10 ? 1 : 0)} min`} />
-          <KpiCard label="Peak hour" value={totalOrders > 0 ? hourLabel(busiestHour) : '—'} />
+          <KpiCard label="Average serve" value={averageServeMin === null ? '—' : `${averageServeMin.toFixed(averageServeMin < 10 ? 1 : 0)} min`} />
+          <KpiCard label="Peak hour" value={hourLabel(busiestHour)} />
         </div>
 
         {completed.length === 0 ? (
           <Card>
-            <EmptyState icon={BarChart3} title="No sales yet" body="Served and paid orders show up here." />
+            <EmptyState icon={BarChart3} title="No sales in this period" body="Served and paid orders show up here." />
           </Card>
         ) : (
           <>
             <div className="grid gap-4 lg:grid-cols-2">
               <Panel title="Revenue, last 7 days">
-                {dailyTrend.every(d => d.revenue === 0) && (
+                {dailyTrendData.every(d => d.revenue === 0) && (
                   <p className="-mt-2 mb-2 text-sm text-ink-muted">No served or paid orders in the last 7 days.</p>
                 )}
                 <ColumnChart
                   title="Revenue per day, last 7 days"
                   height={160}
-                  data={dailyTrend.map((d, i) => ({
+                  data={dailyTrendData.map((d, i) => ({
                     label: d.label,
                     value: d.revenue,
                     detail: `${peso(d.revenue)} · ${d.orders} ${d.orders === 1 ? 'order' : 'orders'}`,
-                    emphasis: i === dailyTrend.length - 1,
+                    emphasis: i === dailyTrendData.length - 1,
                   }))}
                 />
               </Panel>
@@ -276,7 +205,7 @@ export default function SalesTracker() {
                           {item.name}
                         </span>
                         <span className="shrink-0 text-sm tabular-nums text-ink-muted">
-                          {item.qty} sold · <span className="font-medium text-ink">{peso(item.rev)}</span>
+                          {item.qty} sold · <span className="font-medium text-ink">{peso(item.revenue)}</span>
                         </span>
                       </div>
                       <Bar value={item.qty} max={maxQty} />
@@ -292,9 +221,9 @@ export default function SalesTracker() {
                       <li key={cat}>
                         <div className="mb-1.5 flex justify-between text-[15px]">
                           <span className="text-ink">{cat}</span>
-                          <span className="tabular-nums text-ink-muted">{peso(data.rev)}</span>
+                          <span className="tabular-nums text-ink-muted">{peso(data.revenue)}</span>
                         </div>
-                        <Bar value={data.rev} max={catMaxRev} />
+                        <Bar value={data.revenue} max={catMaxRev} />
                       </li>
                     ))}
                   </ul>
@@ -302,7 +231,7 @@ export default function SalesTracker() {
 
                 <Panel title="Order pipeline">
                   <ul className="space-y-2.5">
-                    {(['pending', 'confirmed', 'preparing', 'ready', 'served', 'paid'] as const).map(status => (
+                    {PIPELINE.map(status => (
                       <li key={status} className="flex items-center gap-3">
                         <span className="w-[4.5rem] text-sm text-ink-muted">{STATUS_META[status].label}</span>
                         <div className="flex-1">

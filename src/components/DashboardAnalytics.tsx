@@ -2,14 +2,13 @@ import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Minus } from 'lucide-react'
 import type { Order } from '../context/OrderContext'
+import { useMenuState } from '../context/MenuContext'
+import { today } from '../services/analytics'
 import { peso } from '../utils/formatters'
 import KpiCard from './KpiCard'
 import { BarList, ColumnChart } from './Charts'
 import { Button, Card, cn } from './ui'
 
-const isSameDay = (iso: string, day: Date) => new Date(iso).toDateString() === day.toDateString()
-const minutes = (from?: string, to?: string) => (from && to ? (new Date(to).getTime() - new Date(from).getTime()) / 60_000 : null)
-const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null)
 const hourLabel = (h: number) => (h === 0 ? '12am' : h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h - 12}pm`)
 
 /** "+12% vs yesterday" with an arrow; text tokens only, the arrow carries direction. */
@@ -29,58 +28,24 @@ function Delta({ today, yesterday }: { today: number; yesterday: number }) {
 export default function DashboardAnalytics({ orders }: { orders: Order[] }) {
   const navigate = useNavigate()
 
+  const { byId } = useMenuState()
+
+  // Same definitions as the Analytics page (src/services/analytics.ts)
   const stats = useMemo(() => {
     const now = new Date()
-    const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1)
-    const live = orders.filter(o => o.status !== 'cancelled')
-    const today = live.filter(o => isSameDay(o.createdAt, now))
-    const yest = live.filter(o => isSameDay(o.createdAt, yesterday))
-    // Revenue counts served and paid orders, like the Analytics page
-    const done = (list: Order[]) => list.filter(o => o.status === 'served' || o.status === 'paid')
-    const revenue = (list: Order[]) => done(list).reduce((s, o) => s + o.total, 0)
-
-    const wait = avg(today.map(o => minutes(o.createdAt, o.readyAt)).filter((m): m is number => m !== null))
-    const prep = avg(today.map(o => minutes(o.preparingAt, o.readyAt)).filter((m): m is number => m !== null))
-
-    // Orders by hour from the first order (or 7am) to now
-    const counts = new Map<number, { n: number; rev: number }>()
-    for (const o of today) {
-      const h = new Date(o.createdAt).getHours()
-      const e = counts.get(h) ?? { n: 0, rev: 0 }
-      counts.set(h, { n: e.n + 1, rev: e.rev + o.total })
-    }
-    const first = Math.min(7, ...counts.keys())
-    const last = Math.max(now.getHours(), first + 5)
-    const hours = Array.from({ length: last - first + 1 }, (_, i) => first + i).map(h => {
-      const e = counts.get(h) ?? { n: 0, rev: 0 }
-      return {
-        label: hourLabel(h),
-        value: e.n,
-        detail: `${e.n} ${e.n === 1 ? 'order' : 'orders'} · ${peso(e.rev)}`,
-        emphasis: h === now.getHours(),
-      }
-    })
-
-    const items = new Map<number, { name: string; qty: number; rev: number }>()
-    for (const o of today) for (const i of o.items) {
-      const e = items.get(i.id) ?? { name: i.name, qty: 0, rev: 0 }
-      items.set(i.id, { name: i.name, qty: e.qty + i.quantity, rev: e.rev + i.price * i.quantity })
-    }
-    const top = [...items.entries()].sort((a, b) => b[1].qty - a[1].qty).slice(0, 5)
-
-    const tables = new Map<string, { n: number; rev: number }>()
-    for (const o of today) {
-      const e = tables.get(o.tableName) ?? { n: 0, rev: 0 }
-      tables.set(o.tableName, { n: e.n + 1, rev: e.rev + o.total })
-    }
-    const busiest = [...tables.entries()].sort((a, b) => b[1].n - a[1].n || b[1].rev - a[1].rev).slice(0, 4)
-
-    return {
-      revenueToday: revenue(today), revenueYesterday: revenue(yest),
-      ordersToday: today.length, ordersYesterday: yest.length,
-      wait, prep, hours, top, busiest,
-    }
-  }, [orders])
+    const t = today(orders, byId, now)
+    // Orders by hour from the first order (or 7am) to now, at least six hours wide
+    const withOrders = t.hours.filter(h => h.orders > 0).map(h => h.hour)
+    const first = Math.min(7, ...withOrders)
+    const last = Math.min(23, Math.max(now.getHours(), first + 5))
+    const hours = t.hours.slice(first, last + 1).map(h => ({
+      label: hourLabel(h.hour),
+      value: h.orders,
+      detail: `${h.orders} ${h.orders === 1 ? 'order' : 'orders'} · ${peso(h.revenue)} sold`,
+      emphasis: h.hour === now.getHours(),
+    }))
+    return { ...t, hours }
+  }, [orders, byId])
 
   const fmtMin = (m: number | null) => (m === null ? '—' : `${m.toFixed(m < 10 ? 1 : 0)} min`)
 
@@ -118,7 +83,7 @@ export default function DashboardAnalytics({ orders }: { orders: Order[] }) {
             {stats.top.length === 0 ? (
               <p className="text-sm text-ink-muted">Nothing sold yet today.</p>
             ) : (
-              <BarList rank data={stats.top.map(([id, t]) => ({ key: id, label: t.name, value: t.qty, detail: `${t.qty} sold` }))} />
+              <BarList rank data={stats.top.map(t => ({ key: t.id, label: t.name, value: t.qty, detail: `${t.qty} ordered` }))} />
             )}
           </Card>
           <Card>
@@ -130,7 +95,7 @@ export default function DashboardAnalytics({ orders }: { orders: Order[] }) {
                 {stats.busiest.map(([name, t], i) => (
                   <li key={name} className={cn('flex items-center justify-between gap-3 py-2', i === 0 && 'pt-0')}>
                     <span className="text-ink">{name}</span>
-                    <span className="text-sm tabular-nums text-ink-muted">{t.n} {t.n === 1 ? 'order' : 'orders'} · {peso(t.rev)}</span>
+                    <span className="text-sm tabular-nums text-ink-muted">{t.n} {t.n === 1 ? 'order' : 'orders'} · {peso(t.revenue)}</span>
                   </li>
                 ))}
               </ul>

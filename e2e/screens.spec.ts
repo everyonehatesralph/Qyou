@@ -50,6 +50,7 @@ async function staffSignIn(page: Page, path: string) {
 const ROUTES: Route[] = [
   { id: 'landing', path: '/' },
   { id: 'checkin', path: '/t/1' },
+  { id: 'badtable', path: '/t/99' },
   { id: 'menu', path: '/menu', setup: async page => { await checkIn(page); await addItems(page) } },
   { id: 'cart', path: '/cart', setup: async page => { await checkIn(page); await addItems(page); await page.getByRole('button', { name: /View cart/ }).click(); await page.waitForURL('**/cart') } },
   { id: 'tracker', path: `/order/${seedId(1)}` },

@@ -16,9 +16,8 @@ Pro plan or a visit now and then.
 **SQL Editor** → **New query** → paste all of
 [`supabase/migrations/20261104000000_shared_orders.sql`](supabase/migrations/20261104000000_shared_orders.sql) → **Run**.
 
-It is safe to run again later, for example after menu prices change in
-`src/constants/menu.ts` (it updates names and prices in `menu_items` but leaves sold-out
-switches alone).
+It is safe to run again later. The menu in `src/constants/menu.ts` is only the starting
+menu: running the file again never undoes changes staff made on the Menu screen.
 
 ## 3. Create the staff sign-in
 
@@ -66,10 +65,14 @@ On Vercel, add the same two variables for **Production** and **Preview**, then r
 - Guests (anon key, no sign-in) can only call `place_order`, `get_orders` (their own orders,
   by id) and `cancel_order` (until the kitchen starts), and read `order_board`, which has no
   items, totals, notes or dine-in names.
-- `place_order` prices the order from `menu_items` and ignores anything the browser says about
-  prices. Sending the same order id twice returns the first order.
+- `place_order` prices the order from `menu_items`, add-ons included, and ignores anything the
+  browser says about prices. Sold-out and removed items are refused, and so is an order without
+  a table. Sending the same order id twice returns the first order.
+- Only staff can change the menu (`save_menu_item`, `set_menu_item_available`,
+  `remove_menu_item`). Removed items are kept, switched off, so old orders still name them.
 - Only users in `staff_members` can read `orders` or call `set_order_status`.
 - Nobody can insert, update or delete table rows directly.
-- `orders` and `order_board` are in the `supabase_realtime` publication, so screens update live.
+- `orders`, `order_board` and `menu_items` are in the `supabase_realtime` publication, so
+  screens and guests' menus update live.
 
 `npm test` runs this migration on an in-process Postgres and checks all of the above.

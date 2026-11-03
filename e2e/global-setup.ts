@@ -1,11 +1,16 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-// The suite seeds orders through the order API, which writes server/orders.json.
-// Keep a copy and put it back afterwards so test runs never change the tracked file.
-const ORDERS = fileURLToPath(new URL('../server/orders.json', import.meta.url))
+// The suite seeds orders and edits the menu through the order API, which writes
+// server/orders.json and server/menu.json. Put both back afterwards so test runs never
+// change a developer's data.
+const FILES = ['../server/orders.json', '../server/menu.json'].map(f => fileURLToPath(new URL(f, import.meta.url)))
 
 export default function globalSetup() {
-  const original = readFileSync(ORDERS, 'utf8')
-  return () => writeFileSync(ORDERS, original)
+  const saved = FILES.map(file => (existsSync(file) ? readFileSync(file, 'utf8') : null))
+  return () => FILES.forEach((file, i) => {
+    const original = saved[i]
+    if (original === null) rmSync(file, { force: true })
+    else writeFileSync(file, original)
+  })
 }

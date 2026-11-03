@@ -6,7 +6,7 @@
  *   - CartContext      (cart items, totals)
  *   - OrderContext     (orders, placeOrder, updateStatus)
  *   - AuthContext      (staff auth, customer session)
- *   - MenuAvailability (item availability toggles)
+ *   - MenuContext      (the live menu: items, add-ons, sold-out, staff edits)
  *
  * This file provides:
  *   1. `AppProvider` — wraps all 4 providers (drop-in replacement)
@@ -24,7 +24,7 @@ import { useMemo, type ReactNode } from 'react'
 import { CartProvider, useCart } from './CartContext'
 import { OrderProvider, useOrders } from './OrderContext'
 import { AuthProvider, useAuth } from './AuthContext'
-import { MenuAvailabilityProvider, useMenuAvailability } from './MenuAvailabilityContext'
+import { MenuProvider, useMenuAvailability } from './MenuContext'
 import { ThemeProvider } from './ThemeContext'
 import { SidebarProvider } from './SidebarContext'
 
@@ -38,13 +38,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <ThemeProvider>
       <SidebarProvider>
         <AuthProvider>
-          <MenuAvailabilityProvider>
+          <MenuProvider>
             <OrderProvider>
               <CartProvider>
                 {children}
               </CartProvider>
             </OrderProvider>
-          </MenuAvailabilityProvider>
+          </MenuProvider>
         </AuthProvider>
       </SidebarProvider>
     </ThemeProvider>

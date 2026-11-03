@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Check, ShoppingBag, UtensilsCrossed } from 'lucide-react'
 import type { CartItemType } from '../context/CartContext'
+import { useMenuState } from '../context/MenuContext'
+import type { MenuItem } from '../constants/menu'
 import { RESTAURANT } from '../config/restaurant'
 import { BottomSheet, Button, Segmented, TextArea, cn } from './ui'
 
@@ -18,25 +20,10 @@ interface Props {
 
 export interface CheckoutOptions {
   dineIn: boolean
-  addOns: AddOn[]
+  /** Add-ons from the live menu; they go on the order as their own priced lines. */
+  addOns: MenuItem[]
   notes: string
 }
-
-interface AddOn {
-  id: string
-  label: string
-  price: number
-}
-
-// Labels keep their "+ " prefix: they are written into the order notes as-is
-const ADD_ONS: AddOn[] = [
-  { id: 'extra-shot',  label: '+ Extra Espresso Shot', price: 30  },
-  { id: 'oat-milk',   label: '+ Oat Milk Upgrade',     price: 25  },
-  { id: 'extra-sugar',label: '+ Extra Sugar',           price: 0   },
-  { id: 'less-ice',   label: '+ Less Ice',              price: 0   },
-  { id: 'whip',       label: '+ Whipped Cream',         price: 20  },
-  { id: 'syrup',      label: '+ Caramel Syrup',         price: 15  },
-]
 
 const peso = (n: number) => `${RESTAURANT.currency}${n.toFixed(0)}`
 
@@ -44,16 +31,21 @@ type OrderType = 'dineIn' | 'takeaway'
 
 /** Checkout sheet: order type, add-ons, notes, total, Place order. */
 export default function OrderCheckoutModal({ open, cartItems, cartTotal, tableName, placing, error, onConfirm, onClose }: Props) {
+  const { addOns: menuAddOns } = useMenuState()
   const [orderType, setOrderType] = useState<OrderType | null>(null)
-  const [addOns, setAddOns] = useState<AddOn[]>([])
+  const [picked, setPicked] = useState<MenuItem[]>([])
   const [notes, setNotes] = useState('')
+
+  // Only what can be ordered now, at today's price
+  const offered = menuAddOns.filter(a => a.available)
+  const addOns = offered.filter(a => picked.some(p => p.id === a.id))
 
   const itemCount = cartItems.reduce((s, i) => s + i.quantity, 0)
   const addOnTotal = addOns.reduce((s, a) => s + a.price, 0)
   const grandTotal = cartTotal + addOnTotal
 
-  const toggleAddOn = (addon: AddOn) => {
-    setAddOns(prev =>
+  const toggleAddOn = (addon: MenuItem) => {
+    setPicked(prev =>
       prev.find(a => a.id === addon.id)
         ? prev.filter(a => a.id !== addon.id)
         : [...prev, addon]
@@ -96,7 +88,7 @@ export default function OrderCheckoutModal({ open, cartItems, cartTotal, tableNa
         <fieldset>
           <legend className="mb-2 text-sm font-medium text-ink">Add-ons</legend>
           <div className="divide-y divide-line overflow-hidden rounded-card border border-line">
-            {ADD_ONS.map(addon => {
+            {offered.map(addon => {
               const selected = addOns.some(a => a.id === addon.id)
               return (
                 <button
@@ -115,7 +107,7 @@ export default function OrderCheckoutModal({ open, cartItems, cartTotal, tableNa
                   >
                     {selected && <Check className="h-3.5 w-3.5 animate-pop" strokeWidth={3} />}
                   </span>
-                  <span className="flex-1 text-[15px] text-ink">{addon.label.replace(/^\+\s*/, '')}</span>
+                  <span className="flex-1 text-[15px] text-ink">{addon.name}</span>
                   <span className="text-sm tabular-nums text-ink-muted">{addon.price > 0 ? `+${peso(addon.price)}` : 'Free'}</span>
                 </button>
               )

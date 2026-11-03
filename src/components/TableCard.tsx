@@ -3,7 +3,19 @@ import type { StatusGroup } from '../theme/status'
 import { STATUS_GROUP_CLASSES } from '../theme/status'
 import { peso } from '../utils/formatters'
 import { Button, StatusPill, cn } from './ui'
-import { orderRef } from '../services/orderModel'
+import { orderRef, settleTable } from '../services/orderModel'
+
+/** What "Free table" will do, in words, for the confirm dialog. */
+export function settleSummary({ pay, cancel, payTotal }: ReturnType<typeof settleTable>): string {
+  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
+  const parts = [
+    pay.length > 0 && `marks ${n(pay.length, 'served order', 'served orders')} paid (${peso(payTotal)})`,
+    cancel.length > 0 && `cancels ${n(cancel.length, 'order', 'orders')} the kitchen hasn't finished`,
+  ].filter(Boolean)
+  return parts.length > 0
+    ? `This ${parts.join(' and ')}, so new guests can check in.`
+    : 'This table has no open orders.'
+}
 
 /** What a table needs next, from its open orders: new orders first, then ready, kitchen, served. */
 export function tableState(orders: Order[]): { group: StatusGroup | null; label: string } {

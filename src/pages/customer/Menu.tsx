@@ -3,8 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCart } from '../../context/CartContext'
-import { useMenuAvailability } from '../../context/MenuAvailabilityContext'
-import { MENU_ITEMS, CATEGORIES, type MenuItem } from '../../constants/menu'
+import { useMenu } from '../../context/MenuContext'
+import { CATEGORIES, type MenuItem } from '../../constants/menu'
 import { RESTAURANT } from '../../config/restaurant'
 import { flyToCart } from '../../components/CartFly'
 import { Button, Chip, EmptyState, IconButton, LetterTile, QuantityStepper, TextInput, buttonClasses, cn } from '../../components/ui'
@@ -15,7 +15,7 @@ export default function Menu() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const { addToCart, updateQuantity, cartItems, cartCount, cartTotal } = useCart()
-  const { itemAvailability } = useMenuAvailability()
+  const { items } = useMenu()
   const [category, setCategory] = useState<string>('All')
   const [query, setQuery] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
@@ -26,14 +26,14 @@ export default function Menu() {
   }, [params])
 
   const q = query.trim().toLowerCase()
-  const results = useMemo(() => MENU_ITEMS.filter(item => {
+  const results = useMemo(() => items.filter(item => {
     const inCategory = category === 'All' || item.category === category
     const matches = !q
       || item.name.toLowerCase().includes(q)
       || item.description.toLowerCase().includes(q)
       || item.category.toLowerCase().includes(q)
     return inCategory && matches
-  }), [category, q])
+  }), [items, category, q])
 
   // Group by category when browsing everything; a flat list while searching
   const groups = useMemo(() => {
@@ -115,7 +115,7 @@ export default function Menu() {
                 <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
                   {group.items.map(item => {
                     const qty = getQty(item.id)
-                    const available = item.available && itemAvailability[item.id] !== false
+                    const available = item.available
                     return (
                       <li key={item.id} className={cn('flex items-center gap-3 px-4 py-3', !available && 'bg-surface-2')}>
                         <LetterTile text={item.name} size="sm" className={cn('sm:h-12 sm:w-12 sm:text-xl', !available && 'opacity-60')} />

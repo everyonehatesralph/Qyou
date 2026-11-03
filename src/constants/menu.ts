@@ -5,7 +5,12 @@ export interface MenuItem {
   category: string
   description: string
   available: boolean
+  /** Extras picked at checkout (oat milk, extra shot); not listed on the menu itself. */
+  addon?: boolean
 }
+
+// The starting menu. Once the order backend has a menu (Supabase menu_items or the
+// order server's menu.json), staff edit it in the app and this list is only the seed.
 
 export const MENU_ITEMS: MenuItem[] = [
   { id: 1,  name: 'Signature Espresso',  price: 120, category: 'Coffee',  description: 'Bold single-origin shot with rich crema',            available: true },
@@ -20,4 +25,17 @@ export const MENU_ITEMS: MenuItem[] = [
   { id: 10, name: 'Club Sandwich',       price: 225, category: 'Food',    description: 'Triple-deck with chicken, bacon & house sauce',       available: true },
 ]
 
-export const CATEGORIES = ['All', 'Coffee', 'Tea', 'Pastry', 'Food'] as const
+export const ADD_ONS: MenuItem[] = [
+  { id: 101, name: 'Extra Espresso Shot', price: 30, category: 'Add-ons', description: '', available: true, addon: true },
+  { id: 102, name: 'Oat Milk Upgrade',    price: 25, category: 'Add-ons', description: '', available: true, addon: true },
+  { id: 103, name: 'Extra Sugar',         price: 0,  category: 'Add-ons', description: '', available: true, addon: true },
+  { id: 104, name: 'Less Ice',            price: 0,  category: 'Add-ons', description: '', available: true, addon: true },
+  { id: 105, name: 'Whipped Cream',       price: 20, category: 'Add-ons', description: '', available: true, addon: true },
+  { id: 106, name: 'Caramel Syrup',       price: 15, category: 'Add-ons', description: '', available: true, addon: true },
+]
+
+/** Everything the server prices: menu items and add-ons. */
+export const SEED_MENU: MenuItem[] = [...MENU_ITEMS, ...ADD_ONS]
+
+export const MENU_CATEGORIES = ['Coffee', 'Tea', 'Pastry', 'Food'] as const
+export const CATEGORIES = ['All', ...MENU_CATEGORIES] as const

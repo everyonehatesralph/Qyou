@@ -1,9 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { MENU_ITEMS } from '../constants/menu.ts'
+import { MENU_ITEMS, SEED_MENU } from '../constants/menu.ts'
 import {
-  guestView, isOrderId, newOrderId, orderErrorText, orderRef, priceOrder, toBoardRow, withStatus,
-  OrderError, type BoardRow, type Order,
+  guestView, isOpenOrder, isOrderId, newOrderId, openOrdersByTable, orderErrorText, orderRef, priceOrder,
+  settleTable, toBoardRow, withStatus, OrderError, type BoardRow, type Order,
 } from './orderModel.ts'
 
 const order = (over: Partial<Order> = {}): Order & { boardId: string } => ({
@@ -29,10 +29,25 @@ test('priceOrder uses menu prices and merges repeated lines', () => {
     { id: 2, quantity: 2 },
   ])
   assert.deepEqual(items, [
-    { id: 2, name: 'Caramel Macchiato', price: 165, quantity: 3 },
-    { id: 7, name: 'Butter Croissant', price: 95, quantity: 2 },
+    { id: 2, name: 'Caramel Macchiato', price: 165, quantity: 3, category: 'Coffee' },
+    { id: 7, name: 'Butter Croissant', price: 95, quantity: 2, category: 'Pastry' },
   ])
   assert.equal(total, 165 * 3 + 95 * 2)
+})
+
+test('add-ons are priced and marked like any other line', () => {
+  const { items, total } = priceOrder(SEED_MENU, [{ id: 3, quantity: 1 }, { id: 101, quantity: 1 }, { id: 104, quantity: 1 }])
+  assert.equal(total, 175 + 30 + 0)
+  assert.deepEqual(items.map(i => [i.name, i.category, i.addon ?? false]), [
+    ['Matcha Latte', 'Coffee', false],
+    ['Extra Espresso Shot', 'Add-ons', true],
+    ['Less Ice', 'Add-ons', true],
+  ])
+})
+
+test('removed menu items cannot be ordered', () => {
+  const menu = SEED_MENU.map(m => (m.id === 9 ? { ...m, active: false } : m))
+  assert.throws(() => priceOrder(menu, [{ id: 9, quantity: 1 }]), /unknown_item/)
 })
 
 test('priceOrder refuses bad carts with the same codes as the database', () => {
@@ -117,4 +132,32 @@ test('orderErrorText turns codes into words and anything else into a connection 
   assert.match(orderErrorText(new Error('item_unavailable')), /sold out/)
   assert.match(orderErrorText(new Error('P0001: not_cancellable')), /can no longer be cancelled/)
   assert.match(orderErrorText(new TypeError('Failed to fetch')), /connection/)
+})
+
+test('a table is held by orders that are neither paid nor cancelled', () => {
+  assert.equal(isOpenOrder({ status: 'served' }), true)
+  assert.equal(isOpenOrder({ status: 'paid' }), false)
+  assert.equal(isOpenOrder({ status: 'cancelled' }), false)
+  const byTable = openOrdersByTable([
+    order({ tableId: 2, status: 'served' }),
+    order({ tableId: 2, status: 'cancelled' }),
+    order({ tableId: 3, status: 'paid' }),
+    order({ tableId: 4, status: 'pending' }),
+  ])
+  assert.deepEqual([...byTable.keys()].sort(), [2, 4])
+  assert.equal(byTable.get(2)!.length, 1)
+})
+
+test('freeing a table pays what was served and cancels what the kitchen has not finished', () => {
+  const open = [
+    order({ status: 'served', total: 300 }),
+    order({ status: 'ready', total: 120 }),
+    order({ status: 'preparing', total: 500 }),
+    order({ status: 'pending', total: 95 }),
+    order({ status: 'confirmed', total: 60 }),
+  ]
+  const { pay, cancel, payTotal } = settleTable(open)
+  assert.deepEqual(pay.map(o => o.status), ['served', 'ready'])
+  assert.deepEqual(cancel.map(o => o.status), ['preparing', 'pending', 'confirmed'])
+  assert.equal(payTotal, 420)
 })

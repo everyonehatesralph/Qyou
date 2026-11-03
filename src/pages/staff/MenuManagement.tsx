@@ -1,8 +1,8 @@
 import { Pencil, Plus, Trash2, UtensilsCrossed } from 'lucide-react'
 import { useState, useCallback, useId, type FormEvent } from 'react'
-import { useMenuAvailability } from '../../context/MenuAvailabilityContext'
+import { useMenu } from '../../context/MenuContext'
 import { useSidebar } from '../../context/SidebarContext'
-import { MENU_ITEMS, type MenuItem } from '../../constants/menu'
+import { MENU_CATEGORIES, type MenuItem } from '../../constants/menu'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 import {
@@ -11,57 +11,76 @@ import {
 import { peso } from '../../utils/formatters'
 
 type EditableItem = { name: string; price: string; category: string }
-const CATEGORIES = ['Coffee', 'Tea', 'Pastry', 'Food']
+const ADD_ON_CATEGORY = 'Add-ons'
+const CATEGORIES = [...MENU_CATEGORIES, ADD_ON_CATEGORY]
 const EMPTY_FORM: EditableItem = { name: '', price: '', category: 'Coffee' }
 
 export default function MenuManagement() {
-  const { itemAvailability, toggleItemAvailability } = useMenuAvailability()
+  const { items: menuItems, addOns, toggleItemAvailability, saveItem, removeItem } = useMenu()
   const { expanded: sidebarExpanded, toggle: toggleSidebar } = useSidebar()
-  // Name/price edits live in this page's state only (not saved, not shared)
-  const [items, setItems] = useState<MenuItem[]>(MENU_ITEMS)
+  // Every change is saved to the order backend and reaches guests' phones at once
+  const items = [...menuItems, ...addOns]
   // null = sheet closed, 'new' = adding, number = editing that item
   const [editing, setEditing] = useState<number | 'new' | null>(null)
   const [form, setForm] = useState<EditableItem>(EMPTY_FORM)
+  const [description, setDescription] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState('')
+  const [listError, setListError] = useState('')
   const categoryId = useId()
 
   const openEdit = useCallback((item: MenuItem) => {
     setForm({ name: item.name, price: String(item.price), category: item.category })
+    setDescription(item.description)
+    setFormError('')
     setEditing(item.id)
   }, [])
 
   const openAdd = useCallback(() => {
     setForm(EMPTY_FORM)
+    setDescription('')
+    setFormError('')
     setEditing('new')
   }, [])
 
-  const canSave = !!form.name.trim() && !!form.price
+  const canSave = !!form.name.trim() && form.price.trim() !== '' && !saving
+
+  const run = async (write: () => Promise<void>) => {
+    setSaving(true)
+    setFormError('')
+    try {
+      await write()
+      setEditing(null)
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const save = (e: FormEvent) => {
     e.preventDefault()
-    if (!canSave) return
-    if (editing === 'new') {
-      const newId = Math.max(0, ...items.map(i => i.id)) + 1
-      setItems(prev => [...prev, {
-        id: newId, name: form.name,
-        price: Number(form.price), category: form.category,
-        description: '', available: true,
-      }])
-    } else if (editing !== null) {
-      setItems(prev => prev.map(item =>
-        item.id === editing
-          ? { ...item, name: form.name, price: Number(form.price), category: form.category }
-          : item,
-      ))
-    }
-    setEditing(null)
+    if (!canSave || editing === null) return
+    void run(() => saveItem({
+      ...(editing === 'new' ? {} : { id: editing }),
+      name: form.name.trim(),
+      price: Number(form.price),
+      category: form.category,
+      description,
+      addon: form.category === ADD_ON_CATEGORY,
+    }))
   }
 
   const remove = () => {
-    if (typeof editing === 'number') setItems(prev => prev.filter(item => item.id !== editing))
-    setEditing(null)
+    if (typeof editing === 'number') void run(() => removeItem(editing))
   }
 
-  const availableCount = items.filter(i => itemAvailability[i.id] !== false).length
+  const toggle = (id: number) => {
+    setListError('')
+    toggleItemAvailability(id).catch(err => setListError(err instanceof Error ? err.message : String(err)))
+  }
+
+  const availableCount = menuItems.filter(i => i.available).length
   const groups = CATEGORIES
     .map(c => ({ title: c, items: items.filter(i => i.category === c) }))
     .filter(g => g.items.length > 0)
@@ -70,7 +89,7 @@ export default function MenuManagement() {
     <StaffPageShell>
       <StaffHeader
         title="Menu"
-        subtitle={`${availableCount} of ${items.length} available today`}
+        subtitle={`${availableCount} of ${menuItems.length} available today`}
         actions={<Button variant="primary" leftIcon={<Plus />} onClick={openAdd}>Add item</Button>}
         sidebarExpanded={sidebarExpanded}
         onSidebarToggle={toggleSidebar}
@@ -78,9 +97,10 @@ export default function MenuManagement() {
 
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-5 sm:px-6 sm:py-6">
         <p className="text-sm leading-relaxed text-ink-muted">
-          Switch an item off when it runs out; guests see it as “Sold out today”. Name, price and new items
-          are kept for this session only.
+          Switch an item off when it runs out; guests see it as “Sold out today”. Every change reaches guests'
+          phones right away. New prices apply to new orders; orders already placed keep theirs.
         </p>
+        {listError && <p role="alert" className="text-sm text-status-cancelled-text">{listError}</p>}
 
         {items.length === 0 ? (
           <EmptyState
@@ -95,7 +115,7 @@ export default function MenuManagement() {
               <h2 className="mb-2 font-display text-xl text-ink">{group.title}</h2>
               <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
                 {group.items.map(item => {
-                  const isAvailable = itemAvailability[item.id] !== false
+                  const isAvailable = item.available
                   return (
                     <li key={item.id} className={cn('flex items-center gap-3 py-2 pl-4 pr-2', !isAvailable && 'bg-surface-2')}>
                       <LetterTile text={item.name} size="sm" className={cn(!isAvailable && 'opacity-60')} />
@@ -108,7 +128,7 @@ export default function MenuManagement() {
                       </div>
                       <Switch
                         checked={isAvailable}
-                        onChange={() => toggleItemAvailability(item.id)}
+                        onChange={() => toggle(item.id)}
                         label={`${item.name} available today`}
                       />
                       <IconButton label={`Edit ${item.name}`} onClick={() => openEdit(item)}>
@@ -158,12 +178,13 @@ export default function MenuManagement() {
               </select>
             </div>
           </div>
+          {formError && <p role="alert" className="text-sm text-status-cancelled-text">{formError}</p>}
           <div className="flex gap-3 pt-2">
             {typeof editing === 'number' && (
-              <Button variant="danger" leftIcon={<Trash2 />} onClick={remove}>Delete</Button>
+              <Button variant="danger" leftIcon={<Trash2 />} onClick={remove} disabled={saving}>Delete</Button>
             )}
             <Button type="submit" variant="primary" disabled={!canSave} className="flex-1">
-              {editing === 'new' ? 'Add item' : 'Save'}
+              {saving ? 'Saving…' : editing === 'new' ? 'Add item' : 'Save'}
             </Button>
           </div>
         </form>

@@ -19,6 +19,7 @@ export const SEED_ORDERS = [
 
 setup('seed orders', async ({ request }) => {
   // The dev server's fixture endpoint stores orders as given (status, times, prices)
-  const res = await request.post('/api/dev/seed', { data: { orders: SEED_ORDERS } })
+  // and puts the menu back to src/constants/menu.ts
+  const res = await request.post('/api/dev/seed', { data: { orders: SEED_ORDERS, resetMenu: true } })
   expect(res.ok()).toBeTruthy()
 })

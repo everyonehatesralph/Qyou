@@ -12,7 +12,11 @@
  * - GET  /api/orders                         staff only
  * - POST /api/staff/login     { pin }        sets the staff cookie
  * - GET  /api/staff/session, POST /api/staff/logout
- * - POST /api/dev/seed        { orders }     dev server only: writes orders as given (e2e fixtures)
+ * - GET  /api/menu, GET /api/menu/stream     the live menu (SSE snapshots), for everyone
+ * - POST /api/menu/save       { id?, name, price, category, description, addon }  staff only
+ * - POST /api/menu/available  { id, available }                                    staff only
+ * - POST /api/menu/remove     { id }                                               staff only
+ * - POST /api/dev/seed        { orders, resetMenu }  dev server only: e2e fixtures
  */
 
 import type { Plugin, ViteDevServer } from 'vite'
@@ -20,15 +24,17 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import { randomBytes, randomUUID, timingSafeEqual } from 'crypto'
 import fs from 'fs'
 import path from 'path'
-import { MENU_ITEMS } from '../src/constants/menu.ts'
+import { SEED_MENU, type MenuItem } from '../src/constants/menu.ts'
 import {
   ORDER_STATUSES, OrderError, isOrderId, makeTakeawayCode, priceOrder, sortOrders, toBoardRow, withStatus,
   type Order, type OrderStatus,
 } from '../src/services/orderModel.ts'
 
 type StoredOrder = Order & { boardId: string }
+type StoredItem = MenuItem & { active: boolean }
 
 const DATA_FILE = path.resolve(process.cwd(), 'server/orders.json')
+const MENU_FILE = path.resolve(process.cwd(), 'server/menu.json')
 const COOKIE = 'qyou_staff'
 const MAX_BODY = 64 * 1024
 
@@ -42,14 +48,23 @@ function loadOrders(): StoredOrder[] {
   return []
 }
 
-function saveOrders(orders: StoredOrder[]) {
+function saveJson(file: string, data: unknown) {
   try {
-    const dir = path.dirname(DATA_FILE)
+    const dir = path.dirname(file)
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-    fs.writeFileSync(DATA_FILE, JSON.stringify(orders, null, 2))
+    fs.writeFileSync(file, JSON.stringify(data, null, 2))
   } catch (e) {
     console.error('[OrderSync] Save failed:', e)
   }
+}
+
+const seedMenu = (): StoredItem[] => SEED_MENU.map(m => ({ ...m, addon: !!m.addon, active: true }))
+
+function loadMenu(): StoredItem[] {
+  try {
+    if (fs.existsSync(MENU_FILE)) return JSON.parse(fs.readFileSync(MENU_FILE, 'utf-8'))
+  } catch { /* noop */ }
+  return seedMenu()
 }
 
 function readBody(req: IncomingMessage): Promise<any> {
@@ -97,9 +112,10 @@ export interface OrderServerOptions {
  */
 export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: OrderServerOptions = {}) {
   let orders: StoredOrder[] = loadOrders()
+  let menu: StoredItem[] = loadMenu()
   const sessions = new Set<string>()
   const failedLogins = new Map<string, number[]>()
-  const streams = new Map<ServerResponse, 'orders' | 'board'>()
+  const streams = new Map<ServerResponse, 'orders' | 'board' | 'menu'>()
 
   const isStaff = (req: IncomingMessage) => {
     const token = cookieOf(req, COOKIE)
@@ -112,15 +128,41 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
     return orders.filter(o => new Date(o.createdAt).getTime() > since).map(toBoardRow)
   }
 
-  const frame = (feed: 'orders' | 'board') =>
-    `data: ${JSON.stringify(feed === 'orders' ? { orders: sortOrders(orders) } : { board: board() })}\n\n`
+  const frame = (feed: 'orders' | 'board' | 'menu') =>
+    `data: ${JSON.stringify(feed === 'orders' ? { orders: sortOrders(orders) } : feed === 'board' ? { board: board() } : { menu })}\n\n`
 
-  function changed() {
-    saveOrders(orders)
-    const frames = { orders: frame('orders'), board: frame('board') }
+  function push(feeds: ('orders' | 'board' | 'menu')[]) {
+    const frames = Object.fromEntries(feeds.map(f => [f, frame(f)]))
     streams.forEach((feed, res) => {
+      if (!frames[feed]) return
       try { res.write(frames[feed]) } catch { streams.delete(res) }
     })
+  }
+
+  function changed() {
+    saveJson(DATA_FILE, orders)
+    push(['orders', 'board'])
+  }
+
+  function menuChanged() {
+    saveJson(MENU_FILE, menu)
+    push(['menu'])
+  }
+
+  function updateItem(id: unknown, change: (m: StoredItem) => StoredItem): StoredItem {
+    const item = menu.find(m => m.id === id && m.active)
+    if (!item) throw new OrderError('unknown_item')
+    const saved = change(item)
+    menu = menu.map(m => (m === item ? saved : m))
+    menuChanged()
+    return saved
+  }
+
+  const openStream = (req: IncomingMessage, res: ServerResponse, feed: 'orders' | 'board' | 'menu') => {
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' })
+    res.write(frame(feed))
+    streams.set(res, feed)
+    req.on('close', () => streams.delete(res))
   }
 
   // Comment frames keep idle streams from being closed by proxies
@@ -136,7 +178,7 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
   return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
     const url = new URL(req.url || '/', 'http://localhost')
     const route = `${req.method} ${url.pathname}`
-    if (!url.pathname.startsWith('/api/orders') && !url.pathname.startsWith('/api/staff') && !url.pathname.startsWith('/api/dev')) {
+    if (!['/api/orders', '/api/staff', '/api/menu', '/api/dev'].some(prefix => url.pathname.startsWith(prefix))) {
       next()
       return
     }
@@ -149,10 +191,7 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
             send(res, 401, { error: 'staff_only' })
             return
           }
-          res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' })
-          res.write(frame(feed))
-          streams.set(res, feed)
-          req.on('close', () => streams.delete(res))
+          openStream(req, res, feed)
           return
         }
 
@@ -169,9 +208,10 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
           const existing = orders.find(o => o.id === body.id)
           if (existing) { send(res, 200, { order: existing }); return }
           if (body.orderType !== 'dineIn' && body.orderType !== 'takeaway') throw new OrderError('invalid_order_type')
-          if (!Number.isInteger(body.tableId) || body.tableId < 0) throw new OrderError('invalid_table')
+          // Every order comes from a table's QR code; take-away orders keep the table they were placed at
+          if (!Number.isInteger(body.tableId) || body.tableId < 1) throw new OrderError('invalid_table')
 
-          const { items, total } = priceOrder(MENU_ITEMS, body.items)
+          const { items, total } = priceOrder(menu, body.items)
           const recent = orders.filter(o => Date.now() - new Date(o.createdAt).getTime() < 10 * 60_000)
           if (recent.filter(o => o.tableId === body.tableId).length >= 30 || recent.length >= 300) {
             throw new OrderError('too_many_orders')
@@ -256,19 +296,71 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
           return
         }
 
+        case 'GET /api/menu/stream': {
+          openStream(req, res, 'menu')
+          return
+        }
+
+        case 'GET /api/menu': {
+          send(res, 200, { menu })
+          return
+        }
+
+        case 'POST /api/menu/save': {
+          if (!isStaff(req)) { send(res, 401, { error: 'staff_only' }); return }
+          const body = await readBody(req)
+          const name = typeof body.name === 'string' ? body.name.trim() : ''
+          const category = typeof body.category === 'string' ? body.category.trim() : ''
+          const price = body.price
+          if (name.length < 1 || name.length > 60) throw new OrderError('invalid_name')
+          if (category.length < 1 || category.length > 30) throw new OrderError('invalid_category')
+          if (typeof price !== 'number' || !(price >= 0 && price <= 100000) || Math.round(price * 100) !== price * 100) {
+            throw new OrderError('invalid_price')
+          }
+          const description = typeof body.description === 'string' ? body.description.trim().slice(0, 200) : ''
+          const fields = { name, category, price, description }
+          if (body.id === null || body.id === undefined) {
+            const item: StoredItem = {
+              id: menu.reduce((max, m) => Math.max(max, m.id), 0) + 1,
+              ...fields, addon: !!body.addon, available: true, active: true,
+            }
+            menu = [...menu, item]
+            menuChanged()
+            send(res, 200, { item })
+          } else {
+            send(res, 200, { item: updateItem(body.id, m => ({ ...m, ...fields, addon: typeof body.addon === 'boolean' ? body.addon : m.addon })) })
+          }
+          return
+        }
+
+        case 'POST /api/menu/available': {
+          if (!isStaff(req)) { send(res, 401, { error: 'staff_only' }); return }
+          const { id, available } = await readBody(req)
+          send(res, 200, { item: updateItem(id, m => ({ ...m, available: available !== false })) })
+          return
+        }
+
+        case 'POST /api/menu/remove': {
+          if (!isStaff(req)) { send(res, 401, { error: 'staff_only' }); return }
+          const { id } = await readBody(req)
+          send(res, 200, { item: updateItem(id, m => ({ ...m, active: false })) })
+          return
+        }
+
         case 'POST /api/dev/seed': {
           if (!allowSeed) break
-          const { orders: seed } = await readBody(req) as { orders: Order[] }
+          const { orders: seed = [], resetMenu } = await readBody(req) as { orders?: Order[]; resetMenu?: boolean }
           const ids = new Set(seed.map(o => o.id))
           orders = [...seed.map(o => ({ ...o, boardId: o.boardId ?? randomUUID() })), ...orders.filter(o => !ids.has(o.id))]
           changed()
+          if (resetMenu) { menu = seedMenu(); menuChanged() }
           send(res, 200, { ok: true })
           return
         }
       }
     } catch (err) {
       const code = err instanceof OrderError ? err.code : err instanceof Error ? err.message : 'bad_request'
-      send(res, err instanceof OrderError && code === 'not_cancellable' ? 409 : 400, { error: code })
+      send(res, code === 'not_cancellable' ? 409 : code === 'unknown_item' && route.startsWith('POST /api/menu') ? 404 : 400, { error: code })
       return
     }
 

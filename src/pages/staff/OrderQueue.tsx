@@ -2,6 +2,7 @@ import { CheckCircle, ChefHat, EyeOff, ShoppingBag } from 'lucide-react'
 import { useOrders } from '../../context/OrderContext'
 import type { OrderStatus, Order } from '../../context/OrderContext'
 import { useOrderNotification } from '../../hooks/useOrderNotification'
+import SoundOffNotice from '../../components/SoundOffNotice'
 import { useNow, minutesSince } from '../../hooks/useNow'
 import { useSidebar } from '../../context/SidebarContext'
 import { useKitchenTheme } from '../../context/ThemeContext'
@@ -128,13 +129,13 @@ const KitchenCard = memo(function KitchenCard({ order, status, action, now, onAd
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default function OrderQueue() {
-  const { orders, updateOrderStatus } = useOrders()
+  const { orders, updateOrderStatus, isConnected } = useOrders()
   const { expanded: sidebarExpanded, toggle: toggleSidebar } = useSidebar()
   const { theme: kitchenTheme, toggle: toggleKitchenTheme } = useKitchenTheme()
   const [hidden, setHidden] = useState<Set<string>>(new Set())
   const now = useNow(30_000)
 
-  useOrderNotification(orders, o => o.status === 'confirmed')
+  useOrderNotification(orders, o => o.status === 'confirmed', { connected: isConnected, storageKey: 'kitchen' })
 
   // Oldest first within each column, so the longest wait is on top
   const byStatus = useMemo(() => {
@@ -172,6 +173,7 @@ export default function OrderQueue() {
       />
 
       <main className="space-y-8 px-4 py-5 sm:px-6 sm:py-6">
+        <SoundOffNotice />
         {totalActive === 0 ? (
           <div className="rounded-card border border-line bg-surface">
             <EmptyState

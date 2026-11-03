@@ -1,67 +1,33 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef } from 'react'
 import type { Order } from '../context/OrderContext'
+import { armSound, loadRang, newlyDue, playSound, saveRang, vibrate } from '../services/sounds'
+
 /**
- * Plays a notification sound and vibrates the device.
+ * Rings once for every order that newly matches `match`: a new order on the dashboard,
+ * a confirmed ticket in the kitchen. Orders are remembered by id on this device, so a
+ * reload, a reconnect, or another order leaving at the same moment never causes a missed
+ * or a repeated ring. Nothing rings until the order feed is live.
  *
- * @param orders     — full orders array
- * @param filterFn   — optional: only count orders matching this predicate.
- *                      Notification fires when the FILTERED count increases.
- *                      Dashboard: pass undefined (fires on new orders).
- *                      Kitchen:   pass `o => o.status === 'confirmed'` (fires on cashier confirmation).
+ * @param storageKey  one per screen, e.g. 'dashboard' and 'kitchen'
  */
 export function useOrderNotification(
   orders: Order[],
-  filterFn?: (order: Order) => boolean,
+  match: (order: Order) => boolean,
+  { connected, storageKey }: { connected: boolean; storageKey: string },
 ) {
-  const count = filterFn ? orders.filter(filterFn).length : orders.length
-  const prevCountRef  = useRef(count)
-  const audioCtxRef   = useRef<AudioContext | null>(null)
+  const matchRef = useRef(match)
+  matchRef.current = match
 
-  const playSound = useCallback(async () => {
-    try {
-      const audio = new Audio('/sounds/stupid-f__king-bird.mp3')
-      audio.volume = 0.8
-      await audio.play()
-    } catch {
-      // Fallback: generate a pleasant double-beep via Web Audio API
-      try {
-        if (!audioCtxRef.current) {
-          audioCtxRef.current = new AudioContext()
-        }
-        const ctx = audioCtxRef.current
-        const playBeep = (startTime: number, freq: number, duration: number) => {
-          const osc  = ctx.createOscillator()
-          const gain = ctx.createGain()
-          osc.connect(gain)
-          gain.connect(ctx.destination)
-          osc.frequency.setValueAtTime(freq, startTime)
-          osc.type = 'sine'
-          gain.gain.setValueAtTime(0, startTime)
-          gain.gain.linearRampToValueAtTime(0.4, startTime + 0.02)
-          gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
-          osc.start(startTime)
-          osc.stop(startTime + duration)
-        }
-        const now = ctx.currentTime
-        playBeep(now,       880, 0.25)
-        playBeep(now + 0.3, 1100, 0.25)
-      } catch (e) {
-        console.warn('Audio notification unavailable:', e)
-      }
-    }
-  }, [])
-
-  const vibrate = useCallback(() => {
-    if ('vibrate' in navigator) {
-      navigator.vibrate([200, 100, 200])
-    }
-  }, [])
+  useEffect(() => { armSound() }, [])
 
   useEffect(() => {
-    if (count > prevCountRef.current) {
-      playSound()
-      vibrate()
-    }
-    prevCountRef.current = count
-  }, [count, playSound, vibrate])
+    if (!connected) return
+    // Board entries (another guest's order seen from a guest view) never ring
+    const due = orders.filter(o => !o.id.startsWith('board:') && matchRef.current(o)).map(o => o.id)
+    const { fresh, next } = newlyDue(due, loadRang(storageKey))
+    if (fresh.length === 0) return
+    saveRang(storageKey, next)
+    void playSound('newOrder')
+    vibrate([200, 100, 200])
+  }, [orders, connected, storageKey])
 }

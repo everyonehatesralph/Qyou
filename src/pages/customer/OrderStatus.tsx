@@ -4,7 +4,6 @@ import { useState, useMemo } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useOrders } from '../../context/OrderContext'
 import type { Order, OrderStatus as Status } from '../../context/OrderContext'
-import { useReadyNotification } from '../../hooks/useReadyNotification'
 import { clockTime } from '../../hooks/useNow'
 import { STATUS_STEP } from '../../theme/status'
 import { RESTAURANT } from '../../config/restaurant'
@@ -98,8 +97,6 @@ export default function OrderStatus() {
   const { orderId } = useParams()
   const { orders, isConnected } = useOrders()
   const [showSummary, setShowSummary] = useState(false)
-  // Rings and vibrates when one of this device's orders becomes ready
-  const { newReadyOrderId, dismissNotification } = useReadyNotification(orders)
 
   const order = useMemo(() => orders.find(o => o.id === orderId), [orders, orderId])
 
@@ -177,19 +174,6 @@ export default function OrderStatus() {
           </Ticket>
         </div>
 
-        {newReadyOrderId === order.id && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="mt-5 flex items-center gap-3 rounded-card bg-status-ready-bg p-4 text-status-ready-text"
-            role="alert"
-          >
-            <BellRing className="h-5 w-5 shrink-0 animate-ring" aria-hidden />
-            <p className="flex-1 text-[15px] font-medium">Your order is ready!</p>
-            <Button size="md" onClick={dismissNotification} className="h-9">OK</Button>
-          </motion.div>
-        )}
-
         {isTakeaway && (
           <div className="mt-4 drop-shadow-sm">
             <Ticket
@@ -212,7 +196,7 @@ export default function OrderStatus() {
         {waitingForReady && (
           <p className="mt-4 flex items-start gap-2.5 px-1 text-sm leading-relaxed text-ink-muted">
             <BellRing className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-            Keep this page open. Your phone will ring when your order is ready.
+            Keep Qyou open on your phone. It rings when your order is ready, even while you browse the menu.
           </p>
         )}
 

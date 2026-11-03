@@ -1,7 +1,7 @@
 // Orders over the Node order server (server/orderSyncPlugin.ts): REST for writes,
 // Server-Sent Events for live snapshots. Staff sign-in is an HttpOnly cookie the server sets.
-import type { Feed, FeedHandlers, FeedRow, StaffSignIn, Transport } from './orderSync'
-import type { BoardRow, Order } from './orderModel'
+import type { Feed, FeedHandlers, FeedRow, LiveMenuItem, StaffSignIn, Transport } from './orderSync'
+import type { Order } from './orderModel'
 
 /** Only a hint that this device signed in; the cookie itself is unreadable from script. */
 const LS_STAFF_HINT = 'qyou_staff_signed_in'
@@ -18,21 +18,21 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
   return data as T
 }
 
-function subscribe<F extends Feed>(feed: F, on: FeedHandlers<FeedRow<F>>): () => void {
+/** An SSE stream of snapshots; `pick` takes the rows out of each frame. */
+function stream<T>(url: string, pick: (msg: Record<string, unknown>) => unknown, on: FeedHandlers<T>): () => void {
   let es: EventSource | null = null
   let retry: ReturnType<typeof setTimeout> | null = null
   let delay = 1000
   let stopped = false
 
   const open = () => {
-    es = new EventSource(`/api/orders/stream?feed=${feed}`)
+    es = new EventSource(url)
     es.onmessage = ev => {
       try {
-        const msg = JSON.parse(ev.data) as { orders?: Order[]; board?: BoardRow[] }
-        const rows = feed === 'orders' ? msg.orders : msg.board
+        const rows = pick(JSON.parse(ev.data))
         if (!Array.isArray(rows)) return
         delay = 1000
-        on.snapshot(rows as FeedRow<F>[])
+        on.snapshot(rows as T[])
       } catch { /* ignore a bad frame */ }
     }
     es.onerror = () => {
@@ -55,6 +55,10 @@ function subscribe<F extends Feed>(feed: F, on: FeedHandlers<FeedRow<F>>): () =>
   }
 }
 
+function subscribe<F extends Feed>(feed: F, on: FeedHandlers<FeedRow<F>>): () => void {
+  return stream<FeedRow<F>>(`/api/orders/stream?feed=${feed}`, msg => (feed === 'orders' ? msg.orders : msg.board), on)
+}
+
 export const serverTransport: Transport = {
   subscribe,
 
@@ -72,6 +76,21 @@ export const serverTransport: Transport = {
 
   async cancelOrder(id) {
     return (await call<{ order: Order }>('/api/orders/cancel', { id })).order
+  },
+
+  menu: {
+    subscribe(on) {
+      return stream<LiveMenuItem>('/api/menu/stream', msg => msg.menu, on)
+    },
+    async save(item) {
+      return (await call<{ item: LiveMenuItem }>('/api/menu/save', item)).item
+    },
+    async setAvailable(id, available) {
+      return (await call<{ item: LiveMenuItem }>('/api/menu/available', { id, available })).item
+    },
+    async remove(id) {
+      return (await call<{ item: LiveMenuItem }>('/api/menu/remove', { id })).item
+    },
   },
 
   staff: {

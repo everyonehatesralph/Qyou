@@ -4,36 +4,48 @@
 -- Who can do what:
 --   guests (anon key, no sign-in)  place orders, read and cancel their own orders by id,
 --                                  read the public order board (no items, prices or dine-in names)
---   staff (signed in + listed in   read every order, change any order's status
+--   staff (signed in + listed in   read every order, change any order's status, edit the menu
 --          public.staff_members)
 -- Nobody writes tables directly: every write goes through a function below, which prices
 -- orders from public.menu_items and ignores whatever the browser says things cost.
 
--- ─── Menu: the prices the server charges ─────────────────────────────────────
+-- ─── Menu: what guests see and what the server charges ──────────────────────
+-- Staff edit it in the app (functions below); every phone follows it live.
 create table if not exists public.menu_items (
-  id         integer primary key,
-  name       text not null,
-  price      numeric(10, 2) not null check (price >= 0),
-  category   text not null,
-  available  boolean not null default true,
-  updated_at timestamptz not null default now()
+  id          integer primary key,
+  name        text not null,
+  price       numeric(10, 2) not null check (price >= 0),
+  category    text not null,
+  description text not null default '',
+  addon       boolean not null default false,  -- an extra picked at checkout
+  available   boolean not null default true,   -- false = sold out
+  active      boolean not null default true,   -- false = removed; kept so old orders keep their ids
+  updated_at  timestamptz not null default now()
 );
+alter table public.menu_items add column if not exists description text not null default '';
+alter table public.menu_items add column if not exists addon boolean not null default false;
+alter table public.menu_items add column if not exists active boolean not null default true;
 
--- Must match src/constants/menu.ts (a test checks this). Re-running updates names and prices
--- but leaves "available" alone.
-insert into public.menu_items (id, name, price, category) values
-  (1,  'Signature Espresso',  120, 'Coffee'),
-  (2,  'Caramel Macchiato',   165, 'Coffee'),
-  (3,  'Matcha Latte',        175, 'Coffee'),
-  (4,  'Cold Brew',           155, 'Coffee'),
-  (5,  'Chamomile Honey Tea', 110, 'Tea'),
-  (6,  'Iced Lemon Verbena',  125, 'Tea'),
-  (7,  'Butter Croissant',    95,  'Pastry'),
-  (8,  'Almond Danish',       115, 'Pastry'),
-  (9,  'Avocado Toast',       195, 'Food'),
-  (10, 'Club Sandwich',       225, 'Food')
-on conflict (id) do update set
-  name = excluded.name, price = excluded.price, category = excluded.category, updated_at = now();
+-- The starting menu: src/constants/menu.ts (a test checks they match). Only fills an empty
+-- menu, so running this again never undoes staff edits.
+insert into public.menu_items (id, name, price, category, description, addon) values
+  (1,   'Signature Espresso',  120, 'Coffee',  'Bold single-origin shot with rich crema',         false),
+  (2,   'Caramel Macchiato',   165, 'Coffee',  'Velvety milk layered with espresso & caramel',     false),
+  (3,   'Matcha Latte',        175, 'Coffee',  'Ceremonial grade matcha with steamed oat milk',    false),
+  (4,   'Cold Brew',           155, 'Coffee',  '18-hour steeped, smooth and naturally sweet',      false),
+  (5,   'Chamomile Honey Tea', 110, 'Tea',     'Soothing floral with a touch of raw honey',        false),
+  (6,   'Iced Lemon Verbena',  125, 'Tea',     'Refreshing citrus herb blend, served iced',        false),
+  (7,   'Butter Croissant',    95,  'Pastry',  'Freshly baked with premium European butter',       false),
+  (8,   'Almond Danish',       115, 'Pastry',  'Flaky pastry with house-made almond cream',        false),
+  (9,   'Avocado Toast',       195, 'Food',    'Smashed avo on sourdough, cherry tomato, egg',     false),
+  (10,  'Club Sandwich',       225, 'Food',    'Triple-deck with chicken, bacon & house sauce',    false),
+  (101, 'Extra Espresso Shot', 30,  'Add-ons', '', true),
+  (102, 'Oat Milk Upgrade',    25,  'Add-ons', '', true),
+  (103, 'Extra Sugar',         0,   'Add-ons', '', true),
+  (104, 'Less Ice',            0,   'Add-ons', '', true),
+  (105, 'Whipped Cream',       20,  'Add-ons', '', true),
+  (106, 'Caramel Syrup',       15,  'Add-ons', '', true)
+on conflict (id) do nothing;
 
 -- ─── Staff: Supabase Auth users allowed to run the floor ─────────────────────
 create table if not exists public.staff_members (
@@ -145,7 +157,8 @@ begin
 
   if p_id is null then raise exception 'invalid_order_id'; end if;
   if p_order_type is null or p_order_type not in ('dineIn', 'takeaway') then raise exception 'invalid_order_type'; end if;
-  if p_table_id is null or p_table_id < 0 then raise exception 'invalid_table'; end if;
+  -- Every order comes from a table's QR code; take-away orders keep the table they were placed at
+  if p_table_id is null or p_table_id < 1 then raise exception 'invalid_table'; end if;
   if jsonb_typeof(p_items) is distinct from 'array' or jsonb_array_length(p_items) = 0 then
     raise exception 'empty_order';
   end if;
@@ -181,13 +194,16 @@ begin
     group by 1
   )
   select
-    jsonb_agg(jsonb_build_object('id', m.id, 'name', m.name, 'price', m.price, 'quantity', w.quantity) order by w.pos),
+    jsonb_agg(jsonb_build_object(
+      'id', m.id, 'name', m.name, 'price', m.price, 'quantity', w.quantity,
+      'category', m.category, 'addon', m.addon
+    ) order by w.pos),
     coalesce(sum(m.price * w.quantity), 0),
     count(*) filter (where m.id is null),
     count(*) filter (where m.id is not null and not m.available),
     count(*) filter (where w.quantity > 50)
   into v_items, v_total, v_unknown, v_unavailable, v_too_many
-  from wanted w left join public.menu_items m on m.id = w.id;
+  from wanted w left join public.menu_items m on m.id = w.id and m.active;
 
   if v_unknown > 0 then raise exception 'unknown_item'; end if;
   if v_unavailable > 0 then raise exception 'item_unavailable'; end if;
@@ -268,6 +284,74 @@ begin
   return v_order;
 end $$;
 
+-- ─── Menu editing (staff) ────────────────────────────────────────────────────
+-- p_id null adds an item. Prices change for new orders only; placed orders keep theirs.
+create or replace function public.save_menu_item(
+  p_id          integer,
+  p_name        text,
+  p_price       numeric,
+  p_category    text,
+  p_description text default '',
+  p_addon       boolean default false
+) returns public.menu_items
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_item     public.menu_items;
+  v_name     text := btrim(coalesce(p_name, ''));
+  v_category text := btrim(coalesce(p_category, ''));
+begin
+  if not public.is_staff() then raise exception 'staff_only' using errcode = '42501'; end if;
+  if length(v_name) not between 1 and 60 then raise exception 'invalid_name'; end if;
+  if length(v_category) not between 1 and 30 then raise exception 'invalid_category'; end if;
+  if p_price is null or p_price < 0 or p_price > 100000 or p_price <> round(p_price, 2) then
+    raise exception 'invalid_price';
+  end if;
+
+  if p_id is null then
+    -- Covers two tablets adding an item at the same moment
+    lock table public.menu_items in share row exclusive mode;
+    insert into public.menu_items (id, name, price, category, description, addon)
+    values ((select coalesce(max(id), 0) + 1 from public.menu_items), v_name, p_price, v_category,
+            left(btrim(coalesce(p_description, '')), 200), coalesce(p_addon, false))
+    returning * into v_item;
+  else
+    update public.menu_items set
+      name = v_name, price = p_price, category = v_category,
+      description = left(btrim(coalesce(p_description, '')), 200),
+      addon = coalesce(p_addon, addon), updated_at = now()
+    where id = p_id and active
+    returning * into v_item;
+    if not found then raise exception 'unknown_item'; end if;
+  end if;
+  return v_item;
+end $$;
+
+create or replace function public.set_menu_item_available(p_id integer, p_available boolean) returns public.menu_items
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_item public.menu_items;
+begin
+  if not public.is_staff() then raise exception 'staff_only' using errcode = '42501'; end if;
+  update public.menu_items set available = coalesce(p_available, true), updated_at = now()
+  where id = p_id and active
+  returning * into v_item;
+  if not found then raise exception 'unknown_item'; end if;
+  return v_item;
+end $$;
+
+create or replace function public.remove_menu_item(p_id integer) returns public.menu_items
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_item public.menu_items;
+begin
+  if not public.is_staff() then raise exception 'staff_only' using errcode = '42501'; end if;
+  update public.menu_items set active = false, updated_at = now()
+  where id = p_id and active
+  returning * into v_item;
+  if not found then raise exception 'unknown_item'; end if;
+  return v_item;
+end $$;
+
 -- ─── Access ──────────────────────────────────────────────────────────────────
 alter table public.menu_items    enable row level security;
 alter table public.staff_members enable row level security;
@@ -305,18 +389,28 @@ revoke execute on function public.place_order(uuid, integer, text, text, text, j
 revoke execute on function public.get_orders(uuid[]) from public;
 revoke execute on function public.cancel_order(uuid) from public;
 revoke execute on function public.set_order_status(uuid, text) from public, anon;
+revoke execute on function public.save_menu_item(integer, text, numeric, text, text, boolean) from public, anon;
+revoke execute on function public.set_menu_item_available(integer, boolean) from public, anon;
+revoke execute on function public.remove_menu_item(integer) from public, anon;
 
 grant execute on function public.is_staff() to anon, authenticated;
 grant execute on function public.place_order(uuid, integer, text, text, text, jsonb, text) to anon, authenticated;
 grant execute on function public.get_orders(uuid[]) to anon, authenticated;
 grant execute on function public.cancel_order(uuid) to anon, authenticated;
 grant execute on function public.set_order_status(uuid, text) to authenticated;
+grant execute on function public.save_menu_item(integer, text, numeric, text, text, boolean) to authenticated;
+grant execute on function public.set_menu_item_available(integer, boolean) to authenticated;
+grant execute on function public.remove_menu_item(integer) to authenticated;
 
 -- ─── Live updates ────────────────────────────────────────────────────────────
--- Staff screens follow public.orders, guests follow public.order_board.
+-- Staff screens follow public.orders, guests follow public.order_board, everyone follows the menu.
 do $$
 begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    if not exists (select 1 from pg_publication_tables
+                   where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'menu_items') then
+      alter publication supabase_realtime add table public.menu_items;
+    end if;
     if not exists (select 1 from pg_publication_tables
                    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'orders') then
       alter publication supabase_realtime add table public.orders;

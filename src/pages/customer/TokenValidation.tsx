@@ -1,10 +1,11 @@
-import { Users } from 'lucide-react'
+import { QrCode, Users } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useState, useMemo, type FormEvent } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useOrders } from '../../context/OrderContext'
-import { RESTAURANT, tableLabel } from '../../config/restaurant'
+import { RESTAURANT } from '../../config/restaurant'
+import { isOpenOrder } from '../../services/orderModel'
 import { Button, LetterTile, TextInput, Ticket } from '../../components/ui'
 import ThemeToggle from '../../components/ThemeToggle'
 
@@ -15,19 +16,38 @@ export default function TokenValidation() {
   const { setTableSession } = useAuth()
   const { orders } = useOrders()
   const [name, setName] = useState('')
-  const tid = Number(tableId) || 1
-  const tname = tableLabel(tid)
+  // Only tables this restaurant has; a mistyped or old QR code gets a clear message
+  const table = RESTAURANT.tables.find(t => String(t.id) === tableId)
+  const tid = table?.id ?? 0
+  const tname = table?.label ?? ''
 
-  // A table with unpaid orders is treated as occupied
-  const isTableOccupied = useMemo(() => {
-    return orders.some(o => o.tableId === tid && o.status !== 'paid')
-  }, [orders, tid])
+  // Others at this table already ordered: this phone joins them, with its own name
+  const othersOrdering = useMemo(() => orders.some(o => o.tableId === tid && isOpenOrder(o)), [orders, tid])
 
   const handleContinue = (e: FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || isTableOccupied) return
+    if (!name.trim() || !table) return
     setTableSession(tid, tname, name.trim())
     navigate('/menu')
+  }
+
+  if (!table) {
+    return (
+      <div className="flex min-h-[100dvh] flex-col bg-bg px-4">
+        <div className="mx-auto flex w-full max-w-sm justify-end pt-3">
+          <ThemeToggle className="-mr-2" />
+        </div>
+        <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center pb-16 text-center">
+          <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-status-waiting-bg text-status-waiting-text">
+            <QrCode className="h-5 w-5" aria-hidden />
+          </span>
+          <h1 className="mt-4 font-display text-2xl text-ink">This QR code isn't for a table here</h1>
+          <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+            Scan the code on your table at {RESTAURANT.name}, or ask a staff member for help.
+          </p>
+        </main>
+      </div>
+    )
   }
 
   return (
@@ -60,18 +80,13 @@ export default function TokenValidation() {
           </motion.div>
         </div>
 
-        {isTableOccupied ? (
-          <div className="mt-10 rounded-card border border-line bg-surface p-5 text-center">
-            <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-status-waiting-bg text-status-waiting-text">
-              <Users className="h-5 w-5" aria-hidden />
-            </span>
-            <h2 className="mt-3 font-display text-xl text-ink">This table is in use</h2>
-            <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">
-              Someone is already ordering at {tname}. Please ask a staff member for a free table.
-            </p>
-          </div>
-        ) : (
-          <form onSubmit={handleContinue} className="mt-10">
+        {othersOrdering && (
+          <p className="mt-8 flex items-start gap-2.5 rounded-card border border-line bg-surface p-4 text-sm leading-relaxed text-ink-muted">
+            <Users className="mt-0.5 h-4 w-4 shrink-0 text-ink" aria-hidden />
+            <span>Others at {tname} have ordered already. Your orders go on the same table bill, under your name.</span>
+          </p>
+        )}
+        <form onSubmit={handleContinue} className={othersOrdering ? 'mt-5' : 'mt-10'}>
             <TextInput
               label="Your name"
               placeholder="e.g. Ana"
@@ -85,7 +100,6 @@ export default function TokenValidation() {
               Start ordering
             </Button>
           </form>
-        )}
       </main>
 
       <p className="pb-6 text-center text-xs text-ink-muted">

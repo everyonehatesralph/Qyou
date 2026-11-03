@@ -2,7 +2,7 @@ import { test, before } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { PGlite } from '@electric-sql/pglite'
-import { MENU_ITEMS } from '../src/constants/menu.ts'
+import { SEED_MENU } from '../src/constants/menu.ts'
 
 // Runs the Supabase migration on an in-process Postgres with the few Supabase pieces it
 // relies on (auth.users, auth.uid(), the anon/authenticated roles, the realtime publication)
@@ -62,18 +62,20 @@ async function rejects(promise: Promise<unknown>, code: string) {
 }
 
 const place = (who: string, id: string, items: unknown, opts: { table?: number; type?: string; name?: string } = {}) =>
-  as<{ id: string; total: string; items: { id: number; name: string; price: number; quantity: number }[]; takeaway_code: string; board_id: string; status: string }>(
+  as<{ id: string; total: string; items: { id: number; name: string; price: number; quantity: number; category: string; addon: boolean }[]; takeaway_code: string; board_id: string; status: string }>(
     who,
     `select * from public.place_order($1, $2, $3, $4, $5, $6::jsonb, $7)`,
     [id, opts.table ?? 4, `Table ${opts.table ?? 4}`, opts.name ?? 'Ana', opts.type ?? 'dineIn', JSON.stringify(items), 'Dine In'],
   ).then(rows => rows[0])
 
 test('the seeded menu matches src/constants/menu.ts', async () => {
-  const rows = (await db.query<{ id: number; name: string; price: string; category: string }>(
-    'select id, name, price, category from public.menu_items order by id')).rows
+  const fresh = await supabaseLikeDb({ defaultGrants: true })
+  const rows = (await fresh.query<{ id: number; name: string; price: string; category: string; description: string; addon: boolean }>(
+    'select id, name, price, category, description, addon from public.menu_items order by id')).rows
+  await fresh.close()
   assert.deepEqual(
-    rows.map(r => ({ id: r.id, name: r.name, price: Number(r.price), category: r.category })),
-    MENU_ITEMS.map(m => ({ id: m.id, name: m.name, price: m.price, category: m.category })),
+    rows.map(r => ({ id: r.id, name: r.name, price: Number(r.price), category: r.category, description: r.description, addon: r.addon })),
+    SEED_MENU.map(m => ({ id: m.id, name: m.name, price: m.price, category: m.category, description: m.description, addon: !!m.addon })),
   )
 })
 
@@ -84,9 +86,9 @@ test('orders are priced by the server, not the browser', async () => {
     { id: 2, quantity: 1 },
   ])
   assert.equal(Number(order.total), 165 * 3 + 95)
-  assert.deepEqual(order.items.map(i => [i.id, i.name, Number(i.price), i.quantity]), [
-    [2, 'Caramel Macchiato', 165, 3],
-    [7, 'Butter Croissant', 95, 1],
+  assert.deepEqual(order.items.map(i => [i.id, i.name, Number(i.price), i.quantity, i.category, i.addon]), [
+    [2, 'Caramel Macchiato', 165, 3, 'Coffee', false],
+    [7, 'Butter Croissant', 95, 1, 'Pastry', false],
   ])
   assert.equal(order.status, 'pending')
   assert.equal(order.takeaway_code, '')
@@ -112,10 +114,21 @@ test('bad carts are refused', async () => {
   await rejects(place('anon', uuid(3), [{ id: 1, quantity: 30 }, { id: 1, quantity: 30 }]), 'too_many_items')
   await rejects(place('anon', uuid(3), [{ id: 1, quantity: 1 }], { type: 'delivery' }), 'invalid_order_type')
   await rejects(place('anon', uuid(3), [{ id: 1, quantity: 1 }], { table: -1 }), 'invalid_table')
+  await rejects(place('anon', uuid(3), [{ id: 1, quantity: 1 }], { table: 0 }), 'invalid_table')
 
   await db.query('update public.menu_items set available = false where id = 6')
   await rejects(place('anon', uuid(3), [{ id: 6, quantity: 1 }]), 'item_unavailable')
   await db.query('update public.menu_items set available = true where id = 6')
+})
+
+test('add-ons are charged like menu items', async () => {
+  const order = await place('anon', uuid(5), [{ id: 2, quantity: 1 }, { id: 102, quantity: 1 }, { id: 103, quantity: 1 }])
+  assert.equal(Number(order.total), 165 + 25 + 0)
+  assert.deepEqual(order.items.map(i => [i.name, i.category, i.addon]), [
+    ['Caramel Macchiato', 'Coffee', false],
+    ['Oat Milk Upgrade', 'Add-ons', true],
+    ['Extra Sugar', 'Add-ons', true],
+  ])
 })
 
 test('take-away orders get a pickup code', async () => {
@@ -180,17 +193,61 @@ test('a guest can cancel until the kitchen starts', async () => {
   await rejects(as('anon', 'select public.cancel_order($1)', [uuid(4)]), 'not_cancellable')
 })
 
-test('both order tables are published for live updates', async () => {
+test('only staff edit the menu, and the server charges the new price', async () => {
+  const save = `select * from public.save_menu_item($1, $2, $3, $4, $5, $6)`
+  await rejects(as('anon', save, [1, 'Espresso', 1, 'Coffee', '', false]), 'permission denied')
+  await rejects(as(STRANGER, save, [1, 'Espresso', 1, 'Coffee', '', false]), 'staff_only')
+  await rejects(as('anon', 'select public.set_menu_item_available(1, false)'), 'permission denied')
+  await rejects(as(STRANGER, 'select public.remove_menu_item(1)'), 'staff_only')
+
+  const [edited] = await as<{ price: string; name: string }>(STAFF, save, [1, 'Espresso', 130, 'Coffee', 'Double shot', false])
+  assert.equal(Number(edited.price), 130)
+  const order = await place('anon', uuid(20), [{ id: 1, quantity: 2 }])
+  assert.equal(Number(order.total), 260)
+  assert.equal(order.items[0].name, 'Espresso')
+
+  await rejects(as(STAFF, save, [1, '  ', 130, 'Coffee', '', false]), 'invalid_name')
+  await rejects(as(STAFF, save, [1, 'Espresso', -1, 'Coffee', '', false]), 'invalid_price')
+  await rejects(as(STAFF, save, [1, 'Espresso', 1.005, 'Coffee', '', false]), 'invalid_price')
+
+  // A new item gets the next free id
+  const [added] = await as<{ id: number; addon: boolean }>(STAFF, save, [null, 'Ube Latte', 185, 'Coffee', '', false])
+  assert.equal(added.id, 107)
+  assert.equal(Number((await place('anon', uuid(21), [{ id: 107, quantity: 1 }])).total), 185)
+})
+
+test('sold-out and removed items cannot be ordered', async () => {
+  await as(STAFF, 'select public.set_menu_item_available(9, false)')
+  await rejects(place('anon', uuid(22), [{ id: 9, quantity: 1 }]), 'item_unavailable')
+  await as(STAFF, 'select public.set_menu_item_available(9, true)')
+  assert.equal(Number((await place('anon', uuid(22), [{ id: 9, quantity: 1 }])).total), 195)
+
+  await as(STAFF, 'select public.remove_menu_item(8)')
+  await rejects(place('anon', uuid(23), [{ id: 8, quantity: 1 }]), 'unknown_item')
+  await rejects(as(STAFF, `select public.save_menu_item(8, 'Danish', 1, 'Pastry')`), 'unknown_item')
+  // Old orders keep the removed item's name and price
+  const [{ count }] = (await db.query<{ count: number }>(
+    'select count(*)::int as count from public.menu_items where id = 8 and not active')).rows
+  assert.equal(count, 1)
+})
+
+test('running the migration again keeps staff menu edits', async () => {
+  await db.exec(MIGRATION)
+  const [row] = (await db.query<{ name: string; price: string }>('select name, price from public.menu_items where id = 1')).rows
+  assert.deepEqual([row.name, Number(row.price)], ['Espresso', 130])
+})
+
+test('orders, the board and the menu are published for live updates', async () => {
   const rows = (await db.query<{ tablename: string }>(
     `select tablename from pg_publication_tables where pubname = 'supabase_realtime' order by tablename`)).rows
-  assert.deepEqual(rows.map(r => r.tablename), ['order_board', 'orders'])
+  assert.deepEqual(rows.map(r => r.tablename), ['menu_items', 'order_board', 'orders'])
 })
 
 test('works on a project that does not expose new tables by default', async () => {
   const bare = await supabaseLikeDb({ defaultGrants: false })
   await as('anon', `select * from public.place_order($1, 2, 'Table 2', 'Ana', 'dineIn', '[{"id": 1, "quantity": 1}]'::jsonb)`, [uuid(500)], bare)
   assert.equal((await as('anon', 'select * from public.order_board', [], bare)).length, 1)
-  assert.equal((await as('anon', 'select * from public.menu_items', [], bare)).length, MENU_ITEMS.length)
+  assert.equal((await as('anon', 'select * from public.menu_items', [], bare)).length, SEED_MENU.length)
   assert.equal((await as(STAFF, 'select * from public.orders', [], bare)).length, 1)
   // No grant at all here, so it is refused outright rather than filtered to nothing
   await rejects(as('anon', 'select * from public.orders', [], bare), 'permission denied')

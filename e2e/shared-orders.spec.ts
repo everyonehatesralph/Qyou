@@ -3,7 +3,7 @@ import { STAFF_PIN } from './fixtures'
 
 // Two devices (separate browser contexts, so nothing is shared but the server):
 // a guest orders at table 5, staff confirm and cook it, and the guest's tracker follows.
-// Table 5 is not used by the seed or the screen checks.
+// Table 5 is not used by the seed or the screen checks; table 8 has a seeded open order.
 
 async function signInStaff(page: Page) {
   await page.goto('/staff/login')
@@ -28,9 +28,14 @@ test('an order placed on one phone reaches staff, and status flows back', async 
   await guest.getByRole('button', { name: /View cart/ }).click()
   await guest.getByRole('button', { name: /Checkout/ }).click()
   await guest.getByRole('radio', { name: /Dine in/ }).click()
+  await guest.getByRole('checkbox', { name: /Oat Milk Upgrade/ }).click()
+  await expect(guest.getByRole('button', { name: /Place order/ })).toContainText('₱375')
   await guest.getByRole('button', { name: /Place order/ }).click()
   await guest.waitForURL(/\/order\/[0-9a-f-]{36}$/)
   await expect(guest.getByRole('heading', { name: 'Order received' })).toBeVisible()
+  // The add-on is charged: it is a line of its own on the order, and in the total
+  await expect(guest.getByText('Oat Milk Upgrade')).toBeVisible()
+  await expect(guest.getByText('₱375', { exact: true }).first()).toBeVisible()
 
   // Staff, on their own device, see it arrive and confirm it
   await signInStaff(staff)
@@ -46,9 +51,57 @@ test('an order placed on one phone reaches staff, and status flows back', async 
   await expect(guest.getByRole('heading', { name: 'Being prepared' })).toBeVisible()
   await ticket.getByRole('button', { name: 'Mark ready' }).click()
   await expect(guest.getByRole('heading', { name: 'Ready for you' })).toBeVisible()
+  const readyAlert = guest.getByRole('alert').filter({ hasText: /is ready/ })
+  await expect(readyAlert).toBeVisible()
   await ticket.getByRole('button', { name: 'Mark served' }).click()
   await expect(guest.getByRole('heading', { name: 'Enjoy your meal' })).toBeVisible()
+  await expect(readyAlert).toHaveCount(0)
 
+  await guestDevice.close()
+  await staffDevice.close()
+})
+
+test('a second phone joins a table, and staff menu changes reach it at once', async ({ browser }) => {
+  const guestDevice = await browser.newContext()
+  const staffDevice = await browser.newContext()
+  const guest = await guestDevice.newPage()
+  const staff = await staffDevice.newPage()
+
+  // Table 8 already has an open order (seed): another phone can still order there
+  await guest.goto('/t/8')
+  await expect(guest.getByText(/Others at Table 8 have ordered already/)).toBeVisible()
+  await guest.getByLabel('Your name').fill('Mia')
+  await guest.getByRole('button', { name: 'Start ordering' }).click()
+  await guest.waitForURL('**/menu')
+
+  // Sold out on the staff tablet: the guest's menu shows it without a reload
+  await signInStaff(staff)
+  await staff.goto('/staff/menu')
+  await staff.getByRole('switch', { name: 'Avocado Toast available today' }).click()
+  const toast = guest.getByRole('listitem').filter({ hasText: 'Avocado Toast' })
+  await expect(toast.getByText('Sold out today')).toBeVisible()
+  await staff.getByRole('switch', { name: 'Avocado Toast available today' }).click()
+  await expect(toast.getByText('₱195')).toBeVisible()
+
+  // New price on the staff tablet: shown to the guest at once, and that's what is charged
+  await staff.getByRole('button', { name: 'Edit Cold Brew' }).click()
+  await staff.getByLabel('Price (₱)').fill('160')
+  await staff.getByRole('button', { name: 'Save' }).click()
+  const coldBrew = guest.getByRole('listitem').filter({ hasText: 'Cold Brew' })
+  await expect(coldBrew.getByText('₱160')).toBeVisible()
+  await guest.getByRole('button', { name: 'Add Cold Brew' }).click()
+  await guest.getByRole('button', { name: /View cart/ }).click()
+  await guest.getByRole('button', { name: /Checkout/ }).click()
+  await guest.getByRole('radio', { name: /Take away/ }).click()
+  await guest.getByRole('button', { name: /Place order/ }).click()
+  await guest.waitForURL(/\/order\/[0-9a-f-]{36}$/)
+  await expect(guest.getByText('₱160', { exact: true }).first()).toBeVisible()
+
+  // Put the price back for the rest of the suite
+  await staff.getByRole('button', { name: 'Edit Cold Brew' }).click()
+  await staff.getByLabel('Price (₱)').fill('155')
+  await staff.getByRole('button', { name: 'Save' }).click()
+  await expect(staff.getByRole('button', { name: 'Save' })).toHaveCount(0)
   await guestDevice.close()
   await staffDevice.close()
 })
@@ -86,9 +139,15 @@ test('the server prices orders from its menu', async ({ request }) => {
   const { order } = await res.json()
   expect(order.total).toBe(165 * 2 + 95)
   expect(order.items).toEqual([
-    { id: 2, name: 'Caramel Macchiato', price: 165, quantity: 2 },
-    { id: 7, name: 'Butter Croissant', price: 95, quantity: 1 },
+    { id: 2, name: 'Caramel Macchiato', price: 165, quantity: 2, category: 'Coffee' },
+    { id: 7, name: 'Butter Croissant', price: 95, quantity: 1, category: 'Pastry' },
   ])
+
+  // An order needs a real table
+  const noTable = await request.post('/api/orders/place', {
+    data: { id: crypto.randomUUID(), tableId: 0, tableName: 'Table null', customerName: '', orderType: 'dineIn', items: [{ id: 1, quantity: 1 }] },
+  })
+  expect((await noTable.json()).error).toBe('invalid_table')
   expect(order.takeawayCode).toMatch(/^T-[A-HJ-NP-Z2-9]{4}$/)
 
   // Same id again: the first order comes back, nothing is added

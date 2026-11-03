@@ -7,6 +7,9 @@ export interface OrderItem {
   name: string
   price: number
   quantity: number
+  /** Menu category when the order was placed ("Add-ons" for extras). Older orders may lack it. */
+  category?: string
+  addon?: boolean
 }
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'served' | 'paid' | 'cancelled'
 export type OrderType = 'dineIn' | 'takeaway'
@@ -130,12 +133,41 @@ export function sortOrders(orders: Iterable<Order>): Order[] {
   return [...orders].sort(newestFirst)
 }
 
+// ─── Tables ──────────────────────────────────────────────────────────────────
+/** An order still holds its table until it is paid or cancelled. */
+export function isOpenOrder(o: Pick<Order, 'status'>): boolean {
+  return o.status !== 'paid' && o.status !== 'cancelled'
+}
+
+export function openOrdersByTable(orders: Order[]): Map<number, Order[]> {
+  const map = new Map<number, Order[]>()
+  for (const o of orders) {
+    if (!isOpenOrder(o)) continue
+    map.set(o.tableId, [...(map.get(o.tableId) ?? []), o])
+  }
+  return map
+}
+
+/**
+ * Freeing a table: what the guests got (ready or served) is paid, what the kitchen
+ * hasn't finished is cancelled, so it never counts as a sale.
+ */
+export function settleTable(open: Order[]): { pay: Order[]; cancel: Order[]; payTotal: number } {
+  const pay = open.filter(o => o.status === 'ready' || o.status === 'served')
+  const cancel = open.filter(o => o.status === 'pending' || o.status === 'confirmed' || o.status === 'preparing')
+  return { pay, cancel, payTotal: pay.reduce((s, o) => s + o.total, 0) }
+}
+
 // ─── Pricing (the Node order server; Supabase does the same in SQL) ──────────
 export interface MenuPrice {
   id: number
   name: string
   price: number
   available: boolean
+  category?: string
+  addon?: boolean
+  /** False once staff remove the item; it stays only so old orders keep their ids. */
+  active?: boolean
 }
 
 export class OrderError extends Error {
@@ -162,11 +194,15 @@ export function priceOrder(menu: MenuPrice[], lines: unknown): { items: OrderIte
   }
   const items: OrderItem[] = []
   for (const [id, quantity] of wanted) {
-    const item = menu.find(m => m.id === id)
+    const item = menu.find(m => m.id === id && m.active !== false)
     if (!item) throw new OrderError('unknown_item')
     if (!item.available) throw new OrderError('item_unavailable')
     if (quantity > MAX_PER_ITEM) throw new OrderError('too_many_items')
-    items.push({ id, name: item.name, price: item.price, quantity })
+    items.push({
+      id, name: item.name, price: item.price, quantity,
+      ...(item.category ? { category: item.category } : {}),
+      ...(item.addon ? { addon: true } : {}),
+    })
   }
   return { items, total: items.reduce((s, i) => s + i.price * i.quantity, 0) }
 }
@@ -213,6 +249,10 @@ const ERROR_TEXT: Record<string, string> = {
   invalid_items:    'Something in your cart looks wrong. Remove it and add it again.',
   too_many_items:   'That order is too big for one ticket. Split it into smaller orders.',
   too_many_orders:  'Lots of orders from this table just now. Ask the staff for help.',
+  invalid_table:    'Scan the QR code on your table to order.',
+  invalid_name:     'Give the item a name of up to 60 characters.',
+  invalid_category: 'Pick a category for the item.',
+  invalid_price:    'Enter a price from 0 to 100,000, with at most two decimals.',
   not_cancellable:  'The kitchen has started on this order, so it can no longer be cancelled.',
   staff_only:       'Sign in as staff to change orders.',
 }

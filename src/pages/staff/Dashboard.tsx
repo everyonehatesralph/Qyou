@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useOrders } from '../../context/OrderContext'
 import type { Order } from '../../context/OrderContext'
 import { useOrderNotification } from '../../hooks/useOrderNotification'
+import SoundOffNotice from '../../components/SoundOffNotice'
 import { useNow, timeAgo } from '../../hooks/useNow'
 import { useSidebar } from '../../context/SidebarContext'
 import { useMemo, useState, memo, type ReactNode } from 'react'
@@ -11,12 +12,13 @@ import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 import KpiCard from '../../components/KpiCard'
 import DashboardAnalytics from '../../components/DashboardAnalytics'
-import TableCard from '../../components/TableCard'
+import TableCard, { settleSummary } from '../../components/TableCard'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { Button, Card, EmptyState, StatusPill, cn } from '../../components/ui'
 import { RESTAURANT, tableLabel } from '../../config/restaurant'
 import { peso } from '../../utils/formatters'
-import { orderRef } from '../../services/orderModel'
+import { openOrdersByTable, orderRef, settleTable } from '../../services/orderModel'
+import { paidToday } from '../../services/analytics'
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -94,7 +96,7 @@ export default function Dashboard() {
   const now = useNow(30_000)
   const [freeTableId, setFreeTableId] = useState<number | null>(null)
 
-  useOrderNotification(orders, o => o.status === 'pending')
+  useOrderNotification(orders, o => o.status === 'pending', { connected: isConnected, storageKey: 'dashboard' })
 
   const pendingOrders = useMemo(() => orders.filter(o => o.status === 'pending'), [orders])
   const activeOrders = useMemo(
@@ -104,31 +106,21 @@ export default function Dashboard() {
   const servedOrders = useMemo(() => orders.filter(o => o.status === 'served'), [orders])
   const inKitchenCount = useMemo(() => orders.filter(o => o.status === 'confirmed' || o.status === 'preparing').length, [orders])
   const readyCount = useMemo(() => orders.filter(o => o.status === 'ready').length, [orders])
-  const todayRevenue = useMemo(() => {
-    const today = new Date().toDateString()
-    return orders
-      .filter(o => o.status === 'paid' && new Date(o.createdAt).toDateString() === today)
-      .reduce((s, o) => s + o.total, 0)
-  }, [orders])
+  // Money taken today: paid orders by the time they were paid
+  const todayRevenue = useMemo(() => paidToday(orders), [orders])
 
-  // On the dashboard a table is occupied by its unpaid, uncancelled orders
-  const ordersByTable = useMemo(() => {
-    const map = new Map<number, Order[]>()
-    for (const o of orders) {
-      if (o.status === 'paid' || o.status === 'cancelled') continue
-      map.set(o.tableId, [...(map.get(o.tableId) ?? []), o])
-    }
-    return map
-  }, [orders])
+  // A table is occupied by its unpaid, uncancelled orders (the same rule everywhere)
+  const ordersByTable = useMemo(() => openOrdersByTable(orders), [orders])
   const freeCount = RESTAURANT.tables.filter(t => !ordersByTable.has(t.id)).length
 
   const confirmOrder = (orderId: string) => updateOrderStatus(orderId, 'confirmed')
   const markPaid = (orderId: string) => updateOrderStatus(orderId, 'paid')
 
-  // Unchanged behavior: freeing a table marks all its unpaid orders as paid
-  const tableToFree = freeTableId === null ? [] : orders.filter(o => o.tableId === freeTableId && o.status !== 'paid')
+  // Freeing a table: what was served is paid, what the kitchen hasn't finished is cancelled
+  const settle = settleTable(freeTableId === null ? [] : ordersByTable.get(freeTableId) ?? [])
   const clearTable = () => {
-    tableToFree.forEach(o => updateOrderStatus(o.id, 'paid'))
+    settle.pay.forEach(o => updateOrderStatus(o.id, 'paid'))
+    settle.cancel.forEach(o => updateOrderStatus(o.id, 'cancelled'))
     setFreeTableId(null)
   }
 
@@ -154,6 +146,7 @@ export default function Dashboard() {
       />
 
       <main className="mx-auto max-w-6xl space-y-8 px-4 py-5 sm:px-6 sm:py-6">
+        <SoundOffNotice />
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <KpiCard label="New orders" value={pendingOrders.length} group="waiting" />
           <KpiCard label="In the kitchen" value={inKitchenCount} group="progress" />
@@ -247,7 +240,7 @@ export default function Dashboard() {
       <ConfirmDialog
         open={freeTableId !== null}
         title={freeTableId !== null ? `Free ${tableLabel(freeTableId)}?` : ''}
-        body={`This marks its ${tableToFree.length} open ${tableToFree.length === 1 ? 'order' : 'orders'} as paid so new guests can check in.`}
+        body={settleSummary(settle)}
         confirmLabel="Free table"
         onConfirm={clearTable}
         onClose={() => setFreeTableId(null)}

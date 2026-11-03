@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import Navigation from './components/Navigation'
 import LoadingSpinner from './components/LoadingSpinner'
 import ProtectedRoute from './components/ProtectedRoute'
+import ReadyAlert from './components/ReadyAlert'
 import { metricsCollector } from './services/metricsCollector'
 
 // Product landing page
@@ -80,6 +81,7 @@ export default function App() {
   return (
     <Router>
       <Navigation />
+      <ReadyAlert />
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>
           {/* Product landing page */}

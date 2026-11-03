@@ -10,6 +10,7 @@
  * Staff devices follow every order. Guest devices follow the public order board and
  * load their own orders by id, so a guest never receives another guest's items or name.
  */
+import type { MenuItem } from '../constants/menu'
 import { SUPABASE_CONFIGURED } from './supabaseClient'
 import { supabaseTransport } from './supabaseTransport'
 import { serverTransport } from './serverTransport'
@@ -31,6 +32,18 @@ export interface FeedHandlers<T> {
 export type Feed = 'orders' | 'board'
 export type FeedRow<F extends Feed> = F extends 'orders' ? Order : BoardRow
 
+/** A menu row as the backend keeps it; removed items stay (inactive) so old orders resolve. */
+export type LiveMenuItem = MenuItem & { addon: boolean; active: boolean }
+export interface MenuItemInput {
+  /** Leave out to add a new item. */
+  id?: number
+  name: string
+  price: number
+  category: string
+  description: string
+  addon?: boolean
+}
+
 export interface Transport {
   /** Staff follow 'orders' (needs a staff session), guests follow 'board'. */
   subscribe<F extends Feed>(feed: F, on: FeedHandlers<FeedRow<F>>): () => void
@@ -38,6 +51,13 @@ export interface Transport {
   placeOrder(input: PlaceOrderInput): Promise<Order>
   setStatus(id: string, status: OrderStatus): Promise<Order>
   cancelOrder(id: string): Promise<Order>
+  /** The live menu: everyone follows it, staff change it. */
+  menu: {
+    subscribe(on: FeedHandlers<LiveMenuItem>): () => void
+    save(item: MenuItemInput): Promise<LiveMenuItem>
+    setAvailable(id: number, available: boolean): Promise<LiveMenuItem>
+    remove(id: number): Promise<LiveMenuItem>
+  }
   staff: {
     /** Quick local check, so pages that never see staff never load the auth SDK. */
     mightHaveSession(): boolean
@@ -237,8 +257,9 @@ class OrderSyncClient {
     }
   }
 
-  // ── Staff sign-in ──
+  // ── Menu and staff sign-in ──
 
+  get menu() { return this.transport.menu }
   get staff() { return this.transport.staff }
 }
 

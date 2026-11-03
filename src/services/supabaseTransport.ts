@@ -1,9 +1,10 @@
 // Orders over Supabase: functions in supabase/migrations do every write and price the
-// order; Realtime pushes row changes (staff: public.orders, guests: public.order_board).
-import type { RealtimeChannel } from '@supabase/supabase-js'
+// order; Realtime pushes row changes (staff: public.orders, guests: public.order_board,
+// everyone: public.menu_items).
+import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 import { getSupabase, STAFF_SESSION_KEY } from './supabaseClient'
 import { RESTAURANT } from '../config/restaurant'
-import type { Feed, FeedHandlers, FeedRow, StaffSignIn, Transport } from './orderSync'
+import type { Feed, FeedHandlers, FeedRow, LiveMenuItem, StaffSignIn, Transport } from './orderSync'
 import type { BoardRow, Order, OrderItem, OrderStatus, OrderType } from './orderModel'
 
 interface StageColumns {
@@ -30,6 +31,16 @@ interface OrderDbRow extends BoardDbRow {
   items: OrderItem[]
   total: number | string
   notes: string | null
+}
+interface MenuDbRow {
+  id: number
+  name: string
+  price: number | string
+  category: string
+  description: string
+  addon: boolean
+  available: boolean
+  active: boolean
 }
 
 function stages(r: StageColumns) {
@@ -65,7 +76,11 @@ function orderFromRow(r: OrderDbRow): Order {
     tableId: r.table_id,
     tableName: r.table_name,
     customerName: r.customer_name,
-    items: (r.items ?? []).map(i => ({ id: i.id, name: i.name, price: Number(i.price), quantity: i.quantity })),
+    items: (r.items ?? []).map(i => ({
+      id: i.id, name: i.name, price: Number(i.price), quantity: i.quantity,
+      ...(i.category ? { category: i.category } : {}),
+      ...(i.addon ? { addon: true } : {}),
+    })),
     total: Number(r.total),
     status: r.status,
     orderType: r.order_type,
@@ -76,35 +91,58 @@ function orderFromRow(r: OrderDbRow): Order {
   }
 }
 
+function menuFromRow(r: MenuDbRow): LiveMenuItem {
+  return {
+    id: r.id,
+    name: r.name,
+    price: Number(r.price),
+    category: r.category,
+    description: r.description ?? '',
+    addon: !!r.addon,
+    available: r.available !== false,
+    active: r.active !== false,
+  }
+}
+
+type Rows = { data: unknown[] | null; error: { message: string } | null }
+
+/** PostgREST returns at most 1000 rows per request, so long histories come in pages. */
+async function allPages(page: (from: number, to: number) => PromiseLike<Rows>, max = 20_000): Promise<Rows> {
+  const rows: unknown[] = []
+  for (let from = 0; from < max; from += 1000) {
+    const { data, error } = await page(from, from + 999)
+    if (error) return { data: null, error }
+    rows.push(...(data ?? []))
+    if (!data || data.length < 1000) break
+  }
+  return { data: rows, error: null }
+}
+
 let channelCount = 0
 
-function subscribe<F extends Feed>(feed: F, on: FeedHandlers<FeedRow<F>>): () => void {
-  const table = feed === 'orders' ? 'orders' : 'order_board'
-  const fromRow = (feed === 'orders' ? orderFromRow : boardFromRow) as (r: never) => FeedRow<F>
+/**
+ * Follows one table: a snapshot on every (re)connect, then each changed row.
+ * Changes that arrive while the snapshot loads are applied on top of it.
+ */
+function follow<T>(table: string, fromRow: (r: never) => T, load: (sb: SupabaseClient) => PromiseLike<Rows>, on: FeedHandlers<T>): () => void {
   let stopped = false
   let channel: RealtimeChannel | null = null
   let retry: ReturnType<typeof setTimeout> | null = null
-  /** Changes that arrive while the snapshot loads; applied on top of it. */
-  let buffer: FeedRow<F>[] | null = null
+  let buffer: T[] | null = null
 
   getSupabase().then(sb => {
     if (stopped) return
 
-    const load = async () => {
+    const snapshot = async () => {
       buffer = []
-      let query = sb.from(table).select('*').order('created_at', { ascending: false })
-      // Guests only need what still holds a table or waits at the counter
-      query = feed === 'orders'
-        ? query.limit(1000)
-        : query.gte('created_at', new Date(Date.now() - 86_400_000).toISOString()).limit(300)
-      const { data, error } = await query
+      const { data, error } = await load(sb)
       if (stopped) return
       const pending = buffer
       buffer = null
       if (error) {
         console.warn(`[orders] could not load ${table}`, error.message)
         on.down()
-        retry = setTimeout(load, 3000)
+        retry = setTimeout(snapshot, 3000)
         return
       }
       on.snapshot((data as never[]).map(fromRow))
@@ -122,7 +160,7 @@ function subscribe<F extends Feed>(feed: F, on: FeedHandlers<FeedRow<F>>): () =>
       .subscribe(status => {
         if (stopped) return
         // Fires again after every reconnect, so a dropped connection never leaves gaps
-        if (status === 'SUBSCRIBED') void load()
+        if (status === 'SUBSCRIBED') void snapshot()
         else on.down()
       })
   }, err => {
@@ -135,6 +173,21 @@ function subscribe<F extends Feed>(feed: F, on: FeedHandlers<FeedRow<F>>): () =>
     if (retry) clearTimeout(retry)
     if (channel) void getSupabase().then(sb => sb.removeChannel(channel!))
   }
+}
+
+const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString()
+
+function subscribe<F extends Feed>(feed: F, on: FeedHandlers<FeedRow<F>>): () => void {
+  if (feed === 'orders') {
+    // Staff: 90 days of orders, enough for the analytics ranges
+    return follow('orders', orderFromRow, sb => allPages((from, to) =>
+      sb.from('orders').select('*').gte('created_at', daysAgo(90)).order('created_at', { ascending: false }).range(from, to),
+    ), on as FeedHandlers<Order>)
+  }
+  // Guests only need what still holds a table or waits at the counter
+  return follow('order_board', boardFromRow, sb =>
+    sb.from('order_board').select('*').gte('created_at', daysAgo(1)).order('created_at', { ascending: false }).limit(500),
+  on as FeedHandlers<BoardRow>)
 }
 
 async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
@@ -169,6 +222,31 @@ export const supabaseTransport: Transport = {
 
   async cancelOrder(id) {
     return orderFromRow(await rpc<OrderDbRow>('cancel_order', { p_id: id }))
+  },
+
+  menu: {
+    subscribe(on) {
+      return follow('menu_items', menuFromRow, sb => sb.from('menu_items').select('*').order('id'), on)
+    },
+
+    async save(item) {
+      return menuFromRow(await rpc<MenuDbRow>('save_menu_item', {
+        p_id: item.id ?? null,
+        p_name: item.name,
+        p_price: item.price,
+        p_category: item.category,
+        p_description: item.description,
+        p_addon: item.addon ?? false,
+      }))
+    },
+
+    async setAvailable(id, available) {
+      return menuFromRow(await rpc<MenuDbRow>('set_menu_item_available', { p_id: id, p_available: available }))
+    },
+
+    async remove(id) {
+      return menuFromRow(await rpc<MenuDbRow>('remove_menu_item', { p_id: id }))
+    },
   },
 
   staff: {
