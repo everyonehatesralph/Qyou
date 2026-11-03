@@ -1,26 +1,24 @@
-import { ShoppingBag, Trash2, Plus, Minus, ArrowLeft, XCircle } from 'lucide-react'
+import { ShoppingCart } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useCart } from '../../context/CartContext'
 import { useAuth } from '../../context/AuthContext'
 import { useOrders } from '../../context/OrderContext'
+import { RESTAURANT } from '../../config/restaurant'
 import OrderCheckoutModal, { type CheckoutOptions } from '../../components/OrderCheckoutModal'
+import { Button, Card, EmptyState, LetterTile, PageHeader, QuantityStepper, buttonClasses } from '../../components/ui'
+
+const peso = (n: number) => `${RESTAURANT.currency}${n.toFixed(0)}`
 
 export default function Cart() {
   const navigate = useNavigate()
-  const { cartItems, removeFromCart, updateQuantity, cartTotal, clearCart, addToCart } = useCart()
+  const { cartItems, addToCart, updateQuantity, cartTotal, cartCount, clearCart } = useCart()
   const { customerName, tableId, tableName } = useAuth()
   const { placeOrder: placeOrderRaw } = useOrders()
   const [showCheckout, setShowCheckout] = useState(false)
   const [placing, setPlacing] = useState(false)
 
-  const handleCheckout = () => {
-    if (cartItems.length === 0) return
-    setShowCheckout(true)
-  }
-
   const handleConfirm = (opts: CheckoutOptions) => {
-    setShowCheckout(false)
     setPlacing(true)
     const fullNotes = [
       opts.dineIn ? 'Dine In' : 'Take Away',
@@ -31,125 +29,93 @@ export default function Cart() {
     setTimeout(() => {
       const orderId = placeOrderRaw(cartItems, tableId, tableName, customerName, opts.dineIn ? 'dineIn' : 'takeaway', fullNotes)
       clearCart()
+      setShowCheckout(false)
       navigate(`/order/${orderId}`, { replace: true })
     }, 400)
   }
 
   return (
-    <div className="min-h-screen bg-background pt-14 pb-28">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => navigate('/menu')} className="p-2 rounded-lg text-text-muted hover:text-text-base hover:bg-surface-2 transition-all">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <ShoppingBag className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-bold text-text-base">Your Order</h1>
-          {cartItems.length > 0 && (
-            <button onClick={clearCart} className="ml-auto text-xs text-error hover:text-error/80 transition-colors font-medium">
-              Clear all
-            </button>
-          )}
-        </div>
-
-        {customerName && (
-          <div className="flex items-center gap-2 mb-5 px-4 py-3 rounded-lg bg-primary-glow border border-primary/20">
-            <span className="text-primary text-sm font-medium">👋 Hey, {customerName}!</span>
-          </div>
-        )}
+    <div className="min-h-screen bg-bg pb-44">
+      <div className="mx-auto max-w-3xl px-4 pt-5">
+        <PageHeader
+          title="Your cart"
+          subtitle={cartCount > 0 ? `${cartCount} ${cartCount === 1 ? 'item' : 'items'}${tableName ? ` · ${tableName}` : ''}` : undefined}
+          back={() => navigate('/menu')}
+          actions={cartItems.length > 0 ? (
+            <Button variant="ghost" onClick={clearCart} className="-mr-3 text-ink-muted">Clear</Button>
+          ) : undefined}
+        />
 
         {cartItems.length === 0 ? (
-          <div className="text-center py-20">
-            <ShoppingBag className="w-16 h-16 text-text-faint mx-auto mb-4" />
-            <p className="text-text-muted text-base mb-1">Your cart is empty</p>
-            <p className="text-text-faint text-sm mb-6">Add items from the menu to get started</p>
-            <button onClick={() => navigate('/menu')} className="btn-primary py-3 px-8 rounded-xl">
-              Browse Menu
-            </button>
-          </div>
+          <EmptyState
+            icon={ShoppingCart}
+            title="Your cart is empty"
+            body="Add something from the menu and it will show up here."
+            action={<Button variant="primary" onClick={() => navigate('/menu')}>Browse the menu</Button>}
+          />
         ) : (
           <>
-            {/* Item list */}
-            <div className="card divide-y divide-border mb-4">
+            <ul className="mt-5 divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
               {cartItems.map(item => (
-                <div key={item.id} className="flex items-center gap-3 p-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-text-base font-medium text-sm truncate">{item.name}</p>
-                    <p className="text-text-muted text-xs mt-0.5">₱{item.price} each</p>
+                <li key={item.id} className="flex gap-3 px-4 py-3.5">
+                  <LetterTile text={item.name} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="text-[15px] font-medium leading-snug text-ink">{item.name}</p>
+                      <p className="shrink-0 text-[15px] font-medium tabular-nums text-ink">{peso(item.price * item.quantity)}</p>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <p className="text-[13px] tabular-nums text-ink-muted">{peso(item.price)} each</p>
+                      <QuantityStepper
+                        value={item.quantity}
+                        itemName={item.name}
+                        onChange={next => next > item.quantity ? addToCart(item) : updateQuantity(item.id, -1)}
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => item.quantity === 1 ? removeFromCart(item.id) : updateQuantity(item.id, -1)}
-                      className="w-7 h-7 rounded-md bg-surface-3 border border-border hover:border-error/50 text-text-muted hover:text-error flex items-center justify-center transition-all"
-                    >
-                      {item.quantity === 1 ? <Trash2 className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
-                    </button>
-                    <span className="text-text-base font-semibold text-sm w-5 text-center">{item.quantity}</span>
-                    <button
-                      onClick={() => updateQuantity(item.id, 1)}
-                      className="w-7 h-7 rounded-md bg-primary/20 border border-primary/40 text-primary hover:bg-primary hover:text-background flex items-center justify-center transition-all"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-                  <span className="text-primary font-bold text-sm w-16 text-right flex-shrink-0">
-                    ₱{(item.price * item.quantity).toFixed(0)}
-                  </span>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
 
-            {/* Summary */}
-            <div className="card p-4 mb-6">
-              <div className="flex justify-between text-text-muted text-sm mb-2">
-                <span>Subtotal</span>
-                <span>₱{cartTotal.toFixed(0)}</span>
-              </div>
-              <div className="flex justify-between text-text-base font-bold text-base border-t border-border pt-2 mt-2">
-                <span>Total</span>
-                <span className="text-primary">₱{cartTotal.toFixed(0)}</span>
-              </div>
-            </div>
+            <Card className="mt-4">
+              <dl className="space-y-1.5 text-[15px]">
+                <div className="flex justify-between text-ink-muted">
+                  <dt>Subtotal</dt>
+                  <dd className="tabular-nums">{peso(cartTotal)}</dd>
+                </div>
+                <div className="flex justify-between border-t border-line pt-2 font-medium text-ink">
+                  <dt>Total</dt>
+                  <dd className="tabular-nums">{peso(cartTotal)}</dd>
+                </div>
+              </dl>
+              <p className="mt-3 text-[13px] text-ink-muted">Add-ons and notes for the kitchen come next, at checkout.</p>
+            </Card>
           </>
-        )}
-
-        {/* Cancel Order button — clears entire cart */}
-        {cartItems.length > 0 && (
-          <button
-            onClick={clearCart}
-            className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-95 mb-4"
-            style={{ backgroundColor: 'transparent', color: '#F87171', border: '1px solid rgba(248,113,113,0.3)' }}
-          >
-            <XCircle className="w-4 h-4" />
-            Cancel Order
-          </button>
         )}
       </div>
 
-      {/* Sticky place order */}
       {cartItems.length > 0 && (
-        <div className="fixed bottom-20 left-0 right-0 px-4 flex justify-center z-30">
+        <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 px-4 pb-3">
           <button
-            onClick={handleCheckout}
-            disabled={placing}
-            className="w-full md:w-80 btn-primary py-4 rounded-2xl text-background font-bold text-base shadow-glow-primary disabled:opacity-60"
+            type="button"
+            onClick={() => setShowCheckout(true)}
+            className={buttonClasses({ variant: 'primary', size: 'lg', fullWidth: true }, 'mx-auto flex max-w-3xl justify-between shadow-pop')}
           >
-            {placing ? '⏳ Placing order…' : `Review Order · ₱${cartTotal.toFixed(0)}`}
+            <span>Checkout</span>
+            <span className="tabular-nums">{peso(cartTotal)}</span>
           </button>
         </div>
       )}
 
-      {/* Checkout multi-step modal */}
-      {showCheckout && (
-        <OrderCheckoutModal
-          cartItems={cartItems}
-          cartTotal={cartTotal}
-          customerName={customerName}
-          onConfirm={handleConfirm}
-          onClose={() => setShowCheckout(false)}
-          addToCart={addToCart}
-        />
-      )}
+      <OrderCheckoutModal
+        open={showCheckout}
+        cartItems={cartItems}
+        cartTotal={cartTotal}
+        tableName={tableName}
+        placing={placing}
+        onConfirm={handleConfirm}
+        onClose={() => { if (!placing) setShowCheckout(false) }}
+      />
     </div>
   )
 }

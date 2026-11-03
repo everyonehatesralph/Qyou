@@ -99,6 +99,9 @@
     --btn-ghost-hover: var(--surface-3);
   }
 
+  /* overflow-x: hidden only on <html> (it moves to the viewport). On body and
+     #root it would make them scroll containers and break position: sticky, so
+     they use clip, which does not. */
   html {
     overflow-x: hidden;
     scroll-behavior: smooth;
@@ -107,7 +110,6 @@
   html, body {
     background-color: var(--bg);
     color: var(--text);
-    overflow-x: hidden;
     width: 100%;
     font-family: 'Outfit', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -135,10 +137,13 @@
     scrollbar-width: thin;
   }
 
+  body, #root {
+    overflow-x: clip;
+  }
+
   #root {
     min-height: 100vh;
     width: 100%;
-    overflow-x: hidden;
   }
 
   /* Base field styling. Wrapped in :where() so utility classes can override it. */
