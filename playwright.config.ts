@@ -17,6 +17,7 @@ export default defineConfig({
   projects: [
     { name: 'seed', testMatch: /seed\.setup\.ts/ },
     { name: 'screens', testMatch: /screens\.spec\.ts/, dependencies: ['seed'] },
+    { name: 'devices', testMatch: /devices\.spec\.ts/, dependencies: ['seed'] },
   ],
   use: {
     baseURL: `http://localhost:${PORT}`,
