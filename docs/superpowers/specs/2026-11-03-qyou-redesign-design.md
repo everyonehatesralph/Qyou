@@ -275,3 +275,21 @@ and §3 it contradicts.
 - **App motion (subtle):** add-to-cart flight and badge pop, stepper number ticks, sheet and
   bar springs, tracker step and headline transitions, kitchen cards sliding between columns.
 - **Reduced motion:** `MotionConfig reducedMotion="user"` plus a CSS reduced-motion rule.
+
+## Revision 2 (2026-11-03): Tomato & Slate, analytics
+
+Requested by the owner after reviewing Revision 1. Replaces the neutrals and demo accent
+from Revision 1; everything else stands.
+
+- **Neutrals (slate):** light `bg #F8FAFC`, `surface #FFFFFF`, `text #0F172A`,
+  `text-muted #475569`; dark `bg #0B1120`, `surface #131B2E`, `text #F1F5F9`,
+  `text-muted #9AA8BD` (full values in `globals.css`). Status colors unchanged.
+- **Demo accent:** tomato `#D92D20` light with white text on it, `#FB7A6A` dark with
+  slate-900 text on it. The adaptive accent rules from Revision 1 still apply.
+- **Chart color:** a separate data hue `--chart` (blue, `#2563EB` light / `#4A8CF7` dark) so
+  bars never read as buttons. Checked at ≥ 3:1 on `surface` and `surface-2`.
+- **Staff shell:** the inset rounded content panel on desktop is kept (sidebar on `surface`,
+  page inside a rounded, bordered `bg` panel).
+- **Analytics:** the dashboard gets a "Today at a glance" section (revenue and orders vs
+  yesterday, average wait and prep time, orders by hour, top sellers, busiest tables). The
+  Sales page and its nav item are named "Analytics" again.

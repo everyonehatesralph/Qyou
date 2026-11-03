@@ -8,7 +8,7 @@ import { RESTAURANT } from '../config/restaurant.ts'
 export type Mode = 'light' | 'dark'
 
 /** Surface color each mode's `--accent-soft` is mixed against (matches globals.css). */
-const SURFACE: Record<Mode, string> = { light: '#FFFFFF', dark: '#1A1918' }
+const SURFACE: Record<Mode, string> = { light: '#FFFFFF', dark: '#131B2E' }
 
 /**
  * Accent mixed toward black (light mode) or white (dark mode) just enough to

@@ -15,20 +15,21 @@
      these two blocks, so keep each selector on one line. */
   :root, [data-theme="light"] {
     color-scheme: light;
-    --bg: #F3F1EC;
+    --bg: #F8FAFC;
     --surface: #FFFFFF;
-    --surface-2: #EAE6DE;
-    --surface-3: #DFDAD0;
-    --border: #D3CDC1;
-    --border-strong: #8C877D;
-    --text: #141414;
-    --text-muted: #5F5B54;
-    --text-faint: #948F86;
-    --accent: #FF5A1F;
-    --accent-hover: #FF7346;
-    --on-accent: #141414;
-    --accent-soft: #FFEDE6;
-    --accent-text: #B33F16;
+    --surface-2: #F1F5F9;
+    --surface-3: #E2E8F0;
+    --border: #DCE3EB;
+    --border-strong: #848FA1;
+    --text: #0F172A;
+    --text-muted: #475569;
+    --text-faint: #8892A3;
+    --accent: #D92D20;
+    --accent-hover: #B92619;
+    --on-accent: #FFFFFF;
+    --accent-soft: #FCEAE9;
+    --accent-text: #B92619;
+    --chart: #2563EB;
 
     --status-waiting-bg: #FDF0D5;
     --status-waiting-text: #7A4A06;
@@ -36,33 +37,34 @@
     --status-progress-text: #1E46A0;
     --status-ready-bg: #DFF3E5;
     --status-ready-text: #14612F;
-    --status-done-bg: #EFEAE3;
-    --status-done-text: #4F463F;
+    --status-done-bg: #EEF2F6;
+    --status-done-text: #475569;
     --status-cancelled-bg: #FBE4E4;
     --status-cancelled-text: #8F1D1D;
 
-    --scrim: rgba(20, 20, 20, 0.45);
-    --glass-bg: rgba(243, 241, 236, 0.86);
-    --shadow-pop: 0 1px 2px rgba(20, 20, 20, 0.06), 0 12px 32px -8px rgba(20, 20, 20, 0.18);
-    --shadow-lift: 0 2px 4px rgba(20, 20, 20, 0.05), 0 30px 60px -20px rgba(20, 20, 20, 0.35);
+    --scrim: rgba(15, 23, 42, 0.45);
+    --glass-bg: rgba(248, 250, 252, 0.86);
+    --shadow-pop: 0 1px 2px rgba(15, 23, 42, 0.06), 0 12px 32px -8px rgba(15, 23, 42, 0.18);
+    --shadow-lift: 0 2px 4px rgba(15, 23, 42, 0.05), 0 30px 60px -20px rgba(15, 23, 42, 0.35);
   }
 
   [data-theme="dark"] {
     color-scheme: dark;
-    --bg: #111110;
-    --surface: #1A1918;
-    --surface-2: #2A2826;
-    --surface-3: #36332F;
-    --border: #423F3A;
-    --border-strong: #6E6A63;
-    --text: #F3F1EC;
-    --text-muted: #A8A39A;
-    --text-faint: #77726B;
-    --accent: #FF6A33;
-    --accent-hover: #FF8052;
-    --on-accent: #141414;
-    --accent-soft: #4A2A1E;
-    --accent-text: #FF885C;
+    --bg: #0B1120;
+    --surface: #131B2E;
+    --surface-2: #1B253A;
+    --surface-3: #253149;
+    --border: #2B3852;
+    --border-strong: #66738A;
+    --text: #F1F5F9;
+    --text-muted: #9AA8BD;
+    --text-faint: #6A7690;
+    --accent: #FB7A6A;
+    --accent-hover: #FC8F82;
+    --on-accent: #0F172A;
+    --accent-soft: #3F2632;
+    --accent-text: #FC8F82;
+    --chart: #4A8CF7;
 
     --status-waiting-bg: #3A2C12;
     --status-waiting-text: #F5C76B;
@@ -70,13 +72,13 @@
     --status-progress-text: #9DBDF5;
     --status-ready-bg: #143322;
     --status-ready-text: #86D9A2;
-    --status-done-bg: #2A2522;
-    --status-done-text: #C9BDB1;
+    --status-done-bg: #222B3D;
+    --status-done-text: #CBD5E1;
     --status-cancelled-bg: #3B1616;
     --status-cancelled-text: #F4A3A3;
 
-    --scrim: rgba(0, 0, 0, 0.6);
-    --glass-bg: rgba(17, 17, 16, 0.86);
+    --scrim: rgba(2, 6, 23, 0.62);
+    --glass-bg: rgba(11, 17, 32, 0.86);
     --shadow-pop: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px -8px rgba(0, 0, 0, 0.6);
     --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.3), 0 30px 60px -20px rgba(0, 0, 0, 0.8);
   }

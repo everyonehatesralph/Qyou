@@ -26,6 +26,7 @@ export default {
         'accent-soft': 'var(--accent-soft)',
         'accent-text': 'var(--accent-text)',
         'on-accent':   'var(--on-accent)',
+        chart:         'var(--chart)',
         scrim:         'var(--scrim)',
         glass:         'var(--glass-bg)',
         ...Object.fromEntries(status.flatMap(s => [
