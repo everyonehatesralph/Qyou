@@ -17,7 +17,7 @@ const FEATURES = [
   },
   {
     icon: BarChart3,
-    title: 'Sales tracker',
+    title: 'Sales analytics',
     body: 'Revenue, order counts, peak hours and top sellers for today, the last 7 or 30 days. Export to CSV.',
   },
   {

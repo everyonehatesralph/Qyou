@@ -10,6 +10,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 import KpiCard from '../../components/KpiCard'
+import DashboardAnalytics from '../../components/DashboardAnalytics'
 import TableCard from '../../components/TableCard'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { Button, Card, EmptyState, StatusPill, cn } from '../../components/ui'
@@ -220,6 +221,8 @@ export default function Dashboard() {
             </ul>
           </section>
         )}
+
+        <DashboardAnalytics orders={orders} />
 
         <section>
           <SectionTitle

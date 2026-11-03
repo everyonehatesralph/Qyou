@@ -5,6 +5,7 @@ import { useSidebar } from '../../context/SidebarContext'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 import KpiCard from '../../components/KpiCard'
+import { ColumnChart } from '../../components/Charts'
 import { Button, Card, EmptyState, Segmented, cn } from '../../components/ui'
 import { STATUS_GROUP_CLASSES, STATUS_META } from '../../theme/status'
 import { peso } from '../../utils/formatters'
@@ -35,7 +36,7 @@ function Panel({ title, children, className }: { title: string; children: ReactN
 }
 
 /** Horizontal bar used by the item, category and pipeline lists. */
-function Bar({ value, max, fill = 'bg-accent' }: { value: number; max: number; fill?: string }) {
+function Bar({ value, max, fill = 'bg-chart' }: { value: number; max: number; fill?: string }) {
   return (
     <div className="h-2 rounded-full bg-surface-2">
       <div className={cn('h-2 rounded-full transition-[width] duration-500', fill)} style={{ width: `${Math.max((value / max) * 100, value > 0 ? 2 : 0)}%` }} />
@@ -127,7 +128,6 @@ export default function SalesTracker() {
     }
     return days
   }, [completed])
-  const maxDailyRev = Math.max(...dailyTrend.map(d => d.revenue), 1)
 
   // ── Order status funnel ───────────────────────────────────────────────────
   const funnel = useMemo(() => {
@@ -182,8 +182,8 @@ export default function SalesTracker() {
   return (
     <StaffPageShell>
       <StaffHeader
-        title="Sales"
-        subtitle="Served and paid orders"
+        title="Analytics"
+        subtitle="Sales from served and paid orders"
         actions={<Button leftIcon={<Download />} onClick={exportCSV} disabled={completed.length === 0}>CSV</Button>}
         sidebarExpanded={sidebarExpanded}
         onSidebarToggle={toggleSidebar}
@@ -208,7 +208,7 @@ export default function SalesTracker() {
           <KpiCard label="Orders" value={totalOrders} />
           <KpiCard label="Average order" value={peso(avgOrderVal)} />
           <KpiCard label="Guests" value={uniqueCustomers} />
-          <KpiCard label="Average serve" value={`${avgServeMin.toFixed(1)} min`} />
+          <KpiCard label="Average serve" value={`${avgServeMin.toFixed(avgServeMin < 10 ? 1 : 0)} min`} />
           <KpiCard label="Peak hour" value={totalOrders > 0 ? hourLabel(busiestHour) : '—'} />
         </div>
 
@@ -223,18 +223,16 @@ export default function SalesTracker() {
                 {dailyTrend.every(d => d.revenue === 0) && (
                   <p className="-mt-2 mb-2 text-sm text-ink-muted">No served or paid orders in the last 7 days.</p>
                 )}
-                <div className="flex h-44 items-end gap-2" role="img" aria-label="Revenue per day for the last 7 days">
-                  {dailyTrend.map((d, i) => (
-                    <div key={i} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
-                      <span className="text-[11px] tabular-nums text-ink-muted">{d.revenue > 0 ? peso(d.revenue) : ''}</span>
-                      <div
-                        className={cn('w-full rounded-t-[6px]', i === 6 ? 'bg-accent' : 'bg-line-strong')}
-                        style={{ height: `${Math.max((d.revenue / maxDailyRev) * 100, 2)}px` }}
-                      />
-                      <span className={cn('text-xs', i === 6 ? 'font-medium text-ink' : 'text-ink-muted')}>{d.label}</span>
-                    </div>
-                  ))}
-                </div>
+                <ColumnChart
+                  title="Revenue per day, last 7 days"
+                  height={160}
+                  data={dailyTrend.map((d, i) => ({
+                    label: d.label,
+                    value: d.revenue,
+                    detail: `${peso(d.revenue)} · ${d.orders} ${d.orders === 1 ? 'order' : 'orders'}`,
+                    emphasis: i === dailyTrend.length - 1,
+                  }))}
+                />
               </Panel>
 
               <Panel title="Orders by hour">
@@ -252,7 +250,7 @@ export default function SalesTracker() {
                           )}
                         >
                           {/* Accent tint capped at 50% so ink text stays readable (AA) in both modes */}
-                          {count > 0 && <span className="absolute inset-0 bg-accent" style={{ opacity: 0.12 + intensity * 0.38 }} aria-hidden />}
+                          {count > 0 && <span className="absolute inset-0 bg-chart" style={{ opacity: 0.12 + intensity * 0.38 }} aria-hidden />}
                           <span className="relative">{count || '·'}</span>
                         </div>
                         <span className="text-[10px] text-ink-muted">{hourLabel(h)}</span>
@@ -323,7 +321,7 @@ export default function SalesTracker() {
                 <ol className="space-y-2.5">
                   {topItems.map((item, idx) => (
                     <li key={item.id} className="flex items-center gap-3 text-[15px]">
-                      <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium tabular-nums', idx === 0 ? 'bg-accent text-on-accent' : 'bg-surface-2 text-ink-muted')}>
+                      <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium tabular-nums', idx === 0 ? 'bg-ink text-bg' : 'bg-surface-2 text-ink-muted')}>
                         {idx + 1}
                       </span>
                       <span className="min-w-0 flex-1 truncate text-ink">{item.name}</span>

@@ -10,22 +10,30 @@ interface Props {
 }
 
 /**
- * Content area of a staff page. Leaves room for the sidebar from 768px
- * (240px, or 72px collapsed) and for the bottom bar below 768px.
+ * Staff page layout. From 768px the page sits in a bordered, rounded container
+ * inset from a frame that matches the sidebar; below 768px it fills the screen
+ * and leaves room for the bottom bar. Content scrolls with the page.
  */
 export default function StaffPageShell({ children, theme, className }: Props) {
   const { expanded } = useSidebar()
   return (
     <div
-      data-theme={theme}
       className={cn(
-        'min-h-screen bg-bg text-ink transition-[padding] duration-200',
-        'pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0',
-        expanded ? 'md:pl-60' : 'md:pl-[72px]',
-        className,
+        'min-h-screen bg-bg transition-[padding] duration-200 md:bg-surface md:p-2',
+        expanded ? 'md:pl-[248px]' : 'md:pl-[80px]',
       )}
     >
-      {children}
+      {/* overflow-clip rounds the corners without breaking the sticky header */}
+      <div
+        data-theme={theme}
+        className={cn(
+          'min-h-screen bg-bg text-ink pb-[calc(4rem+env(safe-area-inset-bottom))]',
+          'md:min-h-[calc(100vh-1rem)] md:overflow-clip md:rounded-sheet md:border md:border-line md:pb-0',
+          className,
+        )}
+      >
+        {children}
+      </div>
     </div>
   )
 }

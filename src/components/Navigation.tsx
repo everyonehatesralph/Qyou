@@ -39,7 +39,7 @@ const staffItems: NavItem[] = [
   { path: '/staff/kitchen',   label: 'Kitchen',   icon: ChefHat },
   { path: '/staff/tables',    label: 'Tables',    icon: Armchair },
   { path: '/staff/menu',      label: 'Menu',      icon: BookOpen },
-  { path: '/staff/sales',     label: 'Sales',     icon: TrendingUp },
+  { path: '/staff/sales',     label: 'Analytics', icon: TrendingUp },
   { path: '/staff/qr-codes',  label: 'QR codes',  icon: QrCode },
 ]
 const STAFF_BAR = staffItems.slice(0, 4)
@@ -107,7 +107,7 @@ function StaffNavigation() {
       {/* Sidebar, 768px and up */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-line bg-surface transition-[width] duration-200 md:flex',
+          'fixed inset-y-0 left-0 z-40 hidden flex-col bg-surface transition-[width] duration-200 md:flex',
           expanded ? 'w-60' : 'w-[72px]',
         )}
       >
