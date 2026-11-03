@@ -5,7 +5,7 @@ import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 import { getSupabase, STAFF_SESSION_KEY } from './supabaseClient'
 import { RESTAURANT } from '../config/restaurant'
 import type { Feed, FeedHandlers, FeedRow, LiveMenuItem, StaffSignIn, Transport } from './orderSync'
-import type { BoardRow, Order, OrderItem, OrderStatus, OrderType } from './orderModel'
+import type { BoardRow, DiningTable, Order, OrderItem, OrderStatus, OrderType } from './orderModel'
 
 interface StageColumns {
   confirmed_at: string | null
@@ -92,6 +92,10 @@ function orderFromRow(r: OrderDbRow): Order {
     ...stages(r),
   }
 }
+
+interface TableDbRow { id: number; label: string; active: boolean }
+
+const tableFromRow = (r: TableDbRow): DiningTable => ({ id: r.id, label: r.label, active: r.active !== false })
 
 function menuFromRow(r: MenuDbRow): LiveMenuItem {
   return {
@@ -224,6 +228,15 @@ export const supabaseTransport: Transport = {
 
   async cancelOrder(id) {
     return orderFromRow(await rpc<OrderDbRow>('cancel_order', { p_id: id }))
+  },
+
+  tables: {
+    subscribe(on) {
+      return follow('restaurant_tables', tableFromRow, sb => sb.from('restaurant_tables').select('*').order('id'), on)
+    },
+    async setCount(count) {
+      return (await rpc<TableDbRow[]>('set_table_count', { p_count: count })).map(tableFromRow)
+    },
   },
 
   menu: {

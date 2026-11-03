@@ -2,6 +2,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { Check, Copy, Download, Globe, Pencil, Printer, Wifi } from 'lucide-react'
 import { useCallback, useState, useEffect } from 'react'
 import { useSidebar } from '../../context/SidebarContext'
+import { useTables } from '../../context/TablesContext'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 import { Button, Card, Segmented, TextInput } from '../../components/ui'
@@ -85,6 +86,7 @@ function printCard(tableLabel: string, qrSvg: string): string {
 
 export default function QRCodeGenerator() {
   const { expanded: sidebarExpanded, toggle: toggleSidebar } = useSidebar()
+  const { tables } = useTables()
   const [baseUrl,  setBaseUrl]  = useState<string>(() => getStoredUrl())
   const [editUrl,  setEditUrl]  = useState<string>('')
   const [urlError, setUrlError] = useState<string>('')
@@ -188,7 +190,7 @@ export default function QRCodeGenerator() {
   }
 
   const printAllQR = () => {
-    const cards = RESTAURANT.tables.map(table => {
+    const cards = tables.map(table => {
       const el = document.getElementById(`qr-wrap-${table.id}`)
       return el ? printCard(table.label, el.innerHTML) : ''
     }).join('')
@@ -334,7 +336,7 @@ export default function QRCodeGenerator() {
           <section aria-labelledby="table-codes">
             <h2 id="table-codes" className="mb-3 font-display text-xl text-ink">Table cards</h2>
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {RESTAURANT.tables.map(table => (
+              {tables.map(table => (
                 <li key={table.id} className="flex flex-col rounded-card border border-line bg-surface">
                   {/* Preview of the printed card; always light like paper */}
                   <div data-theme="light" className="m-3 rounded-control border border-line bg-surface p-5 text-center text-ink">

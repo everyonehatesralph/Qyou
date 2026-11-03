@@ -1,7 +1,7 @@
 // Orders over the Node order server (server/orderSyncPlugin.ts): REST for writes,
 // Server-Sent Events for live snapshots. Staff sign-in is an HttpOnly cookie the server sets.
 import type { Feed, FeedHandlers, FeedRow, LiveMenuItem, StaffSignIn, Transport } from './orderSync'
-import type { Order } from './orderModel'
+import type { DiningTable, Order } from './orderModel'
 
 /** Only a hint that this device signed in; the cookie itself is unreadable from script. */
 const LS_STAFF_HINT = 'qyou_staff_signed_in'
@@ -76,6 +76,15 @@ export const serverTransport: Transport = {
 
   async cancelOrder(id) {
     return (await call<{ order: Order }>('/api/orders/cancel', { id })).order
+  },
+
+  tables: {
+    subscribe(on) {
+      return stream<DiningTable>('/api/tables/stream', msg => msg.tables, on)
+    },
+    async setCount(count) {
+      return (await call<{ tables: DiningTable[] }>('/api/tables/count', { count })).tables
+    },
   },
 
   menu: {

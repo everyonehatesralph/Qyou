@@ -16,7 +16,7 @@ import { supabaseTransport } from './supabaseTransport'
 import { serverTransport } from './serverTransport'
 import {
   guestView, isOrderId, sortOrders, withStatus,
-  type BoardRow, type Order, type OrderStatus, type PlaceOrderInput,
+  type BoardRow, type DiningTable, type Order, type OrderStatus, type PlaceOrderInput,
 } from './orderModel'
 
 export type StaffSignIn = 'ok' | 'wrong_pin' | 'not_staff' | 'too_many_attempts' | 'offline'
@@ -51,6 +51,12 @@ export interface Transport {
   placeOrder(input: PlaceOrderInput): Promise<Order>
   setStatus(id: string, status: OrderStatus): Promise<Order>
   cancelOrder(id: string): Promise<Order>
+  /** The tables guests can check in at: everyone follows them, staff set how many. */
+  tables: {
+    subscribe(on: FeedHandlers<DiningTable>): () => void
+    /** Tables 1..count open, the rest switched off. Refused while a removed table has open orders. */
+    setCount(count: number): Promise<DiningTable[]>
+  }
   /** The live menu: everyone follows it, staff change it. */
   menu: {
     subscribe(on: FeedHandlers<LiveMenuItem>): () => void
@@ -260,6 +266,7 @@ class OrderSyncClient {
   // ── Menu and staff sign-in ──
 
   get menu() { return this.transport.menu }
+  get tables() { return this.transport.tables }
   get staff() { return this.transport.staff }
 }
 

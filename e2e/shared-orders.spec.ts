@@ -106,6 +106,41 @@ test('a second phone joins a table, and staff menu changes reach it at once', as
   await staffDevice.close()
 })
 
+test('staff set how many tables there are, and check-in follows at once', async ({ browser }) => {
+  const staffDevice = await browser.newContext()
+  const guestDevice = await browser.newContext()
+  const staff = await staffDevice.newPage()
+  const guest = await guestDevice.newPage()
+  await signInStaff(staff)
+  await staff.goto('/staff/tables')
+
+  // Table 9 has a served, unpaid order (seed): it can't be removed yet
+  await staff.getByRole('button', { name: 'Edit tables' }).click()
+  for (let i = 0; i < 2; i++) await staff.getByRole('button', { name: 'Remove one table' }).click()
+  await staff.getByRole('button', { name: 'Save' }).click()
+  await expect(staff.getByRole('alert')).toContainText('Table 9 still has open orders')
+
+  // Two more instead
+  for (let i = 0; i < 4; i++) await staff.getByRole('button', { name: 'Add one table' }).click()
+  await staff.getByRole('button', { name: 'Save' }).click()
+  await expect(staff.getByText('of 12 free')).toBeVisible()
+
+  // A guest can check in at the new table straight away
+  await guest.goto('/t/12')
+  await expect(guest.getByLabel('Your name')).toBeVisible()
+
+  // Back to 10 for the rest of the suite; table 12 is gone for guests too
+  await staff.getByRole('button', { name: 'Edit tables' }).click()
+  for (let i = 0; i < 2; i++) await staff.getByRole('button', { name: 'Remove one table' }).click()
+  await staff.getByRole('button', { name: 'Save' }).click()
+  await expect(staff.getByText('of 10 free')).toBeVisible()
+  await guest.goto('/t/12')
+  await expect(guest.getByText("This QR code isn't for a table here")).toBeVisible()
+
+  await staffDevice.close()
+  await guestDevice.close()
+})
+
 test('guests only get the public board, and only staff change orders', async ({ page, request }) => {
   await page.goto('/takeaway-pickup')
   const frame = await page.evaluate(async () => {
@@ -143,11 +178,15 @@ test('the server prices orders from its menu', async ({ request }) => {
     { id: 7, name: 'Butter Croissant', price: 95, quantity: 1, category: 'Pastry' },
   ])
 
-  // An order needs a real table
-  const noTable = await request.post('/api/orders/place', {
-    data: { id: crypto.randomUUID(), tableId: 0, tableName: 'Table null', customerName: '', orderType: 'dineIn', items: [{ id: 1, quantity: 1 }] },
-  })
-  expect((await noTable.json()).error).toBe('invalid_table')
+  // An order needs a real, open table
+  for (const tableId of [0, 99]) {
+    const noTable = await request.post('/api/orders/place', {
+      data: { id: crypto.randomUUID(), tableId, tableName: 'Table null', customerName: '', orderType: 'dineIn', items: [{ id: 1, quantity: 1 }] },
+    })
+    expect((await noTable.json()).error).toBe('invalid_table')
+  }
+  // Only staff set the number of tables
+  expect((await request.post('/api/tables/count', { data: { count: 3 } })).status()).toBe(401)
   expect(order.takeawayCode).toMatch(/^T-[A-HJ-NP-Z2-9]{4}$/)
   // Today's queue number, on the restaurant's (Manila) calendar
   expect(Number.isInteger(order.number) && order.number >= 1).toBe(true)

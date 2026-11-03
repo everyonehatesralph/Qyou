@@ -15,7 +15,8 @@ import DashboardAnalytics from '../../components/DashboardAnalytics'
 import TableCard, { settleSummary } from '../../components/TableCard'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { Button, Card, EmptyState, StatusPill, cn } from '../../components/ui'
-import { RESTAURANT, tableLabel } from '../../config/restaurant'
+import { useTables } from '../../context/TablesContext'
+import { RESTAURANT } from '../../config/restaurant'
 import { peso } from '../../utils/formatters'
 import { openOrdersByTable, orderRef, settleTable } from '../../services/orderModel'
 import { paidToday } from '../../services/analytics'
@@ -111,7 +112,8 @@ export default function Dashboard() {
 
   // A table is occupied by its unpaid, uncancelled orders (the same rule everywhere)
   const ordersByTable = useMemo(() => openOrdersByTable(orders), [orders])
-  const freeCount = RESTAURANT.tables.filter(t => !ordersByTable.has(t.id)).length
+  const { tables, label: tableLabel } = useTables()
+  const freeCount = tables.filter(t => !ordersByTable.has(t.id)).length
 
   const confirmOrder = (orderId: string) => updateOrderStatus(orderId, 'confirmed')
   const markPaid = (orderId: string) => updateOrderStatus(orderId, 'paid')
@@ -221,10 +223,10 @@ export default function Dashboard() {
         <section>
           <SectionTitle
             title="Tables"
-            action={<span className="text-sm text-ink-muted">{freeCount} of {RESTAURANT.tables.length} free</span>}
+            action={<span className="text-sm text-ink-muted">{freeCount} of {tables.length} free</span>}
           />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {RESTAURANT.tables.map(table => (
+            {tables.map(table => (
               <TableCard
                 key={table.id}
                 compact

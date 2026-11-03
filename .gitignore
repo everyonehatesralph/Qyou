@@ -20,5 +20,6 @@ qual_ass/
 test-results/
 playwright-report/
 
-# Order server menu (staff edits in local dev)
+# Order server data staff edit in local dev (menu, tables)
 server/menu.json
+server/tables.json

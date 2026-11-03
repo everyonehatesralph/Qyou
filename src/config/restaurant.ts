@@ -1,5 +1,6 @@
 // The one place a new restaurant is onboarded: its name, logo letter, accent
-// colors and tables. Everything else in the app reads from here.
+// colors and starting tables. Everything else in the app reads from here.
+// Staff change the number of tables later on the Tables screen; that lives in the backend.
 
 export interface TableDef {
   id: number
@@ -29,9 +30,4 @@ export const RESTAURANT: {
   tables: Array.from({ length: 10 }, (_, i) => ({ id: i + 1, label: `Table ${i + 1}` })),
   staffEmail: 'demo-cafe-staff@example.com',
   timeZone: 'Asia/Manila',
-}
-
-/** Display label for a table id, falling back to `Table {id}` for unknown ids. */
-export function tableLabel(id: number): string {
-  return RESTAURANT.tables.find(t => t.id === id)?.label ?? `Table ${id}`
 }

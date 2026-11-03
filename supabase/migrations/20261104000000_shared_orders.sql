@@ -5,7 +5,7 @@
 --   guests (anon key, no sign-in)  place orders, read and cancel their own orders by id,
 --                                  read the public order board (no items, prices or dine-in names)
 --   staff (signed in + listed in   read every order, change any order's status, edit the menu
---          public.staff_members)
+--          public.staff_members)       and set how many tables there are
 -- Nobody writes tables directly: every write goes through a function below, which prices
 -- orders from public.menu_items and ignores whatever the browser says things cost.
 
@@ -45,6 +45,23 @@ insert into public.menu_items (id, name, price, category, description, addon) va
   (104, 'Less Ice',            0,   'Add-ons', '', true),
   (105, 'Whipped Cream',       20,  'Add-ons', '', true),
   (106, 'Caramel Syrup',       15,  'Add-ons', '', true)
+on conflict (id) do nothing;
+
+-- ─── Tables: which tables the restaurant has ────────────────────────────────
+-- Staff set how many (Tables screen); orders and check-ins only work for an active table.
+-- Removed tables stay, switched off, so old orders keep their table.
+create table if not exists public.restaurant_tables (
+  id         integer primary key check (id between 1 and 200),
+  label      text not null,
+  active     boolean not null default true,
+  updated_at timestamptz not null default now()
+);
+
+-- The starting tables (RESTAURANT.tables in src/config/restaurant.ts). Only fills an empty
+-- list, so running this again never undoes what staff set.
+insert into public.restaurant_tables (id, label)
+select g, 'Table ' || g from generate_series(1, 10) g
+where not exists (select 1 from public.restaurant_tables)
 on conflict (id) do nothing;
 
 -- ─── Staff: Supabase Auth users allowed to run the floor ─────────────────────
@@ -179,6 +196,7 @@ declare
   v_tries       integer := 0;
   v_day         date;
   v_number      integer;
+  v_table_name  text;
 begin
   -- The same id again is a retry of a request that already went through: hand back that order
   select * into v_order from public.orders where id = p_id;
@@ -186,8 +204,10 @@ begin
 
   if p_id is null then raise exception 'invalid_order_id'; end if;
   if p_order_type is null or p_order_type not in ('dineIn', 'takeaway') then raise exception 'invalid_order_type'; end if;
-  -- Every order comes from a table's QR code; take-away orders keep the table they were placed at
-  if p_table_id is null or p_table_id < 1 then raise exception 'invalid_table'; end if;
+  -- Every order comes from a table's QR code; take-away orders keep the table they were placed at.
+  -- The table must exist now, and its name comes from here, not from the phone.
+  select label into v_table_name from public.restaurant_tables where id = p_table_id and active;
+  if not found then raise exception 'invalid_table'; end if;
   if jsonb_typeof(p_items) is distinct from 'array' or jsonb_array_length(p_items) = 0 then
     raise exception 'empty_order';
   end if;
@@ -264,7 +284,7 @@ begin
     v_number,
     v_day,
     p_table_id,
-    left(coalesce(nullif(btrim(p_table_name), ''), 'Table ' || p_table_id), 40),
+    v_table_name,
     left(btrim(coalesce(p_customer_name, '')), 60),
     v_items,
     v_total,
@@ -390,12 +410,45 @@ begin
   return v_item;
 end $$;
 
+-- ─── Tables (staff) ──────────────────────────────────────────────────────────
+-- Tables 1..p_count are open for check-in; any above it are switched off. A table that still
+-- has open orders can't be switched off: the error names it (table_in_use:<id>).
+create or replace function public.set_table_count(p_count integer) returns setof public.restaurant_tables
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_busy integer;
+begin
+  if not public.is_staff() then raise exception 'staff_only' using errcode = '42501'; end if;
+  if p_count is null or p_count < 1 or p_count > 200 then raise exception 'invalid_table_count'; end if;
+
+  select min(t.id) into v_busy
+  from public.restaurant_tables t
+  where t.active and t.id > p_count
+    and exists (select 1 from public.orders o where o.table_id = t.id and o.status not in ('paid', 'cancelled'));
+  if v_busy is not null then raise exception 'table_in_use:%', v_busy; end if;
+
+  insert into public.restaurant_tables (id, label)
+  select g, 'Table ' || g from generate_series(1, p_count) g
+  on conflict (id) do update set active = true, updated_at = now()
+  where not public.restaurant_tables.active;
+
+  update public.restaurant_tables set active = false, updated_at = now()
+  where id > p_count and active;
+
+  return query select * from public.restaurant_tables order by id;
+end $$;
+
 -- ─── Access ──────────────────────────────────────────────────────────────────
 alter table public.menu_items    enable row level security;
 alter table public.staff_members enable row level security;
 alter table public.orders        enable row level security;
 alter table public.order_board   enable row level security;
 alter table public.order_counters enable row level security;
+alter table public.restaurant_tables enable row level security;
+
+drop policy if exists "tables are public" on public.restaurant_tables;
+create policy "tables are public" on public.restaurant_tables
+  for select to anon, authenticated using (true);
 
 drop policy if exists "menu is public" on public.menu_items;
 create policy "menu is public" on public.menu_items
@@ -416,10 +469,10 @@ create policy "order board is public" on public.order_board
 -- Reads only, filtered by the policies above; direct writes are off for everyone.
 -- Granted explicitly so this works on projects that don't expose new tables by default.
 grant usage on schema public to anon, authenticated;
-grant select on public.menu_items, public.order_board to anon, authenticated;
+grant select on public.menu_items, public.order_board, public.restaurant_tables to anon, authenticated;
 grant select on public.orders, public.staff_members to authenticated;
 revoke insert, update, delete, truncate on
-  public.menu_items, public.staff_members, public.orders, public.order_board
+  public.menu_items, public.staff_members, public.orders, public.order_board, public.restaurant_tables
   from anon, authenticated;
 revoke all on public.order_counters from anon, authenticated;
 
@@ -433,6 +486,7 @@ revoke execute on function public.set_order_status(uuid, text) from public, anon
 revoke execute on function public.save_menu_item(integer, text, numeric, text, text, boolean) from public, anon;
 revoke execute on function public.set_menu_item_available(integer, boolean) from public, anon;
 revoke execute on function public.remove_menu_item(integer) from public, anon;
+revoke execute on function public.set_table_count(integer) from public, anon;
 
 grant execute on function public.is_staff() to anon, authenticated;
 grant execute on function public.place_order(uuid, integer, text, text, text, jsonb, text) to anon, authenticated;
@@ -442,12 +496,18 @@ grant execute on function public.set_order_status(uuid, text) to authenticated;
 grant execute on function public.save_menu_item(integer, text, numeric, text, text, boolean) to authenticated;
 grant execute on function public.set_menu_item_available(integer, boolean) to authenticated;
 grant execute on function public.remove_menu_item(integer) to authenticated;
+grant execute on function public.set_table_count(integer) to authenticated;
 
 -- ─── Live updates ────────────────────────────────────────────────────────────
--- Staff screens follow public.orders, guests follow public.order_board, everyone follows the menu.
+-- Staff screens follow public.orders, guests follow public.order_board, everyone follows the menu
+-- and the tables.
 do $$
 begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    if not exists (select 1 from pg_publication_tables
+                   where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'restaurant_tables') then
+      alter publication supabase_realtime add table public.restaurant_tables;
+    end if;
     if not exists (select 1 from pg_publication_tables
                    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'menu_items') then
       alter publication supabase_realtime add table public.menu_items;

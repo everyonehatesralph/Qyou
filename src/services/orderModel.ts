@@ -137,6 +137,32 @@ export function sortOrders(orders: Iterable<Order>): Order[] {
 }
 
 // ─── Tables ──────────────────────────────────────────────────────────────────
+/** A table guests can check in at. Removed tables stay (inactive) so old orders keep theirs. */
+export interface DiningTable {
+  id: number
+  label: string
+  active: boolean
+}
+
+export const MAX_TABLES = 200
+
+/**
+ * Staff set how many tables there are: tables 1..count are on, the rest off. Refuses to switch
+ * off a table that still has open orders (the order server; Supabase does the same in SQL).
+ */
+export function applyTableCount(tables: DiningTable[], count: unknown, busyTableIds: Set<number>): DiningTable[] {
+  if (!Number.isInteger(count) || (count as number) < 1 || (count as number) > MAX_TABLES) {
+    throw new OrderError('invalid_table_count')
+  }
+  const n = count as number
+  const busy = tables.filter(t => t.active && t.id > n && busyTableIds.has(t.id)).map(t => t.id)
+  if (busy.length > 0) throw new OrderError(`table_in_use:${Math.min(...busy)}`)
+  const byId = new Map(tables.map(t => [t.id, t]))
+  for (let id = 1; id <= n; id++) byId.set(id, { id, label: byId.get(id)?.label ?? `Table ${id}`, active: true })
+  for (const t of byId.values()) if (t.id > n) byId.set(t.id, { ...t, active: false })
+  return [...byId.values()].sort((a, b) => a.id - b.id)
+}
+
 /** An order still holds its table until it is paid or cancelled. */
 export function isOpenOrder(o: Pick<Order, 'status'>): boolean {
   return o.status !== 'paid' && o.status !== 'cancelled'
@@ -261,6 +287,7 @@ const ERROR_TEXT: Record<string, string> = {
   invalid_name:     'Give the item a name of up to 60 characters.',
   invalid_category: 'Pick a category for the item.',
   invalid_price:    'Enter a price from 0 to 100,000, with at most two decimals.',
+  invalid_table_count: 'Pick between 1 and 200 tables.',
   not_cancellable:  'The kitchen has started on this order, so it can no longer be cancelled.',
   staff_only:       'Sign in as staff to change orders.',
 }
@@ -268,6 +295,8 @@ const ERROR_TEXT: Record<string, string> = {
 /** Words for a guest or staff member, from an error code (or any thrown value). */
 export function orderErrorText(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error ?? '')
+  const busy = /table_in_use:(\d+)/.exec(message)
+  if (busy) return `Table ${busy[1]} still has open orders. Free it before removing it.`
   const code = Object.keys(ERROR_TEXT).find(k => message.includes(k))
   return code ? ERROR_TEXT[code] : 'Could not reach the restaurant. Check your connection and try again.'
 }

@@ -4,6 +4,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useState, useMemo, type FormEvent } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useOrders } from '../../context/OrderContext'
+import { useTables } from '../../context/TablesContext'
+import LoadingSpinner from '../../components/LoadingSpinner'
 import { RESTAURANT } from '../../config/restaurant'
 import { isOpenOrder } from '../../services/orderModel'
 import { Button, LetterTile, TextInput, Ticket } from '../../components/ui'
@@ -16,8 +18,9 @@ export default function TokenValidation() {
   const { setTableSession } = useAuth()
   const { orders } = useOrders()
   const [name, setName] = useState('')
-  // Only tables this restaurant has; a mistyped or old QR code gets a clear message
-  const table = RESTAURANT.tables.find(t => String(t.id) === tableId)
+  // Only tables the restaurant has open; a mistyped or old QR code gets a clear message
+  const { tables, tablesLive } = useTables()
+  const table = tables.find(t => String(t.id) === tableId)
   const tid = table?.id ?? 0
   const tname = table?.label ?? ''
 
@@ -31,6 +34,8 @@ export default function TokenValidation() {
     navigate('/menu')
   }
 
+  // Staff may have added tables since this page loaded its starting list
+  if (!table && !tablesLive) return <LoadingSpinner />
   if (!table) {
     return (
       <div className="flex min-h-[100dvh] flex-col bg-bg px-4">

@@ -16,7 +16,9 @@
  * - POST /api/menu/save       { id?, name, price, category, description, addon }  staff only
  * - POST /api/menu/available  { id, available }                                    staff only
  * - POST /api/menu/remove     { id }                                               staff only
- * - POST /api/dev/seed        { orders, resetMenu }  dev server only: e2e fixtures
+ * - GET  /api/tables, GET /api/tables/stream the tables guests can check in at, for everyone
+ * - POST /api/tables/count    { count }      staff only: tables 1..count are open
+ * - POST /api/dev/seed        { orders, resetMenu, resetTables }  dev server only: e2e fixtures
  */
 
 import type { Plugin, ViteDevServer } from 'vite'
@@ -27,8 +29,8 @@ import path from 'path'
 import { SEED_MENU, type MenuItem } from '../src/constants/menu.ts'
 import { RESTAURANT } from '../src/config/restaurant.ts'
 import {
-  ORDER_STATUSES, OrderError, isOrderId, makeTakeawayCode, priceOrder, restaurantDay, sortOrders, toBoardRow, withStatus,
-  type Order, type OrderStatus,
+  ORDER_STATUSES, OrderError, applyTableCount, isOpenOrder, isOrderId, makeTakeawayCode, priceOrder, restaurantDay,
+  sortOrders, toBoardRow, withStatus, type DiningTable, type Order, type OrderStatus,
 } from '../src/services/orderModel.ts'
 
 type StoredOrder = Order & { boardId: string }
@@ -36,6 +38,7 @@ type StoredItem = MenuItem & { active: boolean }
 
 const DATA_FILE = path.resolve(process.cwd(), 'server/orders.json')
 const MENU_FILE = path.resolve(process.cwd(), 'server/menu.json')
+const TABLES_FILE = path.resolve(process.cwd(), 'server/tables.json')
 const COOKIE = 'qyou_staff'
 const MAX_BODY = 64 * 1024
 
@@ -60,6 +63,15 @@ function saveJson(file: string, data: unknown) {
 }
 
 const seedMenu = (): StoredItem[] => SEED_MENU.map(m => ({ ...m, addon: !!m.addon, active: true }))
+
+const seedTables = (): DiningTable[] => RESTAURANT.tables.map(t => ({ ...t, active: true }))
+
+function loadTables(): DiningTable[] {
+  try {
+    if (fs.existsSync(TABLES_FILE)) return JSON.parse(fs.readFileSync(TABLES_FILE, 'utf-8'))
+  } catch { /* noop */ }
+  return seedTables()
+}
 
 function loadMenu(): StoredItem[] {
   try {
@@ -114,9 +126,11 @@ export interface OrderServerOptions {
 export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: OrderServerOptions = {}) {
   let orders: StoredOrder[] = loadOrders()
   let menu: StoredItem[] = loadMenu()
+  let tables: DiningTable[] = loadTables()
   const sessions = new Set<string>()
   const failedLogins = new Map<string, number[]>()
-  const streams = new Map<ServerResponse, 'orders' | 'board' | 'menu'>()
+  type Feed = 'orders' | 'board' | 'menu' | 'tables'
+  const streams = new Map<ServerResponse, Feed>()
 
   const isStaff = (req: IncomingMessage) => {
     const token = cookieOf(req, COOKIE)
@@ -129,10 +143,14 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
     return orders.filter(o => new Date(o.createdAt).getTime() > since).map(toBoardRow)
   }
 
-  const frame = (feed: 'orders' | 'board' | 'menu') =>
-    `data: ${JSON.stringify(feed === 'orders' ? { orders: sortOrders(orders) } : feed === 'board' ? { board: board() } : { menu })}\n\n`
+  const frame = (feed: Feed) => `data: ${JSON.stringify(
+    feed === 'orders' ? { orders: sortOrders(orders) }
+    : feed === 'board' ? { board: board() }
+    : feed === 'menu' ? { menu }
+    : { tables },
+  )}\n\n`
 
-  function push(feeds: ('orders' | 'board' | 'menu')[]) {
+  function push(feeds: Feed[]) {
     const frames = Object.fromEntries(feeds.map(f => [f, frame(f)]))
     streams.forEach((feed, res) => {
       if (!frames[feed]) return
@@ -150,6 +168,11 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
     push(['menu'])
   }
 
+  function tablesChanged() {
+    saveJson(TABLES_FILE, tables)
+    push(['tables'])
+  }
+
   function updateItem(id: unknown, change: (m: StoredItem) => StoredItem): StoredItem {
     const item = menu.find(m => m.id === id && m.active)
     if (!item) throw new OrderError('unknown_item')
@@ -159,7 +182,7 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
     return saved
   }
 
-  const openStream = (req: IncomingMessage, res: ServerResponse, feed: 'orders' | 'board' | 'menu') => {
+  const openStream = (req: IncomingMessage, res: ServerResponse, feed: Feed) => {
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' })
     res.write(frame(feed))
     streams.set(res, feed)
@@ -179,7 +202,7 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
   return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
     const url = new URL(req.url || '/', 'http://localhost')
     const route = `${req.method} ${url.pathname}`
-    if (!['/api/orders', '/api/staff', '/api/menu', '/api/dev'].some(prefix => url.pathname.startsWith(prefix))) {
+    if (!['/api/orders', '/api/staff', '/api/menu', '/api/tables', '/api/dev'].some(prefix => url.pathname.startsWith(prefix))) {
       next()
       return
     }
@@ -209,8 +232,10 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
           const existing = orders.find(o => o.id === body.id)
           if (existing) { send(res, 200, { order: existing }); return }
           if (body.orderType !== 'dineIn' && body.orderType !== 'takeaway') throw new OrderError('invalid_order_type')
-          // Every order comes from a table's QR code; take-away orders keep the table they were placed at
-          if (!Number.isInteger(body.tableId) || body.tableId < 1) throw new OrderError('invalid_table')
+          // Every order comes from a table's QR code; take-away orders keep the table they were placed at.
+          // The table must exist now, and its name comes from here, not from the phone.
+          const table = tables.find(t => t.id === body.tableId && t.active)
+          if (!table) throw new OrderError('invalid_table')
 
           const { items, total } = priceOrder(menu, body.items)
           const recent = orders.filter(o => Date.now() - new Date(o.createdAt).getTime() < 10 * 60_000)
@@ -229,7 +254,7 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
             orderDay,
             boardId: randomUUID(),
             tableId: body.tableId,
-            tableName: text(body.tableName, 40) || `Table ${body.tableId}`,
+            tableName: table.label,
             customerName: text(body.customerName, 60),
             items,
             total,
@@ -353,20 +378,43 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
           return
         }
 
+        case 'GET /api/tables/stream': {
+          openStream(req, res, 'tables')
+          return
+        }
+
+        case 'GET /api/tables': {
+          send(res, 200, { tables })
+          return
+        }
+
+        case 'POST /api/tables/count': {
+          if (!isStaff(req)) { send(res, 401, { error: 'staff_only' }); return }
+          const { count } = await readBody(req)
+          const busy = new Set(orders.filter(isOpenOrder).map(o => o.tableId))
+          tables = applyTableCount(tables, count, busy)
+          tablesChanged()
+          send(res, 200, { tables })
+          return
+        }
+
         case 'POST /api/dev/seed': {
           if (!allowSeed) break
-          const { orders: seed = [], resetMenu } = await readBody(req) as { orders?: Order[]; resetMenu?: boolean }
+          const { orders: seed = [], resetMenu, resetTables } = await readBody(req) as { orders?: Order[]; resetMenu?: boolean; resetTables?: boolean }
           const ids = new Set(seed.map(o => o.id))
           orders = [...seed.map(o => ({ ...o, boardId: o.boardId ?? randomUUID() })), ...orders.filter(o => !ids.has(o.id))]
           changed()
           if (resetMenu) { menu = seedMenu(); menuChanged() }
+          if (resetTables) { tables = seedTables(); tablesChanged() }
           send(res, 200, { ok: true })
           return
         }
       }
     } catch (err) {
       const code = err instanceof OrderError ? err.code : err instanceof Error ? err.message : 'bad_request'
-      send(res, code === 'not_cancellable' ? 409 : code === 'unknown_item' && route.startsWith('POST /api/menu') ? 404 : 400, { error: code })
+      const status = code === 'not_cancellable' || code.startsWith('table_in_use') ? 409
+        : code === 'unknown_item' && route.startsWith('POST /api/menu') ? 404 : 400
+      send(res, status, { error: code })
       return
     }
 

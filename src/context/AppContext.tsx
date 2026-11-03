@@ -25,6 +25,7 @@ import { CartProvider, useCart } from './CartContext'
 import { OrderProvider, useOrders } from './OrderContext'
 import { AuthProvider, useAuth } from './AuthContext'
 import { MenuProvider, useMenuAvailability } from './MenuContext'
+import { TablesProvider } from './TablesContext'
 import { ThemeProvider } from './ThemeContext'
 import { SidebarProvider } from './SidebarContext'
 
@@ -38,6 +39,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <ThemeProvider>
       <SidebarProvider>
         <AuthProvider>
+          <TablesProvider>
           <MenuProvider>
             <OrderProvider>
               <CartProvider>
@@ -45,6 +47,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               </CartProvider>
             </OrderProvider>
           </MenuProvider>
+          </TablesProvider>
         </AuthProvider>
       </SidebarProvider>
     </ThemeProvider>

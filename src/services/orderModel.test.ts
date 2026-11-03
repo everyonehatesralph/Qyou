@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { MENU_ITEMS, SEED_MENU } from '../constants/menu.ts'
 import {
-  guestView, isOpenOrder, isOrderId, newOrderId, openOrdersByTable, orderErrorText, orderRef, priceOrder,
+  applyTableCount, guestView, isOpenOrder, isOrderId, newOrderId, openOrdersByTable, orderErrorText, orderRef, priceOrder,
   restaurantDay, settleTable, toBoardRow, withStatus, OrderError, type BoardRow, type Order,
 } from './orderModel.ts'
 
@@ -169,4 +169,23 @@ test('the restaurant day turns over at midnight in its timezone, not UTC', () =>
   assert.equal(restaurantDay(new Date('2026-11-04T16:01:00Z'), 'Asia/Manila'), '2026-11-05')
   // The same instant is still the 4th in UTC
   assert.equal(restaurantDay(new Date('2026-11-04T16:01:00Z'), 'UTC'), '2026-11-04')
+})
+
+test('setting the number of tables opens 1..n and switches off the rest', () => {
+  const ten = Array.from({ length: 10 }, (_, i) => ({ id: i + 1, label: i === 1 ? 'Patio' : `Table ${i + 1}`, active: true }))
+  const eight = applyTableCount(ten, 8, new Set())
+  assert.deepEqual(eight.filter(t => t.active).map(t => t.id), [1, 2, 3, 4, 5, 6, 7, 8])
+  assert.equal(eight.length, 10, 'switched-off tables are kept for old orders')
+  const twelve = applyTableCount(eight, 12, new Set())
+  assert.deepEqual(twelve.filter(t => t.active).map(t => t.id), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+  assert.equal(twelve.find(t => t.id === 2)!.label, 'Patio', 'names are kept')
+  assert.equal(twelve.find(t => t.id === 12)!.label, 'Table 12')
+})
+
+test('a table with open orders cannot be switched off', () => {
+  const ten = Array.from({ length: 10 }, (_, i) => ({ id: i + 1, label: `Table ${i + 1}`, active: true }))
+  assert.throws(() => applyTableCount(ten, 7, new Set([3, 9, 8])), /table_in_use:8/)
+  assert.doesNotThrow(() => applyTableCount(ten, 9, new Set([3, 9])))
+  for (const bad of [0, 201, 2.5, '5', null]) assert.throws(() => applyTableCount(ten, bad, new Set()), /invalid_table_count/)
+  assert.equal(orderErrorText(new Error('table_in_use:9')), 'Table 9 still has open orders. Free it before removing it.')
 })

@@ -36,7 +36,10 @@ items or dine-in names.
   phone at once. New prices apply to new orders; placed orders keep theirs. The cart always
   shows live prices and blocks checkout while it holds a sold-out item.
 - **Add-ons** are menu items of their own (category "Add-ons"), charged and listed on the order.
-- **Tables**: an order needs a table check-in (`/t/<id>`), which a phone keeps for 6 hours.
+- **Tables**: staff set how many tables there are on the Tables screen (**Edit tables**); the
+  starting count comes from `src/config/restaurant.ts`. A table with open orders can't be
+  removed. New tables appear on the QR codes screen at once. An order needs a check-in at an
+  open table (`/t/<id>`), which a phone keeps for 6 hours, and the server checks the table.
   Several phones can order at one table. A table is occupied while it has orders that are
   neither paid nor cancelled. **Free table** marks ready and served orders paid and cancels
   orders the kitchen hasn't finished; the dialog says which before staff confirm.
@@ -106,8 +109,6 @@ This is a working prototype, not yet production-ready:
 - A phone only rings while Qyou is open in its browser; a locked phone or a closed tab
   can't ring (that needs push notifications).
 - Days in analytics follow the clock of the device showing them.
-- The table list lives in `src/config/restaurant.ts`; the server checks that an order has a
-  table, not that the table exists.
 
 ## License
 

@@ -267,10 +267,46 @@ test('queue numbers count up through the day and start at 1 the next day', async
   await rejects(as('anon', 'select * from public.order_counters'), 'permission denied')
 })
 
-test('orders, the board and the menu are published for live updates', async () => {
+test('staff set how many tables there are; tables with open orders stay', async () => {
+  const tables = async () => (await as<{ id: number; label: string; active: boolean }>('anon',
+    'select id, label, active from public.restaurant_tables order by id'))
+  const active = async () => (await tables()).filter(t => t.active).map(t => t.id)
+  assert.deepEqual(await active(), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+
+  await rejects(as('anon', 'select * from public.set_table_count(8)'), 'permission denied')
+  await rejects(as(STRANGER, 'select * from public.set_table_count(8)'), 'staff_only')
+  await rejects(as(STAFF, 'select * from public.set_table_count(0)'), 'invalid_table_count')
+  await rejects(as(STAFF, 'select * from public.set_table_count(201)'), 'invalid_table_count')
+  await rejects(as('anon', `update public.restaurant_tables set active = false`), 'permission denied')
+
+  // Someone is still eating at table 9: it can't go yet, and the error says which table
+  await place('anon', uuid(40), [{ id: 1, quantity: 1 }], { table: 9 })
+  await rejects(as(STAFF, 'select * from public.set_table_count(8)'), 'table_in_use:9')
+  await as(STAFF, `select public.set_order_status($1, 'paid')`, [uuid(40)])
+
+  const rows = await as<{ id: number; active: boolean }>(STAFF, 'select * from public.set_table_count(8)')
+  assert.deepEqual(rows.filter(r => r.active).map(r => r.id), [1, 2, 3, 4, 5, 6, 7, 8])
+  // A switched-off table takes no orders
+  await rejects(place('anon', uuid(41), [{ id: 1, quantity: 1 }], { table: 9 }), 'invalid_table')
+  await rejects(place('anon', uuid(41), [{ id: 1, quantity: 1 }], { table: 99 }), 'invalid_table')
+
+  // More tables: the old ones come back, new ones are added
+  await as(STAFF, 'select * from public.set_table_count(12)')
+  assert.deepEqual(await active(), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+  assert.equal((await tables()).find(t => t.id === 12)!.label, 'Table 12')
+  await as(STAFF, 'select * from public.set_table_count(10)')
+})
+
+test('the table name on an order comes from the server, not the phone', async () => {
+  const [order] = await as<{ table_name: string }>('anon',
+    `select * from public.place_order($1, 3, 'VIP Lounge', 'Ana', 'dineIn', '[{"id": 1, "quantity": 1}]'::jsonb)`, [uuid(42)])
+  assert.equal(order.table_name, 'Table 3')
+})
+
+test('orders, the board, the menu and the tables are published for live updates', async () => {
   const rows = (await db.query<{ tablename: string }>(
     `select tablename from pg_publication_tables where pubname = 'supabase_realtime' order by tablename`)).rows
-  assert.deepEqual(rows.map(r => r.tablename), ['menu_items', 'order_board', 'orders'])
+  assert.deepEqual(rows.map(r => r.tablename), ['menu_items', 'order_board', 'orders', 'restaurant_tables'])
 })
 
 test('works on a project that does not expose new tables by default', async () => {
