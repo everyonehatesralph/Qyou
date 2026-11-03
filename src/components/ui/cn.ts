@@ -5,7 +5,7 @@ import { extendTailwindMerge } from 'tailwind-merge'
 const twMerge = extendTailwindMerge({
   extend: {
     theme: { borderRadius: ['control', 'card', 'sheet'] },
-    classGroups: { shadow: [{ shadow: ['pop'] }] },
+    classGroups: { shadow: [{ shadow: ['pop', 'lift'] }] },
   },
 })
 

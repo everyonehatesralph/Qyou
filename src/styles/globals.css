@@ -15,20 +15,20 @@
      these two blocks, so keep each selector on one line. */
   :root, [data-theme="light"] {
     color-scheme: light;
-    --bg: #FAF7F2;
+    --bg: #F3F1EC;
     --surface: #FFFFFF;
-    --surface-2: #F3EEE6;
-    --surface-3: #EAE3D8;
-    --border: #E9E2D8;
-    --border-strong: #D8CFC2;
-    --text: #1F1A17;
-    --text-muted: #6F655C;
-    --text-faint: #9C9188;
-    --accent: #9A5A0E;
-    --accent-hover: #834D0C;
-    --on-accent: #FFFFFF;
-    --accent-soft: #F3EBE2;
-    --accent-text: #7B480B;
+    --surface-2: #ECE9E2;
+    --surface-3: #E2DED5;
+    --border: #E3DFD7;
+    --border-strong: #CFCAC0;
+    --text: #141414;
+    --text-muted: #5F5B54;
+    --text-faint: #948F86;
+    --accent: #FF5A1F;
+    --accent-hover: #FF7346;
+    --on-accent: #141414;
+    --accent-soft: #FFEDE6;
+    --accent-text: #B33F16;
 
     --status-waiting-bg: #FDF0D5;
     --status-waiting-text: #7A4A06;
@@ -41,27 +41,28 @@
     --status-cancelled-bg: #FBE4E4;
     --status-cancelled-text: #8F1D1D;
 
-    --scrim: rgba(31, 26, 23, 0.45);
-    --glass-bg: rgba(250, 247, 242, 0.9);
-    --shadow-pop: 0 8px 28px rgba(31, 26, 23, 0.12);
+    --scrim: rgba(20, 20, 20, 0.45);
+    --glass-bg: rgba(243, 241, 236, 0.86);
+    --shadow-pop: 0 1px 2px rgba(20, 20, 20, 0.06), 0 12px 32px -8px rgba(20, 20, 20, 0.18);
+    --shadow-lift: 0 2px 4px rgba(20, 20, 20, 0.05), 0 30px 60px -20px rgba(20, 20, 20, 0.35);
   }
 
   [data-theme="dark"] {
     color-scheme: dark;
-    --bg: #14110F;
-    --surface: #1E1A17;
-    --surface-2: #27221E;
-    --surface-3: #312B26;
-    --border: #332C27;
-    --border-strong: #453C35;
-    --text: #F3ECE4;
-    --text-muted: #A89A8C;
-    --text-faint: #776B60;
-    --accent: #E0A04A;
-    --accent-hover: #E5AE65;
-    --on-accent: #1A1208;
-    --accent-soft: #413220;
-    --accent-text: #E5AE65;
+    --bg: #111110;
+    --surface: #1A1918;
+    --surface-2: #232220;
+    --surface-3: #2D2B29;
+    --border: #2E2C29;
+    --border-strong: #403D39;
+    --text: #F3F1EC;
+    --text-muted: #A8A39A;
+    --text-faint: #77726B;
+    --accent: #FF6A33;
+    --accent-hover: #FF8052;
+    --on-accent: #141414;
+    --accent-soft: #4A2A1E;
+    --accent-text: #FF885C;
 
     --status-waiting-bg: #3A2C12;
     --status-waiting-text: #F5C76B;
@@ -75,8 +76,9 @@
     --status-cancelled-text: #F4A3A3;
 
     --scrim: rgba(0, 0, 0, 0.6);
-    --glass-bg: rgba(20, 17, 15, 0.9);
-    --shadow-pop: 0 8px 28px rgba(0, 0, 0, 0.45);
+    --glass-bg: rgba(17, 17, 16, 0.86);
+    --shadow-pop: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px -8px rgba(0, 0, 0, 0.6);
+    --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.3), 0 30px 60px -20px rgba(0, 0, 0, 0.8);
   }
 
   /* Tokens derived from the ones above. Declared on every themed element so
@@ -111,7 +113,7 @@
     background-color: var(--bg);
     color: var(--text);
     width: 100%;
-    font-family: 'Outfit', system-ui, sans-serif;
+    font-family: 'Archivo', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     -webkit-tap-highlight-color: transparent;
@@ -169,12 +171,54 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--text);
     outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
 @layer utilities {
+  /* Archivo, expanded and heavy: signage/ticket type for display text */
+  .font-display {
+    font-stretch: 112%;
+    font-weight: 760;
+  }
+  /* A ticket: half-circle notches cut into both sides at --notch-y */
+  .ticket {
+    --notch: 11px;
+    --notch-y: 50%;
+    -webkit-mask:
+      radial-gradient(circle var(--notch) at 0 var(--notch-y), transparent 98%, black 100%) left / 51% 100% no-repeat,
+      radial-gradient(circle var(--notch) at 100% var(--notch-y), transparent 98%, black 100%) right / 51% 100% no-repeat;
+    mask:
+      radial-gradient(circle var(--notch) at 0 var(--notch-y), transparent 98%, black 100%) left / 51% 100% no-repeat,
+      radial-gradient(circle var(--notch) at 100% var(--notch-y), transparent 98%, black 100%) right / 51% 100% no-repeat;
+  }
+  /* Tear-off line drawn across a ticket */
+  .perforation {
+    background-image: linear-gradient(to right, var(--border-strong) 55%, transparent 0);
+    background-size: 10px 2px;
+    background-repeat: repeat-x;
+    background-position: center;
+    height: 2px;
+  }
+  /* Receipt paper: zigzag bottom edge */
+  .receipt-edge {
+    -webkit-mask: linear-gradient(black, black) top / 100% calc(100% - 8px) no-repeat,
+      conic-gradient(from -45deg at bottom, transparent, black 1deg 89deg, transparent 90deg) bottom / 16px 8px repeat-x;
+    mask: linear-gradient(black, black) top / 100% calc(100% - 8px) no-repeat,
+      conic-gradient(from -45deg at bottom, transparent, black 1deg 89deg, transparent 90deg) bottom / 16px 8px repeat-x;
+  }
+  .preserve-3d { transform-style: preserve-3d; }
+  .backface-hidden { backface-visibility: hidden; }
   .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
   .tabular-nums { font-variant-numeric: tabular-nums; }

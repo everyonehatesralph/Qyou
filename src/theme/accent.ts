@@ -2,13 +2,27 @@
 // CSS custom properties. Shades are mixed here in JS rather than with CSS
 // color-mix(), so iOS Safari before 16.2 renders them correctly.
 
-import { mixHex } from './color.ts'
+import { contrastRatio, mixHex, relativeLuminance } from './color.ts'
 import { RESTAURANT } from '../config/restaurant.ts'
 
 export type Mode = 'light' | 'dark'
 
 /** Surface color each mode's `--accent-soft` is mixed against (matches globals.css). */
-const SURFACE: Record<Mode, string> = { light: '#FFFFFF', dark: '#1E1A17' }
+const SURFACE: Record<Mode, string> = { light: '#FFFFFF', dark: '#1A1918' }
+
+/**
+ * Accent mixed toward black (light mode) or white (dark mode) just enough to
+ * read as text on every given background (≥ 4.6:1). Works for any accent a
+ * restaurant picks, bright or dark.
+ */
+function readableAccentText(mode: Mode, accent: string, backgrounds: string[]): string {
+  const toward = mode === 'light' ? '#000000' : '#ffffff'
+  for (let w = 0.85; w >= 0.2; w -= 0.05) {
+    const candidate = mixHex(accent, toward, w)
+    if (backgrounds.every(bg => contrastRatio(candidate, bg) >= 4.6)) return candidate
+  }
+  return toward
+}
 
 export function accentTokens(
   mode: Mode,
@@ -16,21 +30,16 @@ export function accentTokens(
   onAccent: string,
   surface: string,
 ): Record<string, string> {
-  if (mode === 'light') {
-    return {
-      '--accent': accent,
-      '--accent-hover': mixHex(accent, '#000000', 0.85),
-      '--on-accent': onAccent,
-      '--accent-soft': mixHex(accent, surface, 0.12),
-      '--accent-text': mixHex(accent, '#000000', 0.8),
-    }
-  }
+  // Hover moves away from the text color on the accent, so the label stays readable
+  const onAccentIsDark = relativeLuminance(onAccent) < 0.18
+  const hover = mixHex(accent, onAccentIsDark ? '#ffffff' : '#000000', 0.85)
+  const soft = mixHex(accent, surface, mode === 'light' ? 0.12 : 0.18)
   return {
     '--accent': accent,
-    '--accent-hover': mixHex(accent, '#ffffff', 0.85),
+    '--accent-hover': hover,
     '--on-accent': onAccent,
-    '--accent-soft': mixHex(accent, surface, 0.18),
-    '--accent-text': mixHex(accent, '#ffffff', 0.85),
+    '--accent-soft': soft,
+    '--accent-text': readableAccentText(mode, accent, [surface, soft]),
   }
 }
 

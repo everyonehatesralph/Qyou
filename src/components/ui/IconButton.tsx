@@ -20,7 +20,7 @@ const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconB
       aria-label={label}
       title={label}
       className={cn(
-        'relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-ink-muted',
+        'relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-muted',
         'transition-[background-color,color,transform] duration-150 hover:bg-surface-2 hover:text-ink active:scale-95',
         'disabled:pointer-events-none disabled:opacity-45 [&>svg]:h-5 [&>svg]:w-5',
         variant === 'outline' && 'border border-line bg-surface',

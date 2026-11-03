@@ -244,3 +244,34 @@ Tracked separately; this redesign keeps current behavior:
 6. Cleanup: delete the old Welcome page and unused styles, final color-literal sweep.
 
 One commit per step.
+
+## Revision 1 (2026-11-03): bolder identity and motion
+
+Requested by the owner after reviewing the first pass ("too generic"). Decisions, as
+answered in conversation: big motion on the landing page, subtle motion in the app, and a
+bolder look built on the queue-ticket idea. This revision replaces the parts of §1.1, §1.5
+and §3 it contradicts.
+
+- **Concept:** the queue ticket. Perforated ticket shapes (`Ticket` component, `.ticket`,
+  `.perforation`, `.receipt-edge` utilities) for order numbers, pickup codes and the contact
+  card; "Nº" meta labels in a mono face.
+- **Neutrals:** light `bg #F3F1EC`, `surface #FFFFFF`, `text #141414`, `text-muted #5F5B54`;
+  dark `bg #111110`, `surface #1A1918`, `text #F3F1EC`, `text-muted #A8A39A` (full values in
+  `globals.css`). Status colors unchanged.
+- **Demo accent:** "ticket orange" `#FF5A1F` light / `#FF6A33` dark with near-black text on it
+  (`#141414`). Accent shades are now adaptive: hover moves away from the on-accent color, and
+  `--accent-text` is darkened/lightened until it reads at ≥ 4.6:1 on surface and soft fill,
+  so any restaurant accent stays AA.
+- **Type:** Archivo (variable width/weight) for display and UI; display text uses
+  `.font-display` (expanded 112%, weight 760). JetBrains Mono 500 for small meta labels.
+  Replaces Fraunces + Outfit and the two-weight rule.
+- **Shape:** pill buttons; soft layered shadows for elevated objects (`shadow-pop`,
+  `shadow-lift`); borders still separate flat cards.
+- **Landing motion:** headline mask reveal; a 3D hero scene (phone, now-serving ticket,
+  table QR card, ready notice) that follows the pointer and turns with scroll; ticker tape;
+  a pinned four-step scroll story (scan → order → cook → notified) with the phone turning and
+  a kitchen ticket flying out; a live kitchen board animating tickets between columns;
+  pointer-tilt feature cards; animated FAQ; reading-progress bar.
+- **App motion (subtle):** add-to-cart flight and badge pop, stepper number ticks, sheet and
+  bar springs, tracker step and headline transitions, kitchen cards sliding between columns.
+- **Reduced motion:** `MotionConfig reducedMotion="user"` plus a CSS reduced-motion rule.

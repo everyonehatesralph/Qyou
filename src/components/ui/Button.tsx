@@ -13,14 +13,14 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const VARIANTS: Record<ButtonVariant, string> = {
   primary: 'bg-accent text-on-accent hover:bg-accent-hover',
-  secondary: 'bg-surface text-ink border border-line-strong hover:bg-surface-2',
+  secondary: 'bg-surface text-ink border border-line-strong hover:border-ink',
   ghost: 'bg-transparent text-ink hover:bg-surface-2',
   danger: 'bg-status-cancelled-bg text-status-cancelled-text border border-transparent hover:border-status-cancelled-text',
 }
 
 const SIZES: Record<ButtonSize, string> = {
-  md: 'h-11 px-4 text-[15px]',
-  lg: 'h-[52px] px-5 text-base',
+  md: 'h-11 px-5 text-[15px]',
+  lg: 'h-[52px] px-6 text-base',
 }
 
 /** Button styling for elements that must be links (`<a>`, router `<Link>`). */
@@ -29,7 +29,7 @@ export function buttonClasses(
   className?: string,
 ): string {
   return cn(
-    'inline-flex items-center justify-center gap-2 rounded-control font-medium whitespace-nowrap select-none',
+    'inline-flex items-center justify-center gap-2 rounded-full font-semibold whitespace-nowrap select-none',
     'transition-[background-color,border-color,transform] duration-150 active:scale-[0.98]',
     'disabled:pointer-events-none disabled:opacity-45 [&>svg]:h-[18px] [&>svg]:w-[18px] [&>svg]:shrink-0',
     VARIANTS[variant],

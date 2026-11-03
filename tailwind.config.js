@@ -52,8 +52,9 @@ export default {
         'info-bg':      'var(--status-progress-bg)',
       },
       fontFamily: {
-        display: ['Fraunces', 'Georgia', 'serif'],
-        sans: ['Outfit', 'system-ui', 'sans-serif'],
+        display: ['Archivo', 'system-ui', 'sans-serif'],
+        sans: ['Archivo', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
       borderRadius: {
         control: '10px',
@@ -73,12 +74,36 @@ export default {
           '20%, 60%': { transform: 'translateX(-6px)' },
           '40%, 80%': { transform: 'translateX(6px)' },
         },
+        enter: {
+          from: { opacity: '0', transform: 'translateY(8px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        pop: {
+          '0%': { transform: 'scale(1)' },
+          '40%': { transform: 'scale(1.25)' },
+          '100%': { transform: 'scale(1)' },
+        },
+        marquee: {
+          from: { transform: 'translateX(0)' },
+          to: { transform: 'translateX(-50%)' },
+        },
+        ring: {
+          '0%, 100%': { transform: 'rotate(0)' },
+          '10%, 30%, 50%': { transform: 'rotate(-14deg)' },
+          '20%, 40%': { transform: 'rotate(14deg)' },
+          '60%': { transform: 'rotate(0)' },
+        },
       },
       animation: {
         shake: 'shake 0.4s ease-in-out',
+        enter: 'enter 0.32s cubic-bezier(0.22, 1, 0.36, 1) both',
+        pop: 'pop 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
+        marquee: 'marquee 28s linear infinite',
+        ring: 'ring 1.6s ease-in-out infinite',
       },
       boxShadow: {
         pop:            'var(--shadow-pop)',
+        lift:           'var(--shadow-lift)',
         // Legacy keys, removed in the cleanup task
         'glow-primary': 'none',
         'glow-sm':      'none',

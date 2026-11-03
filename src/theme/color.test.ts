@@ -26,3 +26,13 @@ test('contrastRatio is symmetric', () => {
   const b = '#FAF7F2'
   assert.equal(contrastRatio(a, b), contrastRatio(b, a))
 })
+
+test('accentTokens keeps accent text and hover readable for bright and dark accents', async () => {
+  const { accentTokens } = await import('./accent.ts')
+  for (const [accent, on] of [['#FF5A1F', '#141414'], ['#9A5A0E', '#FFFFFF'], ['#1E46A0', '#FFFFFF'], ['#F5C400', '#141414']]) {
+    const t = accentTokens('light', accent, on, '#FFFFFF')
+    assert.ok(contrastRatio(t['--accent-text'], '#FFFFFF') >= 4.5, `${accent} text on surface`)
+    assert.ok(contrastRatio(t['--accent-text'], t['--accent-soft']) >= 4.5, `${accent} text on soft`)
+    assert.ok(contrastRatio(on, t['--accent-hover']) >= contrastRatio(on, accent) - 0.01, `${accent} hover keeps label contrast`)
+  }
+})
