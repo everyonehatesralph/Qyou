@@ -67,6 +67,16 @@ export default {
         'xl':  '20px',
         '2xl': '24px',
       },
+      keyframes: {
+        shake: {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '20%, 60%': { transform: 'translateX(-6px)' },
+          '40%, 80%': { transform: 'translateX(6px)' },
+        },
+      },
+      animation: {
+        shake: 'shake 0.4s ease-in-out',
+      },
       boxShadow: {
         pop:            'var(--shadow-pop)',
         // Legacy keys, removed in the cleanup task

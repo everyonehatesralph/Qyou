@@ -1,196 +1,214 @@
+import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { ShoppingCart, UtensilsCrossed, ClipboardList, LayoutGrid, ChefHat, Settings, QrCode, LogOut, TrendingUp, MapPin, BarChart3 } from 'lucide-react'
+import {
+  ShoppingCart, UtensilsCrossed, ClipboardList, LayoutGrid, ChefHat, BookOpen, QrCode,
+  LogOut, TrendingUp, Armchair, MoreHorizontal, ChevronRight, Sun, Moon, type LucideIcon,
+} from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useSidebar } from '../context/SidebarContext'
+import { useTheme } from '../context/ThemeContext'
 import CustomerHeader from './CustomerHeader'
 import { RESTAURANT } from '../config/restaurant'
-import { cn } from './ui'
+import { BottomSheet, Wordmark, cn } from './ui'
 
+interface NavItem {
+  path: string
+  label: string
+  icon: LucideIcon
+  also?: string[]
+}
 
-const customerItems = [
-  { path: '/menu',      label: 'Menu',   icon: UtensilsCrossed, also: [] as string[] },
-  { path: '/cart',      label: 'Cart',   icon: ShoppingCart,    also: [] as string[] },
-  { path: '/my-orders', label: 'Orders', icon: ClipboardList,   also: ['/order/'] },
+const customerItems: NavItem[] = [
+  { path: '/menu',      label: 'Menu',   icon: UtensilsCrossed },
+  { path: '/cart',      label: 'Cart',   icon: ShoppingCart },
+  { path: '/my-orders', label: 'Orders', icon: ClipboardList, also: ['/order/'] },
 ]
 
 // Customer screens that show the header and bottom bar. Check-in, the pickup
 // board and error pages stand alone.
 const CUSTOMER_SHELL = ['/menu', '/cart', '/my-orders', '/order/']
 
-const staffItems = [
+// Metrics is reachable by URL only; its numbers are simulated.
+const staffItems: NavItem[] = [
   { path: '/staff/dashboard', label: 'Dashboard', icon: LayoutGrid },
   { path: '/staff/kitchen',   label: 'Kitchen',   icon: ChefHat },
-  { path: '/staff/menu',      label: 'Menu Mgmt', icon: Settings },
-  { path: '/staff/tables',    label: 'Tables',     icon: MapPin },
-  { path: '/staff/sales',     label: 'Analytics',  icon: TrendingUp },
-  { path: '/staff/metrics',   label: 'Metrics',    icon: BarChart3 },
-  { path: '/staff/qr-codes',  label: 'QR Codes',   icon: QrCode },
+  { path: '/staff/tables',    label: 'Tables',    icon: Armchair },
+  { path: '/staff/menu',      label: 'Menu',      icon: BookOpen },
+  { path: '/staff/sales',     label: 'Sales',     icon: TrendingUp },
+  { path: '/staff/qr-codes',  label: 'QR codes',  icon: QrCode },
 ]
+const STAFF_BAR = staffItems.slice(0, 4)
+const STAFF_MORE = staffItems.slice(4)
 
-export default function Navigation() {
-  const navigate  = useNavigate()
-  const location  = useLocation()
-  const { cartCount } = useCart()
-  const { isStaff, staffLogout } = useAuth()
-  const { expanded: sidebarExpanded } = useSidebar()
-  const isStaffRoute = location.pathname.startsWith('/staff')
-  const isActive = (path: string) =>
-    path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
+function BottomBarButton({ item, active, onClick, badge }: { item: NavItem; active: boolean; onClick: () => void; badge?: number }) {
+  const Icon = item.icon
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'relative flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors duration-150',
+        active ? 'text-ink' : 'text-ink-muted hover:text-ink',
+      )}
+    >
+      <span className={cn('relative flex h-8 w-14 items-center justify-center rounded-full transition-colors duration-150', active && 'bg-surface-2')}>
+        <Icon className="h-5 w-5" aria-hidden />
+        {!!badge && (
+          <span className="absolute -top-1 right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[11px] font-medium tabular-nums text-on-accent">
+            {badge > 9 ? '9+' : badge}
+          </span>
+        )}
+      </span>
+      {item.label}
+      {!!badge && <span className="sr-only">, {badge} items</span>}
+    </button>
+  )
+}
 
+function StaffNavigation() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { staffLogout } = useAuth()
+  const { isDark, toggleTheme } = useTheme()
+  const { expanded } = useSidebar()
+  const [moreOpen, setMoreOpen] = useState(false)
+  const isActive = (path: string) => location.pathname.startsWith(path)
 
-  // Hide nav on landing page and staff login
-  if (location.pathname === '/' || location.pathname === '/staff/login') return null
-  if (!isStaffRoute && !CUSTOMER_SHELL.some(p => location.pathname.startsWith(p))) return null
+  const go = (path: string) => { setMoreOpen(false); navigate(path) }
+  const signOut = () => { setMoreOpen(false); staffLogout(); navigate('/staff/login') }
 
-  const handleLogout = () => { staffLogout(); navigate('/') }
+  const rowClass = (active: boolean) => cn(
+    'flex h-11 w-full items-center gap-3 rounded-control px-3 text-[15px] transition-colors duration-150',
+    active ? 'bg-surface-2 font-medium text-ink' : 'text-ink-muted hover:bg-surface-2 hover:text-ink',
+    !expanded && 'justify-center px-0',
+  )
 
-  // ── STAFF gets sidebar on desktop, bottom bar on mobile ──
-  if (isStaff && isStaffRoute) {
-    return (
-      <>
-        {/* Desktop Sidebar */}
-        <aside
-          className="hidden md:flex fixed top-0 left-0 bottom-0 z-50 flex-col transition-all duration-400"
-          style={{ 
-            width: sidebarExpanded ? '224px' : '80px',
-            backgroundColor: '#171210'
-          }}
+  return (
+    <>
+      {/* Sidebar, 768px and up */}
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-line bg-surface transition-[width] duration-200 md:flex',
+          expanded ? 'w-60' : 'w-[72px]',
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => navigate('/staff/dashboard')}
+          className={cn('flex h-16 shrink-0 items-center gap-2 border-b border-line text-left', expanded ? 'px-5' : 'justify-center')}
+          aria-label="Qyou staff dashboard"
         >
-          {/* Logo */}
-          <button
-            onClick={() => navigate('/staff/dashboard')}
-            className="flex items-center gap-2.5 px-5 py-5 group transition-all duration-300"
-          >
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0"
-            >
-              <img src="/assets/bean.png" alt={RESTAURANT.name} className="w-15 h-15 object-contain" />
-            </div>
-            {sidebarExpanded && (
-              <div className="min-w-0">
-                <span className="font-bold text-text-base text-sm block leading-tight">
-                  {RESTAURANT.shortName}
-                </span>
-              </div>
-            )}
-          </button>
+          {expanded ? (
+            <span className="min-w-0">
+              <Wordmark size="sm" className="[&>span]:text-[22px]" />
+              <span className="mt-1 block truncate text-xs text-ink-muted">{RESTAURANT.name}</span>
+            </span>
+          ) : (
+            <span className="font-display text-[22px] leading-none text-ink">Q</span>
+          )}
+        </button>
 
-          {/* Nav items */}
-          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {staffItems.map(({ path, label, icon: Icon }) => {
-              const active = isActive(path)
-              return (
-                <button
-                  key={path}
-                  onClick={() => navigate(path)}
-                  className="w-full flex items-center gap-4 px-4 py-1.5 rounded-xl text-sm font-medium transition-all duration-200"
-                  style={active
-                    ? { backgroundColor: 'rgba(200,134,10,0.15)', color: '#C8860A', border: '1px solid rgba(200,134,10,0.25)' }
-                    : { color: '#9B8B7A', border: '1px solid transparent' }
-                  }
-                  onMouseEnter={e => { if (!active) e.currentTarget.style.backgroundColor = '#171210' }}
-                  onMouseLeave={e => { if (!active) e.currentTarget.style.backgroundColor = 'transparent' }}
-                  title={!sidebarExpanded ? label : ''}
-                >
-                  <Icon className="w-5 h-5 flex-shrink-0" />
-                  {sidebarExpanded && <span>{label}</span>}
-                </button>
-              )
-            })}
-          </nav>
-
-          {/* Footer — Staff profile card */}
-          <div className="px-3 py-4">
-            {/* Profile card - only show when expanded */}
-            {sidebarExpanded && (
-              <div
-                className="rounded-xl p-3 mb-3"
+        <nav aria-label="Staff" className="flex-1 space-y-1 overflow-y-auto p-3">
+          {staffItems.map(item => {
+            const active = isActive(item.path)
+            return (
+              <button
+                key={item.path}
+                type="button"
+                onClick={() => navigate(item.path)}
+                aria-current={active ? 'page' : undefined}
+                title={expanded ? undefined : item.label}
+                className={rowClass(active)}
               >
-                <div className="flex items-center gap-3 mb-3">
-                  <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0"
-                    style={{
-                      background: 'linear-gradient(135deg, #C8860A 0%, #E8C97A 100%)',
-                      color: '#0D0B0A',
-                    }}
-                  >
-                    S
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-text-base leading-tight">Staff Account</p>
-                    <p className="text-[10px] text-text-faint mt-0.5">Administrator</p>
-                  </div>
-                  <span
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: '#4ADE80', boxShadow: '0 0 6px rgba(74,222,128,0.5)' }}
-                    title="Online"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Logout button */}
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-95"
-              style={{
-                backgroundColor: 'transparent',
-                color: '#9B8B7A',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#F87171'; e.currentTarget.style.backgroundColor = 'rgba(248,113,113,0.05)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = '#9B8B7A'; e.currentTarget.style.backgroundColor = 'transparent' }}
-              title={!sidebarExpanded ? 'Sign Out' : ''}
-            >
-              <LogOut className="w-3.5 h-3.5 flex-shrink-0" />
-              {sidebarExpanded && 'Sign Out'}
-            </button>
-          </div>
-        </aside>
-
-        {/* Mobile Bottom Bar (staff) */}
-        <nav
-          className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass"
-        >
-          <div className="grid grid-cols-6">
-            {staffItems.map(({ path, label, icon: Icon }) => {
-              const active = isActive(path)
-              return (
-                <button
-                  key={path}
-                  onClick={() => navigate(path)}
-                  className="relative flex flex-col items-center justify-center py-2.5 px-1 transition-all duration-200"
-                  style={{ color: active ? '#C8860A' : '#9B8B7A' }}
-                >
-                  {active && (
-                    <span
-                      className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full"
-                      style={{ backgroundColor: '#C8860A' }}
-                    />
-                  )}
-                  <Icon className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} />
-                  <span className="text-[9px] mt-0.5 font-medium leading-tight">{label}</span>
-                </button>
-              )
-            })}
-          </div>
-          <div
-            className="flex items-center justify-between px-4 py-1.5"
-          >
-            <span className="text-[10px] text-text-faint">Staff Mode</span>
-            <button onClick={handleLogout} className="flex items-center gap-1 text-[10px] text-error">
-              <LogOut className="w-3 h-3" /> Logout
-            </button>
-          </div>
+                <item.icon className="h-5 w-5 shrink-0" aria-hidden />
+                {expanded ? item.label : <span className="sr-only">{item.label}</span>}
+              </button>
+            )
+          })}
         </nav>
 
-        {/* Spacer: push content right of sidebar on desktop, below top on mobile */}
-        <div className="hidden md:block flex-shrink-0 transition-all duration-300" style={{ width: sidebarExpanded ? '224px' : '80px' }} />
-      </>
-    )
-  }
+        <div className="space-y-1 border-t border-line p-3">
+          <button type="button" onClick={toggleTheme} className={rowClass(false)} title={expanded ? undefined : 'Theme'}>
+            {isDark ? <Sun className="h-5 w-5 shrink-0" aria-hidden /> : <Moon className="h-5 w-5 shrink-0" aria-hidden />}
+            {expanded ? (isDark ? 'Light mode' : 'Dark mode') : <span className="sr-only">{isDark ? 'Light mode' : 'Dark mode'}</span>}
+          </button>
+          <button type="button" onClick={signOut} className={rowClass(false)} title={expanded ? undefined : 'Sign out'}>
+            <LogOut className="h-5 w-5 shrink-0" aria-hidden />
+            {expanded ? 'Sign out' : <span className="sr-only">Sign out</span>}
+          </button>
+        </div>
+      </aside>
 
-  // ── CUSTOMER nav: top header + bottom navigation bar ──
+      {/* Bottom bar, below 768px */}
+      <nav
+        aria-label="Staff"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
+      >
+        <div className="grid h-16 grid-cols-5">
+          {STAFF_BAR.map(item => (
+            <BottomBarButton key={item.path} item={item} active={isActive(item.path)} onClick={() => navigate(item.path)} />
+          ))}
+          <BottomBarButton
+            item={{ path: '#more', label: 'More', icon: MoreHorizontal }}
+            active={STAFF_MORE.some(i => isActive(i.path)) || moreOpen}
+            onClick={() => setMoreOpen(true)}
+          />
+        </div>
+      </nav>
+
+      <BottomSheet open={moreOpen} onClose={() => setMoreOpen(false)} title="More" description={RESTAURANT.name}>
+        <div className="divide-y divide-line overflow-hidden rounded-card border border-line">
+          {STAFF_MORE.map(item => (
+            <button
+              key={item.path}
+              type="button"
+              onClick={() => go(item.path)}
+              className="flex h-14 w-full items-center gap-3 px-4 text-left text-[15px] text-ink transition-colors hover:bg-surface-2"
+            >
+              <item.icon className="h-5 w-5 text-ink-muted" aria-hidden />
+              <span className="flex-1">{item.label}</span>
+              <ChevronRight className="h-4 w-4 text-ink-muted" aria-hidden />
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="flex h-14 w-full items-center gap-3 px-4 text-left text-[15px] text-ink transition-colors hover:bg-surface-2"
+          >
+            {isDark ? <Sun className="h-5 w-5 text-ink-muted" aria-hidden /> : <Moon className="h-5 w-5 text-ink-muted" aria-hidden />}
+            <span className="flex-1">{isDark ? 'Switch to light mode' : 'Switch to dark mode'}</span>
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={signOut}
+          className="mt-3 flex h-14 w-full items-center gap-3 rounded-card border border-line px-4 text-left text-[15px] text-status-cancelled-text transition-colors hover:bg-status-cancelled-bg"
+        >
+          <LogOut className="h-5 w-5" aria-hidden />
+          Sign out
+        </button>
+      </BottomSheet>
+    </>
+  )
+}
+
+export default function Navigation() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { cartCount } = useCart()
+  const { isStaff } = useAuth()
+  const isStaffRoute = location.pathname.startsWith('/staff')
+
+  // No navigation on the landing page or staff login
+  if (location.pathname === '/' || location.pathname === '/staff/login') return null
+
+  if (isStaffRoute) return isStaff ? <StaffNavigation /> : null
+
+  if (!CUSTOMER_SHELL.some(p => location.pathname.startsWith(p))) return null
+
+  // ── Customer: top header + bottom bar ──
   return (
     <>
       <CustomerHeader />
@@ -199,32 +217,15 @@ export default function Navigation() {
         className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]"
       >
         <div className="mx-auto grid h-16 max-w-md grid-cols-3">
-          {customerItems.map(({ path, label, icon: Icon, also }) => {
-            const active = isActive(path) || also.some(p => location.pathname.startsWith(p))
-            return (
-              <button
-                key={path}
-                type="button"
-                onClick={() => navigate(path)}
-                aria-current={active ? 'page' : undefined}
-                className={cn(
-                  'relative flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors duration-150',
-                  active ? 'text-ink' : 'text-ink-muted hover:text-ink',
-                )}
-              >
-                <span className={cn('relative flex h-8 w-14 items-center justify-center rounded-full transition-colors duration-150', active && 'bg-surface-2')}>
-                  <Icon className="h-5 w-5" aria-hidden />
-                  {path === '/cart' && cartCount > 0 && (
-                    <span className="absolute -top-1 right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[11px] font-medium tabular-nums text-on-accent">
-                      {cartCount > 9 ? '9+' : cartCount}
-                    </span>
-                  )}
-                </span>
-                {label}
-                {path === '/cart' && cartCount > 0 && <span className="sr-only">, {cartCount} items</span>}
-              </button>
-            )
-          })}
+          {customerItems.map(item => (
+            <BottomBarButton
+              key={item.path}
+              item={item}
+              active={location.pathname.startsWith(item.path) || !!item.also?.some(p => location.pathname.startsWith(p))}
+              onClick={() => navigate(item.path)}
+              badge={item.path === '/cart' ? cartCount : undefined}
+            />
+          ))}
         </div>
       </nav>
     </>

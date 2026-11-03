@@ -1,25 +1,33 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { Lock, ChefHat } from 'lucide-react'
+import { ArrowLeft, Delete, Lock } from 'lucide-react'
 import ThemeToggle from '../../components/ThemeToggle'
+import { RESTAURANT } from '../../config/restaurant'
+import { Button, Wordmark, cn } from '../../components/ui'
+
+const PIN_LENGTH = 4
+const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'back'] as const
+
 export default function StaffLogin() {
   const navigate = useNavigate()
   const { staffLogin } = useAuth()
   const [pin, setPin]         = useState('')
   const [error, setError]     = useState(false)
   const [shaking, setShaking] = useState(false)
+
   const handleDigit = useCallback((d: string) => {
-    if (pin.length >= 4) return
-    setPin(prev => prev + d)
+    setPin(prev => (prev.length >= PIN_LENGTH ? prev : prev + d))
     setError(false)
-  }, [pin])
+  }, [])
+
   const handleBackspace = useCallback(() => {
     setPin(prev => prev.slice(0, -1))
     setError(false)
   }, [])
+
   const handleSubmit = useCallback(() => {
-    if (pin.length < 4) return
+    if (pin.length < PIN_LENGTH) return
     const ok = staffLogin(pin)
     if (ok) {
       navigate('/staff/dashboard', { replace: true })
@@ -27,78 +35,91 @@ export default function StaffLogin() {
       setError(true)
       setShaking(true)
       setPin('')
-      setTimeout(() => setShaking(false), 500)
+      setTimeout(() => setShaking(false), 450)
     }
   }, [pin, staffLogin, navigate])
-  const digits = ['1','2','3','4','5','6','7','8','9','','0','⌫']
+
+  // Physical keyboard: digits, Backspace, Enter
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (/^\d$/.test(e.key)) handleDigit(e.key)
+      else if (e.key === 'Backspace') { e.preventDefault(); handleBackspace() }
+      // preventDefault stops Enter from also pressing a focused keypad button
+      else if (e.key === 'Enter') { e.preventDefault(); handleSubmit() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [handleDigit, handleBackspace, handleSubmit])
+
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <ThemeToggle variant="floating" />
-      <div className="w-full max-w-sm">
-        {/* Header */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary-glow border border-primary/30 mb-5">
-            <ChefHat className="w-8 h-8 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold text-text-base">Staff Access</h1>
-          <p className="text-text-muted text-sm mt-1">Enter your 4-digit PIN</p>
+    <div className="flex min-h-[100dvh] flex-col bg-bg px-4">
+      <div className="mx-auto flex w-full max-w-sm items-center justify-between pt-3">
+        <Button variant="ghost" leftIcon={<ArrowLeft />} onClick={() => navigate('/')} className="-ml-3 text-ink-muted">
+          Home
+        </Button>
+        <ThemeToggle className="-mr-2" />
+      </div>
+
+      <main className="mx-auto flex w-full max-w-[20rem] flex-1 flex-col justify-center pb-12">
+        <div className="text-center">
+          <Wordmark size="lg" />
+          <h1 className="mt-6 font-display text-2xl text-ink">Staff sign in</h1>
+          <p className="mt-1 text-sm text-ink-muted">{RESTAURANT.name} · Enter your 4-digit PIN</p>
         </div>
-        {/* PIN dots */}
-        <div className={`flex justify-center gap-4 mb-8 ${shaking ? 'animate-bounce' : ''}`}>
-          {[0,1,2,3].map(i => (
-            <div
+
+        <div
+          className={cn('mt-8 flex justify-center gap-4', shaking && 'animate-shake')}
+          role="img"
+          aria-label={`${pin.length} of ${PIN_LENGTH} digits entered`}
+        >
+          {Array.from({ length: PIN_LENGTH }, (_, i) => (
+            <span
               key={i}
-              className={`w-4 h-4 rounded-full border-2 transition-all duration-200 ${
-                i < pin.length
-                  ? 'bg-primary border-primary scale-110'
-                  : error
-                    ? 'border-error'
-                    : 'border-border-light'
-              }`}
+              className={cn(
+                'h-3.5 w-3.5 rounded-full border-2 transition-[background-color,border-color,transform] duration-150',
+                i < pin.length ? 'scale-110 border-ink bg-ink' : error ? 'border-status-cancelled-text' : 'border-line-strong',
+              )}
             />
           ))}
         </div>
-        {error && (
-          <p className="text-center text-error text-sm mb-5 font-medium">
-            Incorrect PIN. Try again.
-          </p>
-        )}
-        {/* Numpad */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          {digits.map((d, idx) => {
-            if (d === '') return <div key={idx} />
+
+        <p className={cn('mt-4 h-5 text-center text-sm', error ? 'text-status-cancelled-text' : 'text-transparent')} aria-live="assertive">
+          {error ? 'Incorrect PIN. Try again.' : ''}
+        </p>
+
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          {KEYS.map((k, idx) => {
+            if (k === '') return <span key={idx} />
+            const isBack = k === 'back'
             return (
               <button
                 key={idx}
-                onClick={() => d === '⌫' ? handleBackspace() : handleDigit(d)}
-                className={`h-16 rounded-xl text-xl font-semibold transition-all duration-150 active:scale-95 ${
-                  d === '⌫'
-                    ? 'text-text-muted bg-surface-3 border border-border hover:border-border-light hover:text-text-base'
-                    : 'text-text-base bg-surface-2 border border-border hover:border-primary/50 hover:bg-surface-3'
-                }`}
+                type="button"
+                onClick={() => (isBack ? handleBackspace() : handleDigit(k))}
+                aria-label={isBack ? 'Delete last digit' : k}
+                className={cn(
+                  'flex h-16 items-center justify-center rounded-card text-2xl transition-[background-color,transform] duration-100 active:scale-95',
+                  isBack ? 'text-ink-muted hover:bg-surface-2' : 'border border-line bg-surface text-ink hover:bg-surface-2',
+                )}
               >
-                {d}
+                {isBack ? <Delete className="h-6 w-6" /> : k}
               </button>
             )
           })}
         </div>
-        <button
+
+        <Button
+          variant="primary"
+          size="lg"
+          fullWidth
+          leftIcon={<Lock />}
+          disabled={pin.length < PIN_LENGTH}
           onClick={handleSubmit}
-          disabled={pin.length < 4}
-          className="w-full py-4 btn-primary text-background font-bold text-lg rounded-xl
-                     disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none
-                     flex items-center justify-center gap-2"
+          className="mt-6"
         >
-          <Lock className="w-5 h-5" />
-          Unlock
-        </button>
-        <button
-          onClick={() => navigate('/')}
-          className="w-full mt-3 py-3 text-text-muted hover:text-text-base text-sm transition-colors"
-        >
-          ← Back to Home
-        </button>
-      </div>
+          Sign in
+        </Button>
+      </main>
     </div>
   )
 }

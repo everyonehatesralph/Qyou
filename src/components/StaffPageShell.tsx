@@ -1,43 +1,31 @@
 import type { ReactNode } from 'react'
 import { useSidebar } from '../context/SidebarContext'
+import { cn } from './ui'
 
 interface Props {
   children: ReactNode
+  /** Gives the page its own mode (the kitchen screen); defaults to the app's. */
+  theme?: 'light' | 'dark'
+  className?: string
 }
 
 /**
- * Staff page layout shell with Square UI bordered container.
- * - Syncs left margin with sidebar width (224px expanded / 80px collapsed)
- * - Smooth transition when sidebar collapses/expands
- * - lg:p-2 adds gap around the container on desktop
- * - lg:border lg:rounded-md creates the bordered container
- * - No h-svh — content scrolls naturally (full page scroll)
+ * Content area of a staff page. Leaves room for the sidebar from 768px
+ * (240px, or 72px collapsed) and for the bottom bar below 768px.
  */
-export default function StaffPageShell({ children }: Props) {
-  const { expanded: sidebarExpanded } = useSidebar()
-  const sidebarWidth = sidebarExpanded ? 224 : 80
-
+export default function StaffPageShell({ children, theme, className }: Props) {
+  const { expanded } = useSidebar()
   return (
     <div
-      className="h-screen transition-all duration-300 hidden md:flex flex-col overflow-hidden"
-      style={{ 
-        marginLeft: `${sidebarWidth}px`,
-        backgroundColor: '#171210' 
-      }}
+      data-theme={theme}
+      className={cn(
+        'min-h-screen bg-bg text-ink transition-[padding] duration-200',
+        'pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0',
+        expanded ? 'md:pl-60' : 'md:pl-[72px]',
+        className,
+      )}
     >
-      {/* Desktop: padding around the bordered container with scrolling */}
-      <div className="flex-1 lg:p-2 overflow-auto">
-        {/* Bordered rounded container on desktop */}
-        <div
-          className="h-full lg:border lg:rounded-md overflow-hidden flex flex-col"
-          style={{
-            backgroundColor: '#0D0B0A',
-            borderColor: '#2E2318',
-          }}
-        >
-          {children}
-        </div>
-      </div>
+      {children}
     </div>
   )
 }
