@@ -1,284 +1,230 @@
-import { ChefHat, CheckCircle, Clock, Loader2, Bell, Volume2, X, Flame } from 'lucide-react'
+import { CheckCircle, ChefHat, EyeOff, ShoppingBag } from 'lucide-react'
 import { useOrders } from '../../context/OrderContext'
 import type { OrderStatus, Order } from '../../context/OrderContext'
 import { useOrderNotification } from '../../hooks/useOrderNotification'
+import { useNow, minutesSince } from '../../hooks/useNow'
 import { useSidebar } from '../../context/SidebarContext'
+import { useKitchenTheme } from '../../context/ThemeContext'
 import { useMemo, useState, useCallback, memo } from 'react'
 import StaffPageShell from '../../components/StaffPageShell'
-import StaffHeader, { HeaderButton, HeaderDivider } from '../../components/StaffHeader'
+import StaffHeader from '../../components/StaffHeader'
+import ThemeToggle from '../../components/ThemeToggle'
+import { Button, EmptyState, IconButton, cn } from '../../components/ui'
+import { peso } from '../../utils/formatters'
 
-// ─── Pipeline definition ──────────────────────────────────────────────────────
-type Stage = {
-  status: OrderStatus
-  label: string
-  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
-  btnLabel: string
-  color: string
-  desc: string
-}
-const PIPELINE: Stage[] = [
-  { status: 'confirmed', label: 'Queued',      icon: Bell,      btnLabel: 'Start Preparing', color: '#60A5FA', desc: 'Cashier confirmed' },
-  { status: 'preparing', label: 'Preparing',   icon: Flame,     btnLabel: 'Mark as Ready',   color: '#C8860A', desc: 'In preparation' },
-  { status: 'ready',     label: 'Ready! 🔔',   icon: CheckCircle, btnLabel: 'Mark Served',   color: '#4ADE80', desc: 'Ready to serve' },
+// ─── Pipeline ────────────────────────────────────────────────────────────────
+type KitchenStatus = 'confirmed' | 'preparing' | 'ready'
+
+const COLUMNS: { status: KitchenStatus; label: string; action: string }[] = [
+  { status: 'confirmed', label: 'New',       action: 'Start preparing' },
+  { status: 'preparing', label: 'Preparing', action: 'Mark ready' },
+  { status: 'ready',     label: 'Ready',     action: 'Mark served' },
 ]
-const NEXT: Record<string, OrderStatus> = {
+
+const NEXT: Record<KitchenStatus, OrderStatus> = {
   confirmed: 'preparing',
   preparing: 'ready',
   ready:     'served',
 }
-const CARD_STYLE: Record<OrderStatus, { border: string; bg: string; badge: string; text: string }> = {
-  pending:   { border: 'rgba(251,191,36,0.45)',  bg: 'rgba(251,191,36,0.06)',  badge: 'rgba(251,191,36,0.15)',  text: '#FBBF24' },
-  confirmed: { border: 'rgba(96,165,250,0.45)',  bg: 'rgba(96,165,250,0.06)',  badge: 'rgba(96,165,250,0.15)',  text: '#60A5FA' },
-  preparing: { border: 'rgba(200,134,10,0.5)',   bg: 'rgba(200,134,10,0.07)',  badge: 'rgba(200,134,10,0.15)',  text: '#C8860A' },
-  ready:     { border: 'rgba(74,222,128,0.5)',   bg: 'rgba(74,222,128,0.07)',  badge: 'rgba(74,222,128,0.15)',  text: '#4ADE80' },
-  served:    { border: '#2E2318',                bg: '#171210',                badge: '#211A15',                text: '#5C4F44' },
-  paid:      { border: '#2E2318',                bg: '#171210',                badge: '#211A15',                text: '#3A3330' },
-  cancelled: { border: 'rgba(239,68,68,0.3)',    bg: 'rgba(239,68,68,0.04)',   badge: 'rgba(239,68,68,0.12)',   text: '#EF4444' },
-}
 
-function elapsed(iso: string) {
-  const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
-  if (secs < 60) return `${secs}s`
-  return `${Math.floor(secs / 60)}m`
-}
+/** Minutes after which a waiting order is flagged amber, then red. */
+const LATE_MIN = 10
+const VERY_LATE_MIN = 20
 
-// ─── Compact Order Card ───────────────────────────────────────────────────────
-interface OrderCardProps {
+// ─── Order card ──────────────────────────────────────────────────────────────
+interface KitchenCardProps {
   order: Order
-  stage: Stage
-  onAdvance: (orderId: string, status: OrderStatus) => void
-  onDismiss: (orderId: string) => void
+  status: KitchenStatus
+  action: string
+  now: number
+  onAdvance: (orderId: string, status: KitchenStatus) => void
+  onHide: (orderId: string) => void
 }
 
-const OrderCard = memo(function OrderCard({ order, stage, onAdvance, onDismiss }: OrderCardProps) {
-  const s    = CARD_STYLE[order.status]
-  const next = NEXT[order.status] as OrderStatus | undefined
+const KitchenCard = memo(function KitchenCard({ order, status, action, now, onAdvance, onHide }: KitchenCardProps) {
+  const mins = minutesSince(order.createdAt, now)
+  // Ready orders are done cooking; only flag time while the kitchen still owes them
+  const late = status !== 'ready' && mins >= LATE_MIN
+  const veryLate = status !== 'ready' && mins >= VERY_LATE_MIN
+  const isTakeaway = order.orderType === 'takeaway'
 
   return (
-    <div
-      className="rounded-xl p-4 flex flex-col gap-3 transition-all duration-300"
-      style={{ backgroundColor: s.bg, border: `1.5px solid ${s.border}` }}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-text-base font-bold text-lg">#{order.id}</span>
-          {order.status === 'ready' && (
-            <Bell className="w-4 h-4 animate-bounce" style={{ color: '#4ADE80' }} />
-          )}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-text-faint text-[11px] flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            {elapsed(order.createdAt)}
-          </span>
-          <button
-            onClick={() => onDismiss(order.id)}
-            className="p-0.5 rounded text-text-faint hover:text-text-muted transition-colors"
-          >
-            <X className="w-3 h-3" />
-          </button>
-        </div>
-      </div>
-
-      {/* Table + Customer */}
-      <p className="text-text-muted text-xs -mt-1">
-        {order.tableName} · {order.customerName}
-      </p>
-
-      {/* Items */}
-      <div
-        className="rounded-lg p-2.5 space-y-1"
-        style={{ backgroundColor: 'rgba(13,11,10,0.35)' }}
-      >
-        {order.items.map(item => (
-          <div key={item.id} className="flex justify-between items-center">
-            <span className="text-text-base text-sm font-medium">{item.name}</span>
-            <span
-              className="text-xs font-bold px-1.5 py-0.5 rounded"
-              style={{ backgroundColor: s.badge, color: s.text }}
-            >
-              ×{item.quantity}
-            </span>
-          </div>
-        ))}
-        {order.notes && (
-          <p
-            className="pt-1.5 mt-1 text-[11px] text-text-muted"
-            style={{ borderTop: '1px dashed rgba(255,255,255,0.06)' }}
-          >
-            📝 {order.notes}
-          </p>
-        )}
-      </div>
-
-      {/* Price */}
-      <div className="flex items-center justify-between">
-        <span className="font-bold text-sm" style={{ color: '#C8860A' }}>₱{order.total.toFixed(0)}</span>
-      </div>
-
-      {/* Advance button */}
-      {next && (
-        <button
-          onClick={() => onAdvance(order.id, order.status)}
-          className="w-full py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
-          style={{
-            backgroundColor: stage.color,
-            color: '#0D0B0A',
-          }}
-        >
-          {order.status === 'confirmed' ? <Loader2 className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
-          {stage.btnLabel}
-        </button>
+    <article
+      className={cn(
+        'flex flex-col rounded-card border-2 bg-surface',
+        veryLate ? 'border-status-cancelled-text' : late ? 'border-status-waiting-text' : status === 'ready' ? 'border-status-ready-text' : 'border-line',
       )}
-    </div>
+      aria-label={`${order.tableName}, ${mins} minutes`}
+    >
+      <div className="flex items-start gap-2 p-4 pb-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-display text-[30px] leading-none text-ink">{order.tableName}</h3>
+          <p className="mt-1.5 truncate text-sm text-ink-muted">
+            {order.customerName || 'Guest'} · {order.id}
+          </p>
+        </div>
+        <div
+          className={cn(
+            'rounded-control px-2.5 py-1.5 text-right',
+            veryLate ? 'bg-status-cancelled-bg text-status-cancelled-text' : late ? 'bg-status-waiting-bg text-status-waiting-text' : 'text-ink',
+          )}
+        >
+          <p className="text-[22px] font-medium leading-none tabular-nums">
+            {mins}
+            <span className="ml-0.5 text-sm">min</span>
+          </p>
+          {late && <p className="mt-1 text-xs font-medium">{veryLate ? 'Very late' : 'Waiting long'}</p>}
+        </div>
+        <IconButton label="Hide from this screen" onClick={() => onHide(order.id)} className="-mr-2 -mt-2 h-9 w-9 text-ink-muted">
+          <EyeOff />
+        </IconButton>
+      </div>
+
+      {isTakeaway && (
+        <p className="mx-4 mb-2 inline-flex items-center gap-1.5 self-start rounded-full bg-surface-2 px-2.5 py-1 text-sm font-medium text-ink">
+          <ShoppingBag className="h-4 w-4" aria-hidden />
+          Take away · {order.takeawayCode}
+        </p>
+      )}
+
+      <ul className="mx-4 space-y-1.5 border-t border-line pt-3">
+        {order.items.map(item => (
+          <li key={item.id} className="flex gap-2.5 text-[18px] leading-snug text-ink">
+            <span className="min-w-[2ch] font-medium tabular-nums">{item.quantity}×</span>
+            <span>{item.name}</span>
+          </li>
+        ))}
+      </ul>
+
+      {order.notes && (
+        <p className="mx-4 mt-3 rounded-control bg-status-waiting-bg px-3 py-2 text-[15px] text-status-waiting-text">
+          {order.notes}
+        </p>
+      )}
+
+      <div className="mt-auto flex items-center gap-3 p-4 pt-4">
+        <span className="text-sm tabular-nums text-ink-muted">{peso(order.total)}</span>
+        <Button
+          variant={status === 'ready' ? 'secondary' : 'primary'}
+          size="lg"
+          leftIcon={<CheckCircle />}
+          onClick={() => onAdvance(order.id, status)}
+          className="flex-1"
+        >
+          {action}
+        </Button>
+      </div>
+    </article>
   )
 })
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Page ────────────────────────────────────────────────────────────────────
 export default function OrderQueue() {
   const { orders, updateOrderStatus } = useOrders()
   const { expanded: sidebarExpanded, toggle: toggleSidebar } = useSidebar()
-  const [dismissed, setDismissed]     = useState<Set<string>>(new Set())
+  const { theme: kitchenTheme, toggle: toggleKitchenTheme } = useKitchenTheme()
+  const [hidden, setHidden] = useState<Set<string>>(new Set())
+  const now = useNow(30_000)
 
   useOrderNotification(orders, o => o.status === 'confirmed')
 
-  // Group orders by pipeline stage
-  const ordersByStage = useMemo(() => {
-    const map: Record<string, Order[]> = { confirmed: [], preparing: [], ready: [] }
+  // Oldest first within each column, so the longest wait is on top
+  const byStatus = useMemo(() => {
+    const map: Record<KitchenStatus, Order[]> = { confirmed: [], preparing: [], ready: [] }
     orders.forEach(o => {
-      if (['confirmed', 'preparing', 'ready'].includes(o.status) && !dismissed.has(o.id)) {
-        map[o.status]?.push(o)
+      if ((o.status === 'confirmed' || o.status === 'preparing' || o.status === 'ready') && !hidden.has(o.id)) {
+        map[o.status].push(o)
       }
     })
+    for (const list of Object.values(map)) {
+      list.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    }
     return map
-  }, [orders, dismissed])
+  }, [orders, hidden])
 
-  const totalActive = useMemo(
-    () => Object.values(ordersByStage).reduce((s, arr) => s + arr.length, 0),
-    [ordersByStage]
-  )
+  const totalActive = byStatus.confirmed.length + byStatus.preparing.length + byStatus.ready.length
+  const servedOrders = useMemo(() => orders.filter(o => o.status === 'served'), [orders])
 
-  const servedOrders = useMemo(
-    () => orders.filter(o => o.status === 'served'),
-    [orders]
-  )
-
-  const advance = useCallback((orderId: string, current: OrderStatus) => {
-    const next = NEXT[current]
-    if (next) updateOrderStatus(orderId, next as OrderStatus)
+  const advance = useCallback((orderId: string, current: KitchenStatus) => {
+    updateOrderStatus(orderId, NEXT[current])
   }, [updateOrderStatus])
 
-  const dismiss = useCallback((orderId: string) => {
-    setDismissed(prev => new Set([...prev, orderId]))
+  const hide = useCallback((orderId: string) => {
+    setHidden(prev => new Set([...prev, orderId]))
   }, [])
 
   return (
-    <StaffPageShell>
+    <StaffPageShell theme={kitchenTheme}>
       <StaffHeader
-        icon={ChefHat}
-        title="Kitchen Queue"
-        actions={
-          <>
-            {totalActive > 0 && (
-              <HeaderButton variant="status" active label={`${totalActive} active`} />
-            )}
-            <HeaderDivider />
-            <HeaderButton icon={Volume2} label="Alerts" variant="ghost" />
-          </>
-        }
+        title="Kitchen"
+        subtitle={totalActive === 0 ? 'No active orders' : `${totalActive} active ${totalActive === 1 ? 'order' : 'orders'}`}
+        actions={<ThemeToggle theme={kitchenTheme} onToggle={toggleKitchenTheme} className="-mr-2" />}
         sidebarExpanded={sidebarExpanded}
         onSidebarToggle={toggleSidebar}
       />
 
-      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 pb-24 md:pb-8">
-
-        {/* ── Column lanes ── */}
+      <main className="space-y-8 px-4 py-5 sm:px-6 sm:py-6">
         {totalActive === 0 ? (
-          <div className="py-16 text-center rounded-xl" style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}>
-            <ChefHat className="w-14 h-14 mx-auto mb-3" style={{ color: '#2E2318' }} />
-            <p className="font-medium" style={{ color: '#5C4F44' }}>No orders in kitchen</p>
-            <p className="text-sm mt-1" style={{ color: '#3D3028' }}>Orders confirmed by the cashier will appear here.</p>
+          <div className="rounded-card border border-line bg-surface">
+            <EmptyState
+              icon={ChefHat}
+              title="No orders in the kitchen"
+              body="Orders show up here once they are confirmed at the counter."
+            />
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-8">
-            {PIPELINE.map(stage => {
-              const stageOrders = ordersByStage[stage.status] || []
+          <div className="grid gap-5 md:auto-cols-[minmax(272px,1fr)] md:grid-flow-col md:overflow-x-auto md:pb-2">
+            {COLUMNS.map(col => {
+              const list = byStatus[col.status]
               return (
-                <div key={stage.status}>
-                  {/* Column header */}
-                  <div
-                    className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg"
-                    style={{ backgroundColor: CARD_STYLE[stage.status].badge }}
-                  >
-                    <stage.icon className="w-4 h-4" style={{ color: stage.color }} />
-                    <span className="text-sm font-bold" style={{ color: stage.color }}>
-                      {stage.label}
-                    </span>
-                    <span
-                      className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: CARD_STYLE[stage.status].bg, color: stage.color }}
-                    >
-                      {stageOrders.length}
+                <section key={col.status} aria-labelledby={`col-${col.status}`} className="min-w-0">
+                  <div className="mb-3 flex items-center justify-between rounded-control bg-surface-2 px-3 py-2">
+                    <h2 id={`col-${col.status}`} className="text-[15px] font-medium text-ink">{col.label}</h2>
+                    <span className="min-w-7 rounded-full bg-surface px-2 py-0.5 text-center text-sm font-medium tabular-nums text-ink">
+                      {list.length}
                     </span>
                   </div>
-
-                  {/* Cards in this column */}
-                  {stageOrders.length === 0 ? (
-                    <div
-                      className="rounded-xl p-8 text-center"
-                      style={{ border: '1.5px dashed #2E2318' }}
-                    >
-                      <p className="text-text-faint text-xs">No orders</p>
-                    </div>
+                  {list.length === 0 ? (
+                    <p className="rounded-card border-2 border-dashed border-line px-4 py-8 text-center text-sm text-ink-muted">
+                      Nothing here
+                    </p>
                   ) : (
                     <div className="space-y-3">
-                      {stageOrders.map(order => (
-                        <OrderCard
+                      {list.map(order => (
+                        <KitchenCard
                           key={order.id}
                           order={order}
-                          stage={stage}
+                          status={col.status}
+                          action={col.action}
+                          now={now}
                           onAdvance={advance}
-                          onDismiss={dismiss}
+                          onHide={hide}
                         />
                       ))}
                     </div>
                   )}
-                </div>
+                </section>
               )
             })}
           </div>
         )}
 
-        {/* ── Served today ── */}
         {servedOrders.length > 0 && (
-          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #2E2318' }}>
-            <div
-              className="flex items-center justify-between py-3 px-4"
-              style={{ backgroundColor: '#171210', borderBottom: '1px solid #2E2318' }}
-            >
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4" style={{ color: '#5C4F44' }} />
-                <h3 className="text-sm font-medium" style={{ color: '#F0E6D3' }}>Completed Today</h3>
-              </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(74,222,128,0.1)', color: '#4ADE80', border: '1px solid rgba(74,222,128,0.25)' }}>
-                {servedOrders.length}
-              </span>
-            </div>
-            <div className="divide-y" style={{ backgroundColor: '#0D0B0A', borderColor: '#1A1412' }}>
+          <section>
+            <h2 className="mb-3 font-display text-xl text-ink">
+              Served <span className="text-base text-ink-muted">{servedOrders.length}</span>
+            </h2>
+            <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
               {servedOrders.map(order => (
-                <div key={order.id} className="flex items-center gap-3 px-4 py-2.5" style={{ borderColor: '#1A1412', opacity: 0.7 }}>
-                  <CheckCircle className="w-3.5 h-3.5 shrink-0" style={{ color: '#4ADE80' }} />
-                  <span className="text-sm font-mono" style={{ color: '#9B8B7A' }}>#{order.id}</span>
-                  <span style={{ color: '#2E2318' }}>·</span>
-                  <span className="text-sm truncate" style={{ color: '#9B8B7A' }}>{order.tableName}</span>
-                  <span className="ml-auto text-sm font-medium shrink-0" style={{ color: '#5C4F44' }}>
-                    ₱{order.total.toFixed(0)}
-                  </span>
-                </div>
+                <li key={order.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                  <CheckCircle className="h-4 w-4 shrink-0 text-status-ready-text" aria-hidden />
+                  <span className="text-ink">{order.tableName}</span>
+                  <span className="truncate text-ink-muted">· {order.customerName || 'Guest'} · {order.id}</span>
+                  <span className="ml-auto shrink-0 tabular-nums text-ink-muted">{peso(order.total)}</span>
+                </li>
               ))}
-            </div>
-          </div>
+            </ul>
+          </section>
         )}
       </main>
     </StaffPageShell>
