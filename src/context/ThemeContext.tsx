@@ -29,6 +29,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Apply the app-wide mode to <html>; subtrees may override with their own data-theme
   useEffect(() => {
     document.documentElement.dataset.theme = theme
+    // Browser toolbar color (iPhone Safari tints its bars with it): the page background of this mode
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()
+    if (bg) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg)
     try { localStorage.setItem(LS_KEY, theme) } catch { /* noop */ }
   }, [theme])
 

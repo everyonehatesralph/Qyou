@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <!-- Home-screen icon (iPhone, Android): the Qyou ticket on a charcoal tile.
+       iOS can't swap a web app's icon for dark or tinted mode, so this one is drawn to work
+       in all three: a dark tile sits well on dark home screens, still reads on light ones,
+       and the white Q keeps its contrast when iOS tints it. Full-bleed and opaque, because
+       iOS fills transparency with black and rounds the corners itself. The ticket stays
+       inside the central 80% circle, so Android's maskable crop never cuts it.
+       Rendered to PNGs by scripts/build-icons.mjs. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2A2A2E"/>
+      <stop offset="1" stop-color="#141416"/>
+    </linearGradient>
+    <linearGradient id="ticket" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EE4B34"/>
+      <stop offset="1" stop-color="#D32E1F"/>
+    </linearGradient>
+    <filter id="lift" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+  <rect width="180" height="180" fill="url(#tile)"/>
+  <g transform="translate(90 91) rotate(-6) scale(1.95) translate(-32 -32)" filter="url(#lift)">
+    <path fill="url(#ticket)" d="M17 6H47A11 11 0 0 1 58 17V27A5 5 0 0 0 58 37V47A11 11 0 0 1 47 58H17A11 11 0 0 1 6 47V37A5 5 0 0 0 6 27V17A11 11 0 0 1 17 6Z"/>
+    <g fill="none" stroke="#FFFFFF" stroke-width="7">
+      <circle cx="32" cy="30" r="11.5"/>
+      <path d="M33.5 37.5L47.5 46"/>
+    </g>
+  </g>
+</svg>
