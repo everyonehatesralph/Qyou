@@ -1,0 +1,27 @@
+import { test as setup, expect } from '@playwright/test'
+
+// Orders the screens need: every kitchen column, a late ticket, a take-away code,
+// something awaiting payment and paid history for the sales page.
+// Table 1 stays free so check-in tests can use it.
+const ago = (min: number) => new Date(Date.now() - min * 60_000).toISOString()
+const item = (id: number, name: string, price: number, quantity: number) => ({ id, name, price, quantity })
+
+export const SEED_ORDERS = [
+  { id: '90001', tableId: 6, tableName: 'Table 6', customerName: 'Ana', items: [item(2, 'Caramel Macchiato', 165, 2), item(7, 'Butter Croissant', 95, 1)], total: 425, status: 'pending', orderType: 'takeaway', takeawayCode: 'T-8KQ0', createdAt: ago(3), notes: 'Take Away | + Oat Milk Upgrade' },
+  { id: '90002', tableId: 2, tableName: 'Table 2', customerName: 'Jun', items: [item(4, 'Cold Brew', 155, 1), item(9, 'Avocado Toast', 195, 1)], total: 350, status: 'confirmed', orderType: 'dineIn', takeawayCode: '', createdAt: ago(4), confirmedAt: ago(3), notes: 'Dine In | Extra hot' },
+  { id: '90003', tableId: 7, tableName: 'Table 7', customerName: 'Lia', items: [item(3, 'Matcha Latte', 175, 2)], total: 350, status: 'preparing', orderType: 'dineIn', takeawayCode: '', createdAt: ago(14), confirmedAt: ago(12), preparingAt: ago(10) },
+  { id: '90004', tableId: 3, tableName: 'Table 3', customerName: 'Mico', items: [item(10, 'Club Sandwich', 225, 1)], total: 225, status: 'ready', orderType: 'dineIn', takeawayCode: '', createdAt: ago(9), confirmedAt: ago(8), preparingAt: ago(7), readyAt: ago(1) },
+  { id: '90005', tableId: 9, tableName: 'Table 9', customerName: 'Rosa', items: [item(1, 'Signature Espresso', 120, 2)], total: 240, status: 'served', orderType: 'dineIn', takeawayCode: '', createdAt: ago(40), servedAt: ago(20) },
+  { id: '90006', tableId: 8, tableName: 'Table 8', customerName: 'Paolo', items: [item(5, 'Chamomile Honey Tea', 110, 1)], total: 110, status: 'confirmed', orderType: 'dineIn', takeawayCode: '', createdAt: ago(23), confirmedAt: ago(21) },
+  { id: '90007', tableId: 4, tableName: 'Table 4', customerName: 'Bea', items: [item(2, 'Caramel Macchiato', 165, 1), item(8, 'Almond Danish', 115, 1)], total: 280, status: 'paid', orderType: 'dineIn', takeawayCode: '', createdAt: ago(90), servedAt: ago(70), paidAt: ago(60) },
+]
+
+setup('seed orders', async ({ request }) => {
+  const existing: { id: string }[] = await (await request.get('/api/orders')).json()
+  const have = new Set(existing.map(o => o.id))
+  for (const order of SEED_ORDERS) {
+    if (have.has(order.id)) continue
+    const res = await request.post('/api/orders/place', { data: order })
+    expect(res.ok()).toBeTruthy()
+  }
+})

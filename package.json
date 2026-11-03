@@ -9,7 +9,8 @@
     "server": "node server/index.ts",
     "test": "node --test \"src/theme/*.test.ts\"",
     "check:contrast": "node scripts/check-contrast.mjs",
-    "check:colors": "node scripts/check-colors.mjs"
+    "check:colors": "node scripts/check-colors.mjs",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",
@@ -23,6 +24,8 @@
     "tailwind-merge": "^2.2.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
