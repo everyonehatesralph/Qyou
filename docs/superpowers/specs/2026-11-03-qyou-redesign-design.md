@@ -346,3 +346,9 @@ Requested by the owner, with a delivery-app menu as the reference: guests choose
   and Use original photo; changes apply on Save. Picked photos are centre-cropped to 640×640
   and re-encoded in the browser (about 50–90 KB). They are stored on that device only
   (`src/services/menuPhotos.ts`) until the shared backend stores them; the editor says so.
+
+## Revision 5 (2026-11-04): pinned staff panel
+
+- From 768 px the rounded staff content panel is pinned to the window like the sidebar and
+  its content scrolls inside it (sticky page header included), so the panel's corners never
+  slide away. Phones and short screens keep normal page scrolling.
