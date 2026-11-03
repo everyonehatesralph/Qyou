@@ -1,11 +1,18 @@
 import express from 'express'
 import cors from 'cors'
 import path from 'path'
+import { fileURLToPath } from 'url'
+import { createOrderSyncMiddleware } from './orderSyncPlugin.ts'
+
+// package.json has "type": "module", so __dirname must be derived
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const app = express()
 const PORT = process.env.VITE_SERVER_PORT || 3000
 
 app.use(cors())
+// Order API (same as the dev server). Mounted before express.json() because it reads the request body itself.
+app.use(createOrderSyncMiddleware())
 app.use(express.json())
 app.use(express.static(path.join(__dirname, '../dist')))
 

@@ -6,9 +6,6 @@ import { metricsCollector } from '../services/metricsCollector'
  */
 export function useInitializeMetrics() {
   useEffect(() => {
-    // Record app startup latency
-    const appStartTime = performance.now()
-    
     // Get initial bundle info
     if (performance.getEntriesByType) {
       const navigationTiming = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming
@@ -71,7 +68,7 @@ export function useTrackRequests() {
   useEffect(() => {
     const originalFetch = window.fetch
 
-    window.fetch = function (...args: any[]) {
+    window.fetch = function (...args: Parameters<typeof fetch>) {
       metricsCollector.recordActiveRequest(true)
 
       return originalFetch

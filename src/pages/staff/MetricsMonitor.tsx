@@ -286,7 +286,6 @@ interface PerformanceIndicatorProps {
 function PerformanceIndicator({
   label,
   value,
-  good,
   warning,
   critical,
   unit,

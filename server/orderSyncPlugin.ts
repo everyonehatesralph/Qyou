@@ -1,5 +1,6 @@
 /**
- * Vite Plugin: Order Sync via REST API + Server-Sent Events (SSE)
+ * Order Sync via REST API + Server-Sent Events (SSE)
+ * Used by the Vite dev server (plugin below) and the production server (server/index.ts).
  *
  * Uses simple HTTP instead of WebSocket to avoid conflicts with Vite's HMR.
  * - POST /api/orders/place      → place a new order
@@ -63,7 +64,11 @@ function parseBody(req: IncomingMessage): Promise<any> {
   })
 }
 
-export default function orderSyncPlugin(): Plugin {
+/**
+ * Order API as plain Node middleware, so dev (Vite) and production (Express)
+ * serve exactly the same endpoints.
+ */
+export function createOrderSyncMiddleware() {
   let orders: Order[] = loadOrders()
   const sseClients: Set<ServerResponse> = new Set()
 
@@ -75,92 +80,96 @@ export default function orderSyncPlugin(): Plugin {
     })
   }
 
+  return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+    const url = req.url || ''
+
+    // ── SSE Stream ──
+    if (url === '/api/orders/stream' && req.method === 'GET') {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+      })
+      // Send current state immediately
+      res.write(`data: ${JSON.stringify(orders)}\n\n`)
+      sseClients.add(res)
+      req.on('close', () => sseClients.delete(res))
+      return // keep connection open
+    }
+
+    // ── Get all orders ──
+    if (url === '/api/orders' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+      res.end(JSON.stringify(orders))
+      return
+    }
+
+    // ── Place order ──
+    if (url === '/api/orders/place' && req.method === 'POST') {
+      try {
+        const order = await parseBody(req) as Order
+        if (!orders.find(o => o.id === order.id)) {
+          orders = [order, ...orders]
+          saveOrders(orders)
+        }
+        broadcastSSE()
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+        res.end(JSON.stringify({ ok: true }))
+      } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Invalid request' }))
+      }
+      return
+    }
+
+    // ── Update status ──
+    if (url === '/api/orders/status' && req.method === 'POST') {
+      try {
+        const { orderId, status, timestamp } = await parseBody(req)
+        const STAGE_TS: Record<string, string> = {
+          confirmed: 'confirmedAt',
+          preparing: 'preparingAt',
+          ready: 'readyAt',
+          served: 'servedAt',
+        }
+        orders = orders.map(o =>
+          o.id === orderId
+            ? { ...o, status, ...(STAGE_TS[status] ? { [STAGE_TS[status]]: timestamp } : {}) }
+            : o
+        )
+        saveOrders(orders)
+        broadcastSSE()
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+        res.end(JSON.stringify({ ok: true }))
+      } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Invalid request' }))
+      }
+      return
+    }
+
+    // ── CORS preflight ──
+    if (req.method === 'OPTIONS' && url.startsWith('/api/')) {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      })
+      res.end()
+      return
+    }
+
+    next()
+  }
+}
+
+export default function orderSyncPlugin(): Plugin {
   return {
     name: 'deverse-order-sync',
     configureServer(server: ViteDevServer) {
       // Add middleware BEFORE Vite's own middleware
-      server.middlewares.use(async (req, res, next) => {
-        const url = req.url || ''
-
-        // ── SSE Stream ──
-        if (url === '/api/orders/stream' && req.method === 'GET') {
-          res.writeHead(200, {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'Access-Control-Allow-Origin': '*',
-          })
-          // Send current state immediately
-          res.write(`data: ${JSON.stringify(orders)}\n\n`)
-          sseClients.add(res)
-          req.on('close', () => sseClients.delete(res))
-          return // keep connection open
-        }
-
-        // ── Get all orders ──
-        if (url === '/api/orders' && req.method === 'GET') {
-          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
-          res.end(JSON.stringify(orders))
-          return
-        }
-
-        // ── Place order ──
-        if (url === '/api/orders/place' && req.method === 'POST') {
-          try {
-            const order = await parseBody(req) as Order
-            if (!orders.find(o => o.id === order.id)) {
-              orders = [order, ...orders]
-              saveOrders(orders)
-            }
-            broadcastSSE()
-            res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
-            res.end(JSON.stringify({ ok: true }))
-          } catch {
-            res.writeHead(400, { 'Content-Type': 'application/json' })
-            res.end(JSON.stringify({ error: 'Invalid request' }))
-          }
-          return
-        }
-
-        // ── Update status ──
-        if (url === '/api/orders/status' && req.method === 'POST') {
-          try {
-            const { orderId, status, timestamp } = await parseBody(req)
-            const STAGE_TS: Record<string, string> = {
-              confirmed: 'confirmedAt',
-              preparing: 'preparingAt',
-              ready: 'readyAt',
-              served: 'servedAt',
-            }
-            orders = orders.map(o =>
-              o.id === orderId
-                ? { ...o, status, ...(STAGE_TS[status] ? { [STAGE_TS[status]]: timestamp } : {}) }
-                : o
-            )
-            saveOrders(orders)
-            broadcastSSE()
-            res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
-            res.end(JSON.stringify({ ok: true }))
-          } catch {
-            res.writeHead(400, { 'Content-Type': 'application/json' })
-            res.end(JSON.stringify({ error: 'Invalid request' }))
-          }
-          return
-        }
-
-        // ── CORS preflight ──
-        if (req.method === 'OPTIONS' && url.startsWith('/api/')) {
-          res.writeHead(204, {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
-          })
-          res.end()
-          return
-        }
-
-        next()
-      })
+      server.middlewares.use(createOrderSyncMiddleware())
 
       console.log('  ⚡ Order sync API ready (SSE + REST)')
     },

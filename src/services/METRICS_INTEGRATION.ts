@@ -5,6 +5,7 @@
  * to start collecting real-time performance data
  */
 
+import { useEffect } from 'react'
 import { metricsCollector } from './metricsCollector'
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -185,7 +186,7 @@ export function usePageLoadMetrics() {
 /**
  * Hook to track active requests
  */
-export function useTrackRequest(name: string) {
+export function useTrackRequest(_name: string) {
   const trackRequest = async <T,>(fn: () => Promise<T>): Promise<T> => {
     metricsCollector.recordActiveRequest(true)
     try {
