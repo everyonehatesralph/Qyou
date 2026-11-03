@@ -46,11 +46,13 @@ export default function LandingHeader() {
   const hidden = useHideOnScroll()
 
   return (
-    // Slides away on the way down; keyboard focus inside keeps it in view
+    // Glides back in (slide and fade, 300ms) and out a little quicker (200ms). Each state carries its
+    // own duration, so the class change is the only trigger. Keyboard focus inside keeps it in view.
     <header
       className={cn(
-        'sticky top-0 z-40 bg-glass backdrop-blur-md transition-transform duration-[250ms] ease-[cubic-bezier(0.23,1,0.32,1)] focus-within:translate-y-0',
-        hidden && '-translate-y-full',
+        'sticky top-0 z-40 bg-glass backdrop-blur-md transition-[transform,opacity] ease-[cubic-bezier(0.22,1,0.36,1)]',
+        'focus-within:translate-y-0 focus-within:opacity-100',
+        hidden ? '-translate-y-full opacity-0 duration-200' : 'translate-y-0 opacity-100 duration-300',
       )}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6 lg:gap-8">
