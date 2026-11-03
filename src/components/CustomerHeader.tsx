@@ -20,7 +20,6 @@ export default function CustomerHeader() {
           type="button"
           onClick={() => navigate('/menu')}
           className="flex min-w-0 flex-1 items-center gap-3 rounded-control py-1 text-left"
-          aria-label={`${RESTAURANT.name} menu`}
         >
           <LetterTile text={RESTAURANT.logoText} tone="accent" size="sm" />
           <span className="min-w-0">

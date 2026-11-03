@@ -37,14 +37,14 @@ export default function Segmented<T extends string>({ label, value, onChange, op
             className={cn(
               'flex min-h-11 flex-col items-center justify-center rounded-[8px] border px-3 py-2 text-[15px] font-medium',
               'transition-[background-color,border-color,color] duration-150',
-              selected ? 'border-line bg-surface text-ink' : 'border-transparent text-ink-muted hover:text-ink',
+              selected ? 'border-transparent bg-ink text-bg' : 'border-transparent text-ink-muted hover:text-ink',
             )}
           >
             <span className="flex items-center gap-2 [&>svg]:h-[18px] [&>svg]:w-[18px]">
               {opt.icon}
               {opt.label}
             </span>
-            {opt.hint && <span className="mt-0.5 text-xs font-normal text-ink-muted">{opt.hint}</span>}
+            {opt.hint && <span className={cn('mt-0.5 text-xs font-normal', selected ? 'text-bg' : 'text-ink-muted')}>{opt.hint}</span>}
           </button>
         )
       })}

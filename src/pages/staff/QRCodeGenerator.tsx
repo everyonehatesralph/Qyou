@@ -310,7 +310,7 @@ export default function QRCodeGenerator() {
             ) : (
               <div className="mt-4 flex flex-wrap items-center gap-4">
                 <div className="rounded-control border border-line bg-surface p-2">
-                  <QRCodeSVG value={wifiQrString} size={104} level="H" fgColor="black" bgColor="white" includeMargin />
+                  <QRCodeSVG value={wifiQrString} size={104} level="H" fgColor="black" bgColor="white" includeMargin title={`Wi-Fi QR code for ${wifi.ssid}`} />
                 </div>
                 <div className="min-w-0">
                   <p className="text-[15px] text-ink">Network: <span className="font-medium">{wifi.ssid}</span></p>
@@ -341,7 +341,7 @@ export default function QRCodeGenerator() {
                     <p className="font-display text-xl leading-tight">{RESTAURANT.name}</p>
                     <p className="mt-1 text-sm text-ink-muted">{table.label}</p>
                     <div id={`qr-wrap-${table.id}`} className="mx-auto mt-4 inline-block rounded-control bg-surface p-2">
-                      <QRCodeSVG value={qrUrl(table.id)} size={168} level="H" includeMargin={false} fgColor="black" bgColor="white" />
+                      <QRCodeSVG value={qrUrl(table.id)} size={168} level="H" includeMargin={false} fgColor="black" bgColor="white" title={`QR code for ${table.label}`} />
                     </div>
                     <p className="mt-3 text-[15px] font-medium">Scan to order</p>
                     <p className="mt-0.5 text-xs text-ink-muted">{PRODUCT.tagline}</p>

@@ -30,8 +30,8 @@ export function buttonClasses(
 ): string {
   return cn(
     'inline-flex items-center justify-center gap-2 rounded-full font-semibold whitespace-nowrap select-none',
-    'transition-[background-color,border-color,transform] duration-150 active:scale-[0.98]',
-    'disabled:pointer-events-none disabled:opacity-45 [&>svg]:h-[18px] [&>svg]:w-[18px] [&>svg]:shrink-0',
+    'transition-[background-color,border-color,transform] duration-150 active:scale-[0.97]',
+    'disabled:pointer-events-none disabled:border-transparent disabled:bg-surface-3 disabled:text-ink-muted [&>svg]:h-[18px] [&>svg]:w-[18px] [&>svg]:shrink-0',
     VARIANTS[variant],
     SIZES[size],
     fullWidth && 'w-full',

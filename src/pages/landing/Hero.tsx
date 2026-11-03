@@ -85,7 +85,7 @@ function Scene({ px, py, scroll }: { px: MotionValue<number>; py: MotionValue<nu
           <div data-theme="light" className="rounded-[14px] bg-surface p-3 text-center text-ink shadow-lift">
             <p className="font-display text-[11px] leading-tight">{RESTAURANT.shortName}</p>
             <div className="mx-auto mt-2 w-fit">
-              <QRCodeSVG value="https://qyou.app/t/4" size={84} fgColor="black" bgColor="white" level="M" />
+              <QRCodeSVG value="https://qyou.app/t/4" size={84} fgColor="black" bgColor="white" level="M" title="QR code for Table 4" />
             </div>
             <p className="mt-2 text-[10px] font-semibold">Scan to order · Table 4</p>
           </div>

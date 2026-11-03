@@ -86,9 +86,10 @@ export default function HowItWorks() {
               <span className="absolute bottom-1 left-[5px] top-1 w-0.5 rounded-full bg-line" aria-hidden />
               <motion.span style={{ scaleY: rail }} className="absolute bottom-1 left-[5px] top-1 w-0.5 origin-top rounded-full bg-accent" aria-hidden />
               {STEPS.map((s, i) => (
-                <li key={s.n} className={cn('relative transition-opacity duration-300', i === step ? 'opacity-100' : 'opacity-45')}>
+                <li key={s.n} className="relative">
                   <span className={cn('absolute -left-8 top-1.5 h-3 w-3 rounded-full border-2 transition-colors duration-300', i <= step ? 'border-accent bg-accent' : 'border-line-strong bg-bg')} aria-hidden />
-                  <p className="font-display text-2xl text-ink"><span className="mr-3 font-mono text-sm text-ink-muted">{s.n}</span>{s.title}</p>
+                  {/* Inactive steps use muted text (still AA) rather than fading out */}
+                  <p className={cn('font-display text-2xl transition-colors duration-300', i === step ? 'text-ink' : 'text-ink-muted')}><span className="mr-3 font-mono text-sm text-ink-muted">{s.n}</span>{s.title}</p>
                   <p className="mt-1.5 max-w-md text-[15px] leading-relaxed text-ink-muted">{s.body}</p>
                 </li>
               ))}

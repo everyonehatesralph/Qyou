@@ -1,130 +1,81 @@
 # Qyou — QR table ordering
 
-A progressive web app for restaurant table ordering with real-time status tracking, built for local network deployment.
+**Don't queue. Just Qyou.** Guests scan the QR code on their table, order from their own phone
+and get notified when the food is ready. Staff see orders on a dashboard and a kitchen screen.
 
-## Tech Stack
+Built with React 18, TypeScript, Vite, Tailwind CSS and Framer Motion.
 
-- **Frontend**: React 18 + TypeScript + TailwindCSS
-- **Database**: Supabase (PostgreSQL + Real-time subscriptions)
-- **Auth**: Supabase Auth (Email for staff)
-- **Routing**: React Router v6
-- **Animations**: Framer Motion
-- **Server**: Vite dev server or Express.js (local network hosting on Raspberry Pi/PC)
-
-## Setup
-
-### Prerequisites
-- Node.js 18+
-- Supabase account
-- Local network connection
-
-### Installation
+## Running it
 
 ```bash
 npm install
+npm run dev          # Vite dev server on http://localhost:5173 (also serves the order API)
 ```
 
-### Configuration
+Production:
 
-1. Copy `.env.example` to `.env.local`:
-   ```bash
-   cp .env.example .env.local
-   ```
-
-2. Add your Supabase credentials:
-   ```
-   VITE_SUPABASE_URL=your_url
-   VITE_SUPABASE_ANON_KEY=your_key
-   ```
-
-3. Set your local network IP:
-   ```
-   VITE_SERVER_HOST=192.168.1.100
-   ```
-
-### Running Locally
-
-Development server (Vite):
 ```bash
-npm run dev
+npm run build        # type-check and build to dist/
+npm run server       # Express server on port 3000: serves dist/ and the order API
 ```
 
-Production build:
+Orders sync between devices through the order API (`server/orderSyncPlugin.ts`, used by both the
+dev server and `server/index.ts`). Orders are kept in `server/orders.json`. Without the API
+(for example a static deploy) the app falls back to syncing between tabs of one browser.
+
+## Screens
+
+| Route | Screen |
+|---|---|
+| `/` | Product landing page |
+| `/t/:tableId` | Table check-in (what a table's QR code opens) |
+| `/menu`, `/cart`, `/order/:id`, `/my-orders` | Guest menu, cart, order tracker, order history |
+| `/takeaway-pickup` | Take-away pickup board |
+| `/staff/login` | Staff PIN sign-in |
+| `/staff/dashboard`, `/staff/kitchen`, `/staff/tables` | Dashboard, kitchen screen, tables |
+| `/staff/menu`, `/staff/sales`, `/staff/qr-codes` | Menu availability, sales, printable QR codes |
+| `/staff/metrics` | Developer metrics (not in the navigation; some figures are simulated) |
+
+## Onboarding a restaurant
+
+Everything restaurant-specific lives in `src/config/restaurant.ts`: name, short name, logo
+letter, accent color per mode (and the text color on it), currency and tables. Accent shades
+(hover, soft fill, accent text) are computed from it at startup by `src/theme/accent.ts`, which
+adjusts them until they meet WCAG AA, so any brand color works. Qyou's own marketing details
+(tagline, contact phone, email, Messenger) are in `src/config/product.ts`; empty email or
+Messenger values hide those buttons on the landing page.
+
+## Design system
+
+- Color tokens are CSS custom properties in `src/styles/globals.css`, scoped by
+  `data-theme="light|dark"`. Any subtree can set its own mode; the kitchen screen defaults to
+  dark (`qyou_kitchen_theme`) while the rest of the app defaults to light (`qyou_theme`).
+- Tailwind color names map to the tokens (`bg`, `surface`, `ink`, `ink-muted`, `accent`,
+  `status-*`…). `.tsx` files contain no hex or `rgb()` literals.
+- Shared components are in `src/components/ui` (Button, Card, Ticket, StatusPill, BottomSheet,
+  QuantityStepper, …). Order status labels and colors come from `src/theme/status.ts`.
+- Type: Archivo (expanded for display text) and JetBrains Mono for labels and pickup codes.
+- Motion respects the device's reduced-motion setting.
+
+## Checks
+
 ```bash
+npm test                 # color math and accent contrast tests (node --test)
+npm run check:contrast   # every text/background token pair in both modes meets WCAG AA
+npm run check:colors     # fails on hex/rgb() color literals in .tsx files (default: src)
 npm run build
-npm run preview
 ```
 
-Express server:
-```bash
-npm run server
-```
+## Known limitations
 
-## Architecture
+This is a working prototype, not yet production-ready:
 
-### Folder Structure
-
-```
-src/
-├── pages/
-│   ├── customer/     # Customer ordering screens
-│   └── staff/        # Staff dashboard & management
-├── components/       # Reusable React components
-├── services/         # Supabase CRUD operations
-├── context/          # Global state (AppContext, StaffContext)
-├── hooks/            # Custom hooks for business logic
-├── types/            # TypeScript interfaces
-└── utils/            # Helper functions
-```
-
-### Key Features
-
-1. **Token-Based Table Access**
-   - Staff generates table tokens
-   - Customers scan QR → enter name → validated token
-
-2. **Real-Time Updates**
-   - Supabase subscriptions (onSnapshot)
-   - Live order status tracking
-   - Live menu updates
-
-3. **Security Layers**
-   - Order cooldown: 2-minute wait between orders
-   - Staff confirmation gate before kitchen
-   - Row-level security in Firestore
-
-4. **Staff Dashboard**
-   - Table grid (color-coded status)
-   - Pending orders queue
-   - Menu management
-
-## Guest WiFi Setup
-
-For customer access on local network:
-
-1. Create guest WiFi network
-2. Print QR codes with URL: `http://192.168.1.100:3000/table/[id]?token=[token]`
-3. Customers scan on their phones
-4. App validates token and loads ordering interface
-
-## Database Schema
-
-See `firebase/` for Firestore rules.
-
-Collections:
-- `tables` - Restaurant tables with status
-- `orders` - Customer orders with items
-- `menuItems` - Menu catalog
-- `categories` - Item categories
-- `staff` - Staff authentication
-
-## Deployment
-
-On Raspberry Pi / Local PC:
-
-1. Build: `npm run build`
-2. Serve: `npm run server`
-3. Access: `http://192.168.1.100:3000`
+- The staff PIN is checked in the browser and sign-in is lost on reload. There is no real
+  authentication on the staff screens or the order API.
+- Orders are stored in a JSON file by the dev/Express server; there is no database.
+- Menu name/price edits and sold-out switches are not shared across devices.
+- Add-on prices are shown at checkout but not included in the stored order total.
+- "Free table" marks a table's unpaid (and cancelled) orders as paid.
 
 ## License
 

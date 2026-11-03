@@ -95,7 +95,7 @@ export default function BottomSheet({ open, onClose, title, description, childre
             aria-hidden
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0, transition: { duration: 0.15 } }}
             transition={{ duration: 0.2 }}
           />
           <motion.div
@@ -111,7 +111,7 @@ export default function BottomSheet({ open, onClose, title, description, childre
             )}
             initial={hidden}
             animate={shown}
-            exit={hidden}
+            exit={{ ...hidden, transition: { type: 'tween', ease: EASE, duration: wide ? 0.14 : 0.2 } }}
             transition={{ type: 'tween', ease: EASE, duration: wide ? 0.2 : 0.32 }}
           >
             <div className="flex justify-center pt-2.5 md:hidden" aria-hidden>

@@ -61,7 +61,7 @@ function Timeline({ order }: { order: Order }) {
               )}
             >
               {row.done && (
-                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 500, damping: 22 }}>
+                <motion.span initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 500, damping: 26 }}>
                   <Check className="h-3.5 w-3.5" strokeWidth={3} />
                 </motion.span>
               )}

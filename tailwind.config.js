@@ -3,6 +3,8 @@
 const status = ['waiting', 'progress', 'ready', 'done', 'cancelled']
 
 export default {
+  // Hover styles only on devices that can hover, so taps don't leave sticky hover states
+  future: { hoverOnlyWhenSupported: true },
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -31,25 +33,6 @@ export default {
           [`status-${s}-text`, `var(--status-${s}-text)`],
         ])),
 
-        // Legacy aliases, removed in the cleanup task
-        background:     'var(--bg)',
-        primary:        'var(--accent)',
-        'primary-dark': 'var(--accent-hover)',
-        'primary-light':'var(--accent-hover)',
-        'primary-glow': 'var(--accent-soft)',
-        'text-base':    'var(--text)',
-        'text-muted':   'var(--text-muted)',
-        'text-faint':   'var(--text-faint)',
-        border:         'var(--border)',
-        'border-light': 'var(--border-strong)',
-        success:        'var(--status-ready-text)',
-        'success-bg':   'var(--status-ready-bg)',
-        warning:        'var(--status-waiting-text)',
-        'warning-bg':   'var(--status-waiting-bg)',
-        error:          'var(--status-cancelled-text)',
-        'error-bg':     'var(--status-cancelled-bg)',
-        info:           'var(--status-progress-text)',
-        'info-bg':      'var(--status-progress-bg)',
       },
       fontFamily: {
         display: ['Archivo', 'system-ui', 'sans-serif'],
@@ -60,13 +43,6 @@ export default {
         control: '10px',
         card:    '12px',
         sheet:   '16px',
-        // Legacy keys, removed in the cleanup task
-        'sm':  '6px',
-        DEFAULT:'10px',
-        'md':  '12px',
-        'lg':  '16px',
-        'xl':  '20px',
-        '2xl': '24px',
       },
       keyframes: {
         shake: {
@@ -101,14 +77,14 @@ export default {
         marquee: 'marquee 28s linear infinite',
         ring: 'ring 1.6s ease-in-out infinite',
       },
+      transitionTimingFunction: {
+        // Strong ease-out: starts fast so UI feels responsive
+        DEFAULT: 'cubic-bezier(0.23, 1, 0.32, 1)',
+        out: 'cubic-bezier(0.23, 1, 0.32, 1)',
+      },
       boxShadow: {
         pop:            'var(--shadow-pop)',
         lift:           'var(--shadow-lift)',
-        // Legacy keys, removed in the cleanup task
-        'glow-primary': 'none',
-        'glow-sm':      'none',
-        'card':         'none',
-        'card-hover':   'none',
       },
     },
   },

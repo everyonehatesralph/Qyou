@@ -31,7 +31,8 @@ export default function Ticket({ children, stub, tone = 'surface', className, bo
     <div className={cn('flex flex-col', className)}>
       <div className={cn('ticket rounded-t-card [--notch-y:100%]', TONES[tone], bodyClassName)}>{children}</div>
       <div className={cn('ticket relative rounded-b-card [--notch-y:0%]', TONES[tone], stubClassName)}>
-        <div className={cn('perforation absolute inset-x-4 -top-px', tone !== 'surface' && 'opacity-50')} aria-hidden />
+        {/* On colored tickets the tear line is drawn in the ticket's own text color */}
+        <div className={cn('perforation absolute inset-x-4 -top-px', tone !== 'surface' && 'opacity-45 [--border-strong:currentColor]')} aria-hidden />
         {stub}
       </div>
     </div>

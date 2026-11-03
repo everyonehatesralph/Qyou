@@ -39,7 +39,7 @@ export default function TakeawayPickup() {
           <div className="flex items-center gap-4">
             {/* QR codes stay black on white so every phone camera can read them */}
             <div className="rounded-card border border-line bg-surface p-2">
-              <QRCodeSVG value={qrUrl} size={112} level="M" fgColor="black" bgColor="white" includeMargin />
+              <QRCodeSVG value={qrUrl} size={112} level="M" fgColor="black" bgColor="white" includeMargin title="QR code for this pickup board" />
             </div>
             <p className="max-w-[9rem] text-sm text-ink-muted">Scan to follow this board on your phone.</p>
             <ThemeToggle className="self-start md:self-center" />

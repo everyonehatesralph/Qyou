@@ -45,6 +45,10 @@ const PAIRS = [
   // Table tiles and banners put regular text on status fills
   ...STATUS.map(s => ['text-muted', `status-${s}-bg`, 4.5]),
   ['text-faint', 'surface', 3.0], // placeholders only
+  // Outlines of inputs, steppers and secondary buttons (non-text contrast)
+  ['border-strong', 'surface', 3.0],
+  ['border-strong', 'bg', 3.0],
+  ['text-muted', 'surface-3', 4.5],
 ]
 
 let failures = 0

@@ -98,7 +98,7 @@ export function MenuScreen() {
   return (
     <div className="absolute inset-0">
       <AppHeader />
-      <div className="mx-3.5 flex h-8 items-center gap-1.5 rounded-full border border-line-strong bg-surface px-3 text-[11px] text-ink-faint">
+      <div className="mx-3.5 flex h-8 items-center gap-1.5 rounded-full border border-line-strong bg-surface px-3 text-[11px] text-ink-muted">
         <Search className="h-3 w-3" /> Search the menu
       </div>
       <div className="flex gap-1 px-3.5 py-2.5">
@@ -129,7 +129,7 @@ export function ScanScreen() {
           <p className="font-display text-[11px] leading-tight">{RESTAURANT.name}</p>
           <p className="text-[9px] text-ink-muted">Table 4</p>
           <div className="mx-auto mt-2 w-fit">
-            <QRCodeSVG value="https://qyou.app/t/4" size={92} fgColor="black" bgColor="white" level="M" />
+            <QRCodeSVG value="https://qyou.app/t/4" size={92} fgColor="black" bgColor="white" level="M" title="QR code for Table 4" />
           </div>
           <p className="mt-2 text-[10px] font-semibold">Scan to order</p>
         </div>

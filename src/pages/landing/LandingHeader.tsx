@@ -15,7 +15,7 @@ export default function LandingHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-glass backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6 lg:gap-8">
-        <a href="#top" aria-label="Qyou, back to top" className="rounded-control py-2">
+        <a href="#top" className="rounded-control py-2">
           <Wordmark size="sm" />
         </a>
         <nav aria-label="Sections" className="hidden items-center gap-1 md:flex">

@@ -67,8 +67,8 @@ function BottomBarButton({ item, active, onClick, badge, pillId, cartTarget }: {
       )}
     >
       <span className="relative flex h-8 w-14 items-center justify-center" data-cart-target={cartTarget || undefined}>
-        {active && <motion.span layoutId={pillId} transition={PILL_SPRING} className="absolute inset-0 rounded-full bg-surface-2" aria-hidden />}
-        <Icon className="relative h-5 w-5" aria-hidden />
+        {active && <motion.span layoutId={pillId} transition={PILL_SPRING} className="absolute inset-0 rounded-full bg-ink" aria-hidden />}
+        <Icon className={cn('relative h-5 w-5 transition-colors duration-150', active && 'text-bg')} aria-hidden />
         {!!badge && (
           <span
             key={badge}
@@ -98,7 +98,7 @@ function StaffNavigation() {
 
   const rowClass = (active: boolean) => cn(
     'relative flex h-11 w-full items-center gap-3 rounded-full px-3.5 text-[15px] transition-colors duration-150',
-    active ? 'font-semibold text-ink' : 'text-ink-muted hover:bg-surface-2 hover:text-ink',
+    active ? 'font-semibold text-bg' : 'text-ink-muted hover:bg-surface-2 hover:text-ink',
     !expanded && 'justify-center px-0',
   )
 
@@ -115,7 +115,6 @@ function StaffNavigation() {
           type="button"
           onClick={() => navigate('/staff/dashboard')}
           className={cn('flex h-16 shrink-0 items-center gap-2 border-b border-line text-left', expanded ? 'px-5' : 'justify-center')}
-          aria-label="Qyou staff dashboard"
         >
           {expanded ? (
             <span className="min-w-0">
@@ -140,7 +139,7 @@ function StaffNavigation() {
                 className={rowClass(active)}
               >
                 {active && (
-                  <motion.span layoutId="staff-side-pill" transition={PILL_SPRING} className="absolute inset-0 rounded-full bg-surface-2" aria-hidden>
+                  <motion.span layoutId="staff-side-pill" transition={PILL_SPRING} className="absolute inset-0 rounded-full bg-ink" aria-hidden>
                     <span className="absolute left-1.5 top-1/2 h-4 w-1 -translate-y-1/2 rounded-full bg-accent" />
                   </motion.span>
                 )}

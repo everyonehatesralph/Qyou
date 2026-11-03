@@ -65,7 +65,7 @@ const KitchenCard = memo(function KitchenCard({ order, status, action, now, onAd
     >
       <div className="flex items-start gap-2 p-4 pb-3">
         <div className="min-w-0 flex-1">
-          <h3 className="font-display text-[30px] leading-none text-ink">{order.tableName}</h3>
+          <h3 className="whitespace-nowrap font-display text-[26px] leading-none text-ink xl:text-[30px]">{order.tableName}</h3>
           <p className="mt-1.5 truncate text-sm text-ink-muted">
             {order.customerName || 'Guest'} · <span className="font-mono text-[13px]">Nº {order.id}</span>
           </p>
@@ -181,7 +181,7 @@ export default function OrderQueue() {
           </div>
         ) : (
           <LayoutGroup>
-          <div className="grid gap-5 md:auto-cols-[minmax(272px,1fr)] md:grid-flow-col md:overflow-x-auto md:pb-2">
+          <div className="grid gap-5 md:auto-cols-[minmax(300px,1fr)] md:grid-flow-col md:overflow-x-auto md:pb-2">
             {COLUMNS.map(col => {
               const list = byStatus[col.status]
               return (
