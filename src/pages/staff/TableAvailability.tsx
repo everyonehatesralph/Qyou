@@ -2,7 +2,7 @@ import { useOrders } from '../../context/OrderContext'
 import type { Order } from '../../context/OrderContext'
 import { useSidebar } from '../../context/SidebarContext'
 import { useMemo, useState } from 'react'
-import StaffPageShell from '../../components/StaffPageShell'
+import StaffPageShell, { StaffMain } from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 import KpiCard from '../../components/KpiCard'
 import TableCard from '../../components/TableCard'
@@ -44,7 +44,7 @@ export default function TableAvailability() {
         onSidebarToggle={toggleSidebar}
       />
 
-      <main className="mx-auto max-w-6xl space-y-6 px-4 py-5 sm:px-6 sm:py-6">
+      <StaffMain className="space-y-6">
         <div className="grid grid-cols-3 gap-3">
           <KpiCard label="Free" value={freeCount} />
           <KpiCard label="In use" value={occupied} group="progress" />
@@ -65,7 +65,7 @@ export default function TableAvailability() {
             />
           ))}
         </div>
-      </main>
+      </StaffMain>
 
       <ConfirmDialog
         open={freeTableId !== null}

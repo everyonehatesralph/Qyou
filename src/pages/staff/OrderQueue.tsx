@@ -6,7 +6,7 @@ import { useNow, minutesSince } from '../../hooks/useNow'
 import { useSidebar } from '../../context/SidebarContext'
 import { useMemo, useState, useCallback, memo } from 'react'
 import { LayoutGroup, motion } from 'framer-motion'
-import StaffPageShell from '../../components/StaffPageShell'
+import StaffPageShell, { StaffMain } from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 import { Button, EmptyState, IconButton, cn } from '../../components/ui'
 import { peso } from '../../utils/formatters'
@@ -166,7 +166,7 @@ export default function OrderQueue() {
         onSidebarToggle={toggleSidebar}
       />
 
-      <main className="space-y-8 px-4 py-5 sm:px-6 sm:py-6">
+      <StaffMain className="space-y-8">
         {totalActive === 0 ? (
           <div className="rounded-card border border-line bg-surface">
             <EmptyState
@@ -231,7 +231,7 @@ export default function OrderQueue() {
             </ul>
           </section>
         )}
-      </main>
+      </StaffMain>
     </StaffPageShell>
   )
 }

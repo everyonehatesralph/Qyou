@@ -7,7 +7,7 @@ import { useNow, timeAgo } from '../../hooks/useNow'
 import { useSidebar } from '../../context/SidebarContext'
 import { useMemo, useState, memo, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import StaffPageShell from '../../components/StaffPageShell'
+import StaffPageShell, { StaffMain } from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 import KpiCard from '../../components/KpiCard'
 import DashboardAnalytics from '../../components/DashboardAnalytics'
@@ -152,7 +152,7 @@ export default function Dashboard() {
         onSidebarToggle={toggleSidebar}
       />
 
-      <main className="mx-auto max-w-6xl space-y-8 px-4 py-5 sm:px-6 sm:py-6">
+      <StaffMain className="space-y-8">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <KpiCard label="New orders" value={pendingOrders.length} group="waiting" />
           <KpiCard label="In the kitchen" value={inKitchenCount} group="progress" />
@@ -242,7 +242,7 @@ export default function Dashboard() {
             ))}
           </div>
         </section>
-      </main>
+      </StaffMain>
 
       <ConfirmDialog
         open={freeTableId !== null}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { metricsCollector, type MetricsSnapshot } from '../../services/metricsCollector'
 import { useSidebar } from '../../context/SidebarContext'
-import StaffPageShell from '../../components/StaffPageShell'
+import StaffPageShell, { StaffMain } from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 import { Card, cn } from '../../components/ui'
 
@@ -37,7 +37,7 @@ export default function MetricsMonitor() {
         onSidebarToggle={toggleSidebar}
       />
 
-      <main className="mx-auto max-w-6xl space-y-6 px-4 py-5 sm:px-6 sm:py-6">
+      <StaffMain className="space-y-6">
         <p className="rounded-card border border-line bg-status-waiting-bg px-4 py-3 text-sm text-status-waiting-text">
           Some figures on this page are simulated (for example the live latency), so they do not describe real traffic.
         </p>
@@ -218,7 +218,7 @@ export default function MetricsMonitor() {
             </li>
           </ul>
         </Card>
-      </main>
+      </StaffMain>
     </StaffPageShell>
   )
 }

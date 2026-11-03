@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback, type ReactNode } from 'react'
 import { BarChart3, Download } from 'lucide-react'
 import { useOrders } from '../../context/OrderContext'
 import { useSidebar } from '../../context/SidebarContext'
-import StaffPageShell from '../../components/StaffPageShell'
+import StaffPageShell, { StaffMain } from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 import KpiCard from '../../components/KpiCard'
 import { ColumnChart } from '../../components/Charts'
@@ -189,7 +189,7 @@ export default function SalesTracker() {
         onSidebarToggle={toggleSidebar}
       />
 
-      <main className="mx-auto max-w-6xl space-y-5 px-4 py-5 sm:px-6 sm:py-6">
+      <StaffMain className="space-y-5">
         <Segmented<TimeFilter>
           label="Time range"
           value={timeFilter}
@@ -354,7 +354,7 @@ export default function SalesTracker() {
             </div>
           </>
         )}
-      </main>
+      </StaffMain>
     </StaffPageShell>
   )
 }

@@ -2,7 +2,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { Check, Copy, Download, Globe, Pencil, Printer, Wifi } from 'lucide-react'
 import { useCallback, useState, useEffect } from 'react'
 import { useSidebar } from '../../context/SidebarContext'
-import StaffPageShell from '../../components/StaffPageShell'
+import StaffPageShell, { StaffMain } from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 import { Button, Card, Segmented, TextInput } from '../../components/ui'
 import { RESTAURANT } from '../../config/restaurant'
@@ -213,7 +213,7 @@ export default function QRCodeGenerator() {
         onSidebarToggle={toggleSidebar}
       />
 
-      <main className="mx-auto max-w-6xl space-y-5 px-4 py-5 sm:px-6 sm:py-6">
+      <StaffMain className="space-y-5">
         <div className="grid gap-4 lg:grid-cols-2">
           {/* ── Ordering link ── */}
           <Card>
@@ -359,7 +359,7 @@ export default function QRCodeGenerator() {
             </ul>
           </section>
         )}
-      </main>
+      </StaffMain>
     </StaffPageShell>
   )
 }

@@ -40,3 +40,11 @@ export default function StaffPageShell({ children, className }: Props) {
     </div>
   )
 }
+
+/**
+ * A staff page's content. Every staff screen uses the kitchen's side margins, full width
+ * and lined up with the page header, so the panels never drift apart between pages.
+ */
+export function StaffMain({ children, className }: Props) {
+  return <main className={cn('px-4 py-5 sm:px-6 sm:py-6', className)}>{children}</main>
+}

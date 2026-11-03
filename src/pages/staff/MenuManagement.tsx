@@ -3,7 +3,7 @@ import { useState, useCallback, useId, useRef, type ChangeEvent, type FormEvent 
 import { useMenuAvailability } from '../../context/MenuAvailabilityContext'
 import { useSidebar } from '../../context/SidebarContext'
 import { MENU_ITEMS, type MenuItem } from '../../constants/menu'
-import StaffPageShell from '../../components/StaffPageShell'
+import StaffPageShell, { StaffMain } from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 import ItemPhoto from '../../components/ItemPhoto'
 import { photoFor, preparePhoto, removePhoto, resetPhoto, savePhoto, usePhotoOverrides } from '../../services/menuPhotos'
@@ -131,7 +131,7 @@ export default function MenuManagement() {
         onSidebarToggle={toggleSidebar}
       />
 
-      <main className="mx-auto max-w-3xl space-y-6 px-4 py-5 sm:px-6 sm:py-6">
+      <StaffMain className="space-y-6">
         <p className="text-sm leading-relaxed text-ink-muted">
           Switch an item off when it runs out; guests see it as “Sold out today”. Photos are saved on this
           device. Name, price and new items are kept for this session only.
@@ -176,7 +176,7 @@ export default function MenuManagement() {
             </section>
           ))
         )}
-      </main>
+      </StaffMain>
 
       <BottomSheet
         open={editing !== null}
