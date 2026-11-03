@@ -12,8 +12,8 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType | null>(null)
+// One mode for the whole app, remembered per device (a kitchen tablet set to dark stays dark)
 const LS_KEY = 'qyou_theme'
-const LS_KITCHEN_KEY = 'qyou_kitchen_theme'
 
 function readTheme(key: string, fallback: Theme): Theme {
   try {
@@ -47,22 +47,4 @@ export function useTheme() {
   const ctx = useContext(ThemeContext)
   if (!ctx) throw new Error('useTheme must be used within ThemeProvider')
   return ctx
-}
-
-/**
- * The kitchen screen's own mode, separate from the app-wide one.
- * Defaults to dark; apply it with `data-theme={theme}` on the kitchen root.
- */
-export function useKitchenTheme() {
-  const [theme, setTheme] = useState<Theme>(() => readTheme(LS_KITCHEN_KEY, 'dark'))
-
-  useEffect(() => {
-    try { localStorage.setItem(LS_KITCHEN_KEY, theme) } catch { /* noop */ }
-  }, [theme])
-
-  const toggle = useCallback(() => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark')
-  }, [])
-
-  return { theme, toggle }
 }

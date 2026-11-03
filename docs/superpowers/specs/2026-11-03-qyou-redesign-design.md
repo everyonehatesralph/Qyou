@@ -363,3 +363,10 @@ Requested by the owner, with a delivery-app menu as the reference: guests choose
   (progress colors), also on the phone tab bar. Collapsed, they show as dots.
 - The footer is one row: the Qyou mark, then theme and sign-out icon buttons. No divider lines;
   spacing separates the parts.
+
+## Revision 7 (2026-11-04): one theme
+
+- The kitchen screen no longer has its own mode or toggle; it follows the app's light/dark
+  setting like every page. The setting is remembered per device, so a kitchen tablet set to
+  dark stays dark. This replaces "the kitchen screen defaults to dark" from the original spec:
+  with the sidebar's theme button, two switches that changed different things were confusing.

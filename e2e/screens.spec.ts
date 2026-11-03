@@ -15,23 +15,16 @@ const THEMES: Theme[] = ['light', 'dark']
 for (const route of ROUTES) {
   for (const width of WIDTHS) {
     for (const theme of THEMES) {
-      // Kitchen: the app is always light here; "dark" is the kitchen's own default and
-      // "light" is its own toggle set to light, so the test proves it opens dark by itself.
-      const isKitchen = route.id === 'kitchen'
-      const appTheme: Theme = isKitchen ? 'light' : theme
-      const kitchenTheme = isKitchen && theme === 'light' ? 'light' : null
-
       test(`${route.id} ${width} ${theme}`, async ({ page }, testInfo) => {
         const problems = watchProblems(page)
         await page.setViewportSize({ width, height: HEIGHT[width] })
-        await primeStorage(page, appTheme, kitchenTheme)
+        await primeStorage(page, theme)
         await openRoute(page, route)
         await waitUntilSettled(page)
 
-        await expect(page.locator('html')).toHaveAttribute('data-theme', appTheme)
-        if (isKitchen && theme === 'dark') {
-          await expect(page.locator('main').locator('xpath=ancestor::*[@data-theme][1]')).toHaveAttribute('data-theme', 'dark')
-        }
+        await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
+        // One theme everywhere: nothing on the page sets a mode of its own
+        await expect(page.locator('body [data-theme]', { has: page.locator('main') })).toHaveCount(0)
 
         const { scrollWidth, clientWidth } = await page.evaluate(() => ({
           scrollWidth: document.documentElement.scrollWidth,

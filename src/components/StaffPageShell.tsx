@@ -4,8 +4,6 @@ import { cn } from './ui'
 
 interface Props {
   children: ReactNode
-  /** Gives the page its own mode (the kitchen screen); defaults to the app's. */
-  theme?: 'light' | 'dark'
   className?: string
 }
 
@@ -17,7 +15,7 @@ interface Props {
  * with the page (phones keep their collapsing browser toolbars), leaving room for
  * the bottom bar.
  */
-export default function StaffPageShell({ children, theme, className }: Props) {
+export default function StaffPageShell({ children, className }: Props) {
   const { expanded } = useSidebar()
   return (
     <div
@@ -28,7 +26,6 @@ export default function StaffPageShell({ children, theme, className }: Props) {
       )}
     >
       <div
-        data-theme={theme}
         className={cn(
           'min-h-screen bg-bg text-ink pb-[calc(4rem+env(safe-area-inset-bottom))] short:pb-[calc(3rem+env(safe-area-inset-bottom))]',
           // The scroll area; focus jumps stop clear of the sticky page header

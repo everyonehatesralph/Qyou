@@ -14,8 +14,6 @@ export interface BottomSheetProps {
   children: ReactNode
   /** Sticky area under the scrolling body, for the main action. */
   footer?: ReactNode
-  /** Set when opened inside a subtree with its own mode (the sheet is portaled to <body>). */
-  theme?: 'light' | 'dark'
   className?: string
 }
 
@@ -38,7 +36,7 @@ function useIsWide() {
 }
 
 /** Bottom sheet below 768px, centered dialog from 768px. Escape and backdrop close it. */
-export default function BottomSheet({ open, onClose, title, description, children, footer, theme, className }: BottomSheetProps) {
+export default function BottomSheet({ open, onClose, title, description, children, footer, className }: BottomSheetProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
@@ -107,7 +105,7 @@ export default function BottomSheet({ open, onClose, title, description, childre
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center md:items-center md:p-6" data-theme={theme}>
+        <div className="fixed inset-0 z-[60] flex items-end justify-center md:items-center md:p-6">
           <motion.div
             className="absolute inset-0 bg-scrim"
             onClick={onClose}

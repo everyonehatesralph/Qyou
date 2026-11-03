@@ -59,14 +59,12 @@ export const ROUTES: Route[] = [
 ]
 
 /** Theme and this device's order ids, set before the app boots. */
-export async function primeStorage(page: Page, appTheme: Theme, kitchenTheme: Theme | null = null) {
-  await page.addInitScript(([t, k]) => {
-    localStorage.setItem('qyou_theme', t as string)
-    if (k) localStorage.setItem('qyou_kitchen_theme', k as string)
-    else localStorage.removeItem('qyou_kitchen_theme')
+export async function primeStorage(page: Page, theme: Theme) {
+  await page.addInitScript(t => {
+    localStorage.setItem('qyou_theme', t)
     // The "my orders" list reads this device's order ids
     localStorage.setItem('qyou_my_orders', JSON.stringify(['90001', '90002', '90005']))
-  }, [appTheme, kitchenTheme])
+  }, theme)
 }
 
 export async function openRoute(page: Page, route: Route) {
