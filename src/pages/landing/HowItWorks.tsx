@@ -172,8 +172,9 @@ export default function HowItWorks() {
               </AnimatePresence>
             </div>
 
-            {/* Full list with a progress rail from 1024px; a plain list on short screens; always read by screen readers */}
-            <ol className="sr-only mt-10 space-y-7 pl-8 lg:not-sr-only lg:relative short:not-sr-only short:relative short:mt-6 short:space-y-5">
+            {/* Full list with a progress rail from 1024px; a plain list on short screens; always read by screen
+                readers. not-sr-only zeroes padding and margin, so the rail's room (pl-8) is set again in each variant. */}
+            <ol className="sr-only space-y-7 lg:not-sr-only lg:relative lg:mt-10 lg:pl-8 short:not-sr-only short:relative short:mt-6 short:space-y-5 short:pl-8">
               <span className="absolute bottom-1 left-[5px] top-1 w-0.5 rounded-full bg-line short:hidden" aria-hidden />
               <motion.span style={{ scaleY: rail }} className="absolute bottom-1 left-[5px] top-1 w-0.5 origin-top rounded-full bg-accent short:hidden" aria-hidden />
               {STEPS.map((s, i) => (
