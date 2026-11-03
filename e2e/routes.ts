@@ -19,8 +19,9 @@ async function checkIn(page: Page) {
 }
 
 async function addItems(page: Page) {
-  await page.getByRole('button', { name: 'Add Caramel Macchiato' }).click()
-  await page.getByRole('button', { name: 'Add Butter Croissant' }).click()
+  // Popular repeats some items, so take the first of each
+  await page.getByRole('button', { name: 'Add Caramel Macchiato' }).first().click()
+  await page.getByRole('button', { name: 'Add Butter Croissant' }).first().click()
 }
 
 /** Client-side navigation keeps in-memory state (staff sign-in, cart). */

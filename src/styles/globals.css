@@ -100,15 +100,15 @@
     /* Focus and anchor jumps stop clear of the sticky header (sections need no scroll-margin) */
     scroll-padding-top: 4.5rem;
   }
-  /* Guest screens: category chips on top (and the header from 768px), cart bar and tabs below */
+  /* Guest screens: menu section tabs on top (and the header where it is pinned), cart bar and tabs below */
   html:has(nav[aria-label='Main']) {
-    scroll-padding-top: 5rem;
+    scroll-padding-top: 4rem;
     scroll-padding-bottom: calc(9rem + env(safe-area-inset-bottom));
   }
   /* Where the header stays pinned too (the roomy: variant) */
   @media (min-width: 768px) and (min-height: 800px) {
     html:has(nav[aria-label='Main']) {
-      scroll-padding-top: 8.5rem;
+      scroll-padding-top: 7.5rem;
     }
   }
   /* Short screens: the header scrolls away; only the cart bar and tabs stay */

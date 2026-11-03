@@ -7,7 +7,9 @@ import { useAuth } from '../../context/AuthContext'
 import { useOrders } from '../../context/OrderContext'
 import { RESTAURANT } from '../../config/restaurant'
 import OrderCheckoutModal, { type CheckoutOptions } from '../../components/OrderCheckoutModal'
-import { Button, EmptyState, LetterTile, PageHeader, QuantityStepper, announce, buttonClasses, focusMain } from '../../components/ui'
+import ItemPhoto from '../../components/ItemPhoto'
+import { MENU_ITEMS } from '../../constants/menu'
+import { Button, EmptyState, PageHeader, QuantityStepper, announce, buttonClasses, focusMain } from '../../components/ui'
 
 const peso = (n: number) => `${RESTAURANT.currency}${n.toFixed(0)}`
 
@@ -90,7 +92,7 @@ export default function Cart() {
                   transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                   className="flex gap-3 border-b border-line px-4 py-3.5 last:border-b-0"
                 >
-                  <LetterTile text={item.name} size="sm" className="max-[359px]:hidden" />
+                  <ItemPhoto item={MENU_ITEMS.find(m => m.id === item.id) ?? item} className="h-14 w-14 shrink-0 rounded-control border border-line max-[359px]:hidden" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-3">
                       <p className="text-[15px] font-medium leading-snug text-ink">{item.name}</p>

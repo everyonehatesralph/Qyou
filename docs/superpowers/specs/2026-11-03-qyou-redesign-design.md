@@ -327,3 +327,22 @@ be accessible. Checked by a second e2e suite (`e2e/devices.spec.ts`) on 10 more 
 - **Text:** real labels are at least 12 px (decorative mock-ups excepted); fields stay 16 px so
   iOS does not zoom; Windows High Contrast marks selected chips, tabs, radios and switches
   with the system highlight.
+
+## Revision 4 (2026-11-04): a photo menu
+
+Requested by the owner, with a delivery-app menu as the reference: guests choose by photo.
+
+- **Guest menu:** a two-column photo grid on phones (three from 640 px). Each card is the
+  photo, name and price; a round + sits on the photo's corner and turns into the − n +
+  stepper. Tapping the card opens a sheet with a large photo, the description and the add
+  control. Sold-out items are greyed with a "Sold out" tag.
+- **Sections, not filters:** underlined section tabs (Popular, Coffee, Tea, Pastry, Food)
+  jump to their section and follow the scroll. Popular is the four most-ordered items, or
+  house picks until there are enough orders. Search shows a flat grid of matches.
+- **Photos:** each demo item has a built-in photo in `public/menu` (free Unsplash photos,
+  640×640 WebP, about 450 KB for all ten; links in `public/menu/CREDITS.md`). Items without a
+  photo show their first letter.
+- **Staff photo editing:** the item editor shows the photo with Change photo, Remove photo
+  and Use original photo; changes apply on Save. Picked photos are centre-cropped to 640×640
+  and re-encoded in the browser (about 50–90 KB). They are stored on that device only
+  (`src/services/menuPhotos.ts`) until the shared backend stores them; the editor says so.

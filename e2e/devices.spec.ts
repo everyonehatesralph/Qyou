@@ -33,6 +33,7 @@ interface Sheet { id: string; route: string; open: (page: Page) => Promise<void>
 
 const SHEETS: Sheet[] = [
   { id: 'help', route: 'menu', open: page => page.getByRole('button', { name: 'Help' }).click() },
+  { id: 'item', route: 'menu', open: page => page.getByRole('button', { name: /^Matcha Latte/ }).first().click() },
   { id: 'checkout', route: 'cart', open: page => page.getByRole('button', { name: /Checkout/ }).click() },
   { id: 'summary', route: 'tracker', open: page => page.getByRole('button', { name: 'Order summary' }).click() },
   { id: 'edit-item', route: 'staffmenu', open: page => page.getByRole('button', { name: /^Edit / }).first().click() },
