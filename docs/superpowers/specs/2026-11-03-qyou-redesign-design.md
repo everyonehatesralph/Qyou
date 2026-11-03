@@ -281,11 +281,12 @@ and §3 it contradicts.
 Requested by the owner after reviewing Revision 1. Replaces the neutrals and demo accent
 from Revision 1; everything else stands.
 
-- **Neutrals (slate):** light `bg #F8FAFC`, `surface #FFFFFF`, `text #0F172A`,
-  `text-muted #475569`; dark `bg #0B1120`, `surface #131B2E`, `text #F1F5F9`,
-  `text-muted #9AA8BD` (full values in `globals.css`). Status colors unchanged.
+- **Neutrals:** light is slate (`bg #F8FAFC`, `surface #FFFFFF`, `text #0F172A`,
+  `text-muted #475569`); dark is neutral charcoal, not slate, because slate reads as navy at
+  dark-mode lightness (`bg #0F0F11`, `surface #18181B`, `text #F4F4F5`, `text-muted #A6A6AF`).
+  Full values in `globals.css`. Status colors unchanged.
 - **Demo accent:** tomato `#D92D20` light with white text on it, `#FB7A6A` dark with
-  slate-900 text on it. The adaptive accent rules from Revision 1 still apply.
+  charcoal text on it. The adaptive accent rules from Revision 1 still apply.
 - **Chart color:** a separate data hue `--chart` (blue, `#2563EB` light / `#4A8CF7` dark) so
   bars never read as buttons. Checked at ≥ 3:1 on `surface` and `surface-2`.
 - **Staff shell:** the inset rounded content panel on desktop is kept (sidebar on `surface`,

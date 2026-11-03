@@ -19,7 +19,7 @@ export const RESTAURANT: {
   shortName: 'Demo Café',
   logoText: 'Q', // letter tile shown when there is no logo image
   accent: { light: '#D92D20', dark: '#FB7A6A' },
-  onAccent: { light: '#FFFFFF', dark: '#0F172A' },
+  onAccent: { light: '#FFFFFF', dark: '#18181B' },
   currency: '₱',
   tables: Array.from({ length: 10 }, (_, i) => ({ id: i + 1, label: `Table ${i + 1}` })),
 }
