@@ -1,164 +1,101 @@
 import { useState } from 'react'
-import { HelpCircle, X, QrCode, Coffee, ShoppingCart, Clock, ChevronDown, ChevronUp } from 'lucide-react'
+import { BellRing, ChevronDown, ShoppingBag, ShoppingCart, UtensilsCrossed } from 'lucide-react'
+import { BottomSheet, Segmented } from './ui'
 import { RESTAURANT } from '../config/restaurant'
+
 const STEPS = [
   {
-    icon: QrCode,
-    title: 'Scan the QR Code',
-    desc: 'Point your phone camera at the QR code on your table. It will open this page automatically.',
-  },
-  {
-    icon: Coffee,
-    title: 'Browse the Menu',
-    desc: 'Tap any item to add it to your cart. Use the category tabs to filter by type.',
+    icon: UtensilsCrossed,
+    title: 'Browse the menu',
+    desc: 'Search or tap a category. Tap + to add an item; sold-out items are grayed out.',
   },
   {
     icon: ShoppingCart,
-    title: 'Review Your Order',
-    desc: 'Tap "View Cart" to see your items. You can adjust quantities or add special notes.',
+    title: 'Check your cart',
+    desc: 'Change quantities, then tap Checkout.',
   },
   {
-    icon: Clock,
-    title: 'Place & Track',
-    desc: 'Tap "Place Order" and watch your order status update in real time as the kitchen prepares it.',
+    icon: ShoppingBag,
+    title: 'Place your order',
+    desc: 'Choose dine in or take away, add any extras or notes, and tap Place order.',
+  },
+  {
+    icon: BellRing,
+    title: 'Track it',
+    desc: 'Your order page updates live as staff confirm and prepare it, and rings when it is ready.',
   },
 ]
+
 const FAQS = [
-  { q: 'Can I add more items after ordering?', a: 'Currently each QR scan starts a new order session. Ask a staff member to add items to your existing order.' },
-  { q: 'How long will my order take?', a: 'Preparation time depends on your items. Coffee typically takes 3–5 minutes, food items 10–15 minutes.' },
-  { q: 'Can I cancel my order?', a: 'Once placed, please speak to a staff member at the counter to modify or cancel your order.' },
-  { q: 'Is there a service charge?', a: 'Prices shown include VAT. No additional service charge is applied.' },
-  { q: 'What if the page stops working?', a: 'Try refreshing the page or scanning the QR code again. Your session will reset.' },
+  {
+    q: 'Can I add more items after ordering?',
+    a: 'Yes. Add them from the menu and place another order. Each order is tracked separately under Orders.',
+  },
+  {
+    q: 'How do I know when my order is ready?',
+    a: 'Keep your order page open. The status changes to "Ready for you" and your phone rings.',
+  },
+  {
+    q: 'Can I cancel my order?',
+    a: 'While it is waiting for confirmation or confirmed, cancel it from Orders. Once the kitchen starts preparing it, please ask a staff member.',
+  },
+  {
+    q: 'What if the page stops working?',
+    a: 'Refresh the page, or scan the QR code on your table again.',
+  },
 ]
-export default function HelpAssistant() {
-  const [open, setOpen]         = useState(false)
-  const [openFaq, setOpenFaq]   = useState<number | null>(null)
-  const [tab, setTab]           = useState<'guide' | 'faq'>('guide')
+
+interface Props {
+  open: boolean
+  onClose: () => void
+}
+
+export default function HelpAssistant({ open, onClose }: Props) {
+  const [tab, setTab] = useState<'guide' | 'faq'>('guide')
+
   return (
-    <>
-      {/* Floating button */}
-      <button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-24 right-4 md:bottom-8 md:right-6 z-40
-                   w-12 h-12 rounded-full shadow-lg
-                   flex items-center justify-center
-                   transition-all duration-200 active:scale-95"
-        style={{ background: 'linear-gradient(135deg, #C8860A, #E09B1A)', boxShadow: '0 0 20px rgba(200,134,10,0.4)' }}
-        title="Need help?"
-      >
-        <HelpCircle className="w-6 h-6 text-white" />
-      </button>
-      {/* Backdrop */}
-      {open && (
-        <div
-          className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm"
-          onClick={() => setOpen(false)}
-        />
-      )}
-      {/* Drawer */}
-      <div
-        className={`fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl transition-transform duration-300 ${
-          open ? 'translate-y-0' : 'translate-y-full'
-        }`}
-        style={{ backgroundColor: '#171210', border: '1px solid #2E2318', maxHeight: '90vh', overflowY: 'auto' }}
-      >
-        {/* Handle */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full" style={{ backgroundColor: '#3D3028' }} />
-        </div>
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4">
-          <div>
-            <h2 className="text-text-base font-bold text-lg">How can we help?</h2>
-            <p className="text-text-muted text-xs mt-0.5">{RESTAURANT.name} ordering guide</p>
-          </div>
-          <button
-            onClick={() => setOpen(false)}
-            className="p-2 rounded-lg hover:bg-surface-3 text-text-muted hover:text-text-base transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        {/* Tabs */}
-        <div className="flex mx-5 mb-4 rounded-xl overflow-hidden" style={{ backgroundColor: '#211A15', border: '1px solid #2E2318' }}>
-          {(['guide', 'faq'] as const).map(t => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`flex-1 py-2.5 text-sm font-semibold transition-all rounded-xl ${
-                tab === t
-                  ? 'text-background'
-                  : 'text-text-muted hover:text-text-base'
-              }`}
-              style={tab === t ? { backgroundColor: '#C8860A' } : {}}
-            >
-              {t === 'guide' ? '📖 Guide' : '❓ FAQ'}
-            </button>
+    <BottomSheet open={open} onClose={onClose} title="How can we help?" description={`Ordering at ${RESTAURANT.name}`}>
+      <Segmented
+        label="Help topics"
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: 'guide', label: 'How to order' },
+          { value: 'faq', label: 'Questions' },
+        ]}
+        className="mb-5"
+      />
+
+      {tab === 'guide' ? (
+        <ol className="space-y-5">
+          {STEPS.map((step, idx) => (
+            <li key={step.title} className="flex gap-4">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-muted">
+                <step.icon className="h-5 w-5" aria-hidden />
+              </span>
+              <div className="min-w-0 pt-0.5">
+                <h3 className="text-[15px] font-medium text-ink">
+                  <span className="text-ink-muted">{idx + 1}. </span>
+                  {step.title}
+                </h3>
+                <p className="mt-1 text-sm leading-relaxed text-ink-muted">{step.desc}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <div className="divide-y divide-line border-y border-line">
+          {FAQS.map(faq => (
+            <details key={faq.q} className="group">
+              <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between gap-3 py-3 text-[15px] font-medium text-ink [&::-webkit-details-marker]:hidden">
+                {faq.q}
+                <ChevronDown className="h-4 w-4 shrink-0 text-ink-muted transition-transform duration-200 group-open:rotate-180" aria-hidden />
+              </summary>
+              <p className="pb-4 pr-7 text-sm leading-relaxed text-ink-muted">{faq.a}</p>
+            </details>
           ))}
         </div>
-        <div className="px-5 pb-8">
-          {tab === 'guide' ? (
-            <div className="space-y-4">
-              {STEPS.map((step, idx) => {
-                const Icon = step.icon
-                return (
-                  <div key={idx} className="flex gap-4">
-                    <div className="flex-shrink-0 flex flex-col items-center">
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center"
-                        style={{ backgroundColor: 'rgba(200,134,10,0.15)', border: '1px solid rgba(200,134,10,0.3)' }}
-                      >
-                        <Icon className="w-5 h-5" style={{ color: '#C8860A' }} />
-                      </div>
-                      {idx < STEPS.length - 1 && (
-                        <div className="w-0.5 h-8 mt-2" style={{ backgroundColor: '#2E2318' }} />
-                      )}
-                    </div>
-                    <div className="flex-1 pb-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span
-                          className="text-xs font-bold px-2 py-0.5 rounded-full"
-                          style={{ backgroundColor: 'rgba(200,134,10,0.15)', color: '#C8860A' }}
-                        >
-                          Step {idx + 1}
-                        </span>
-                      </div>
-                      <h3 className="text-text-base font-semibold text-sm mb-1">{step.title}</h3>
-                      <p className="text-text-muted text-xs leading-relaxed">{step.desc}</p>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {FAQS.map((faq, idx) => (
-                <div
-                  key={idx}
-                  className="rounded-xl overflow-hidden"
-                  style={{ backgroundColor: '#211A15', border: '1px solid #2E2318' }}
-                >
-                  <button
-                    onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
-                    className="w-full flex items-center justify-between px-4 py-3.5 text-left"
-                  >
-                    <span className="text-text-base text-sm font-medium pr-4">{faq.q}</span>
-                    {openFaq === idx
-                      ? <ChevronUp className="w-4 h-4 flex-shrink-0" style={{ color: '#C8860A' }} />
-                      : <ChevronDown className="w-4 h-4 flex-shrink-0 text-text-muted" />
-                    }
-                  </button>
-                  {openFaq === idx && (
-                    <div className="px-4 pb-4">
-                      <p className="text-text-muted text-xs leading-relaxed">{faq.a}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </>
+      )}
+    </BottomSheet>
   )
 }

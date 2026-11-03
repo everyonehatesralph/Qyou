@@ -1,18 +1,22 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Search, ShoppingCart, ShoppingBag, ClipboardList, LayoutGrid, ChefHat, Settings, QrCode, LogOut, TrendingUp, MapPin, BarChart3 } from 'lucide-react'
+import { ShoppingCart, UtensilsCrossed, ClipboardList, LayoutGrid, ChefHat, Settings, QrCode, LogOut, TrendingUp, MapPin, BarChart3 } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useSidebar } from '../context/SidebarContext'
 import CustomerHeader from './CustomerHeader'
 import { RESTAURANT } from '../config/restaurant'
+import { cn } from './ui'
 
 
 const customerItems = [
-  { path: '/search',      label: 'Search',    icon: Search },
-  { path: '/menu',        label: 'Menu',      icon: ShoppingBag },
-  { path: '/cart',        label: 'Cart',      icon: ShoppingCart },
-  { path: '/my-orders',   label: 'Orders',    icon: ClipboardList },
+  { path: '/menu',      label: 'Menu',   icon: UtensilsCrossed, also: [] as string[] },
+  { path: '/cart',      label: 'Cart',   icon: ShoppingCart,    also: [] as string[] },
+  { path: '/my-orders', label: 'Orders', icon: ClipboardList,   also: ['/order/'] },
 ]
+
+// Customer screens that show the header and bottom bar. Check-in, the pickup
+// board and error pages stand alone.
+const CUSTOMER_SHELL = ['/menu', '/cart', '/my-orders', '/order/']
 
 const staffItems = [
   { path: '/staff/dashboard', label: 'Dashboard', icon: LayoutGrid },
@@ -37,6 +41,7 @@ export default function Navigation() {
 
   // Hide nav on landing page and staff login
   if (location.pathname === '/' || location.pathname === '/staff/login') return null
+  if (!isStaffRoute && !CUSTOMER_SHELL.some(p => location.pathname.startsWith(p))) return null
 
   const handleLogout = () => { staffLogout(); navigate('/') }
 
@@ -189,38 +194,34 @@ export default function Navigation() {
   return (
     <>
       <CustomerHeader />
-
-      {/* Desktop and Mobile bottom bar (customer) */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50 glass"
-        style={{ borderTop: '1px solid #2E2318' }}
+        aria-label="Main"
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]"
       >
-        <div className="grid grid-cols-4">
-          {customerItems.map(({ path, label, icon: Icon }) => {
-            const active = isActive(path)
+        <div className="mx-auto grid h-16 max-w-md grid-cols-3">
+          {customerItems.map(({ path, label, icon: Icon, also }) => {
+            const active = isActive(path) || also.some(p => location.pathname.startsWith(p))
             return (
               <button
                 key={path}
+                type="button"
                 onClick={() => navigate(path)}
-                className="relative flex flex-col items-center justify-center py-3 px-2 transition-all duration-200"
-                style={{ color: active ? '#C8860A' : '#9B8B7A' }}
+                aria-current={active ? 'page' : undefined}
+                className={cn(
+                  'relative flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors duration-150',
+                  active ? 'text-ink' : 'text-ink-muted hover:text-ink',
+                )}
               >
-                {active && (
-                  <span
-                    className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
-                    style={{ backgroundColor: '#C8860A' }}
-                  />
-                )}
-                <Icon className="w-5 h-5" />
-                <span className="text-[11px] mt-1 font-medium">{label}</span>
-                {path === '/cart' && cartCount > 0 && (
-                  <span
-                    className="absolute top-2 right-1/4 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold"
-                    style={{ backgroundColor: '#F87171' }}
-                  >
-                    {cartCount > 9 ? '9+' : cartCount}
-                  </span>
-                )}
+                <span className={cn('relative flex h-8 w-14 items-center justify-center rounded-full transition-colors duration-150', active && 'bg-surface-2')}>
+                  <Icon className="h-5 w-5" aria-hidden />
+                  {path === '/cart' && cartCount > 0 && (
+                    <span className="absolute -top-1 right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[11px] font-medium tabular-nums text-on-accent">
+                      {cartCount > 9 ? '9+' : cartCount}
+                    </span>
+                  )}
+                </span>
+                {label}
+                {path === '/cart' && cartCount > 0 && <span className="sr-only">, {cartCount} items</span>}
               </button>
             )
           })}

@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 
 import { lazy, Suspense, useEffect } from 'react'
 import Navigation from './components/Navigation'
@@ -12,7 +12,6 @@ const Landing        = lazy(() => import('./pages/Landing'))
 // Customer
 const TokenValidation= lazy(() => import('./pages/customer/TokenValidation'))
 const Menu           = lazy(() => import('./pages/customer/Menu'))
-const SearchPage     = lazy(() => import('./pages/customer/Search'))
 const Cart           = lazy(() => import('./pages/customer/Cart'))
 const OrderStatus    = lazy(() => import('./pages/customer/OrderStatus'))
 const MyOrders       = lazy(() => import('./pages/customer/MyOrders'))
@@ -90,7 +89,7 @@ export default function App() {
           <Route path="/table/:tableId"    element={<TokenValidation />} />
           <Route path="/t/:tableId"        element={<TokenValidation />} />
           <Route path="/menu"              element={<Menu />} />
-          <Route path="/search"            element={<SearchPage />} />
+          <Route path="/search"            element={<Navigate to="/menu?search=1" replace />} />
           <Route path="/cart"              element={<Cart />} />
           <Route path="/order/:orderId"    element={<OrderStatus />} />
           <Route path="/my-orders"         element={<MyOrders />} />

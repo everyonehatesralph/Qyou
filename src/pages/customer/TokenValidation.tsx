@@ -1,9 +1,13 @@
-import { Smartphone, Coffee, AlertCircle } from 'lucide-react'
+import { Armchair, Users } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useMemo, type FormEvent } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useOrders } from '../../context/OrderContext'
 import { RESTAURANT, tableLabel } from '../../config/restaurant'
+import { Button, LetterTile, TextInput } from '../../components/ui'
+import ThemeToggle from '../../components/ThemeToggle'
+
+/** Table check-in: the page a table's QR code opens. */
 export default function TokenValidation() {
   const navigate = useNavigate()
   const { tableId } = useParams()
@@ -13,85 +17,67 @@ export default function TokenValidation() {
   const tid = Number(tableId) || 1
   const tname = tableLabel(tid)
 
-  // Check if table is occupied (has active orders)
+  // A table with unpaid orders is treated as occupied
   const isTableOccupied = useMemo(() => {
     return orders.some(o => o.tableId === tid && o.status !== 'paid')
   }, [orders, tid])
 
-  const handleContinue = useCallback(() => {
-    if (!name.trim()) return
-    if (isTableOccupied) return // Prevent occupied table access
+  const handleContinue = (e: FormEvent) => {
+    e.preventDefault()
+    if (!name.trim() || isTableOccupied) return
     setTableSession(tid, tname, name.trim())
     navigate('/menu')
-  }, [name, tid, tname, setTableSession, navigate, isTableOccupied])
-  return (
+  }
 
-    <div className="min-h-screen bg-background flex items-center justify-center px-4 pt-14">
-      <div className="w-full max-w-sm">
-        {/* Brand */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary-glow border border-primary/30 mb-5">
-            <Coffee className="w-8 h-8 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold text-text-base">{RESTAURANT.name}</h1>
-          <div className="flex items-center justify-center gap-2 mt-2">
-            <Smartphone className="w-4 h-4 text-text-muted" />
-            <p className="text-text-muted text-sm">{tname}</p>
-          </div>
+  return (
+    <div className="flex min-h-[100dvh] flex-col bg-bg px-4">
+      <div className="mx-auto flex w-full max-w-sm justify-end pt-3">
+        <ThemeToggle className="-mr-2" />
+      </div>
+
+      <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center pb-16">
+        <div className="text-center">
+          <LetterTile text={RESTAURANT.logoText} tone="accent" size="lg" className="rounded-card" />
+          <h1 className="mt-5 text-balance font-display text-[32px] leading-tight tracking-[-0.01em] text-ink">
+            {RESTAURANT.name}
+          </h1>
+          <p className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-sm font-medium text-ink">
+            <Armchair className="h-4 w-4 text-ink-muted" aria-hidden />
+            {tname}
+          </p>
         </div>
 
-        {/* Occupied Error */}
-        {isTableOccupied && (
-          <div className="mb-6 p-4 rounded-xl flex items-start gap-3" style={{ backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)' }}>
-            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#EF4444' }} />
-            <div>
-              <p className="text-sm font-semibold" style={{ color: '#EF4444' }}>Table Occupied</p>
-              <p className="text-xs text-text-muted mt-1">This table is currently in use. Please ask staff for an available table.</p>
-            </div>
-          </div>
-        )}
-
-        {/* Name input - only show if not occupied */}
-        {!isTableOccupied && (
-          <>
-            <div className="mb-4">
-              <label className="block text-text-muted text-xs font-medium mb-2">Your name</label>
-              <input
-                type="text"
-                placeholder="Enter your name to continue"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleContinue()}
-                autoFocus
-              />
-            </div>
-            <button
-              onClick={handleContinue}
-              disabled={!name.trim()}
-              className="w-full btn-primary py-4 rounded-xl font-semibold text-background text-base
-                         disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
-            >
-              Start Ordering
-            </button>
-            <p className="text-center text-text-faint text-xs mt-6">
-              Your name helps us identify your order at {tname}
+        {isTableOccupied ? (
+          <div className="mt-10 rounded-card border border-line bg-surface p-5 text-center">
+            <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-status-waiting-bg text-status-waiting-text">
+              <Users className="h-5 w-5" aria-hidden />
+            </span>
+            <h2 className="mt-3 font-display text-xl text-ink">This table is in use</h2>
+            <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">
+              Someone is already ordering at {tname}. Please ask a staff member for a free table.
             </p>
-          </>
-        )}
-
-        {/* Occupied state message */}
-        {isTableOccupied && (
-          <div className="text-center">
-            <p className="text-text-muted text-sm mb-4">Please use an available table or contact staff for assistance.</p>
-            <button
-              onClick={() => window.history.back()}
-              className="w-full btn-secondary py-3 rounded-xl font-semibold text-base"
-            >
-              Go Back
-            </button>
           </div>
+        ) : (
+          <form onSubmit={handleContinue} className="mt-10">
+            <TextInput
+              label="Your name"
+              placeholder="e.g. Ana"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              autoComplete="given-name"
+              autoFocus
+              hint="So staff know whose order it is."
+            />
+            <Button type="submit" variant="primary" size="lg" fullWidth disabled={!name.trim()} className="mt-5">
+              Start ordering
+            </Button>
+          </form>
         )}
-      </div>
+      </main>
+
+      <p className="pb-6 text-center text-xs text-ink-muted">
+        Ordering by <span className="font-display text-sm text-ink">Qyou</span>
+      </p>
     </div>
   )
 }

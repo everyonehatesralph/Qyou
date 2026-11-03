@@ -5,7 +5,6 @@ import { useCart } from '../../context/CartContext'
 import { useAuth } from '../../context/AuthContext'
 import { useMenuAvailability } from '../../context/MenuAvailabilityContext'
 import { MENU_ITEMS, CATEGORIES } from '../../constants/menu'
-import HelpAssistant from '../../components/HelpAssistant'
 
 function getGreeting(): string {
   const h = new Date().getHours()
@@ -192,8 +191,6 @@ export default function Menu() {
         </div>
 
       )}
-      {/* Floating help button */}
-      <HelpAssistant />
     </div>
   )
 }
