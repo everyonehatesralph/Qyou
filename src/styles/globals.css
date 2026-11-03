@@ -224,6 +224,8 @@
     mask: linear-gradient(black, black) top / 100% calc(100% - 8px) no-repeat,
       conic-gradient(from -45deg at bottom, transparent, black 1deg 89deg, transparent 90deg) bottom / 16px 8px repeat-x;
   }
+  /* A soft shadow that follows a masked shape (box-shadow would be masked away) */
+  .paper-shadow { filter: drop-shadow(0 10px 14px rgb(15 23 42 / 0.16)); }
   .preserve-3d { transform-style: preserve-3d; }
   .backface-hidden { backface-visibility: hidden; }
   .scrollbar-hide::-webkit-scrollbar { display: none; }

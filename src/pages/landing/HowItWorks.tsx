@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion, useScroll, useSpring, useTransform } from 'framer-motion'
 import { ChefHat } from 'lucide-react'
 import { cn } from '../../components/ui'
+import { RESTAURANT } from '../../config/restaurant'
+import { MENU_ITEMS } from '../../constants/menu'
+import { peso } from '../../utils/formatters'
 import { OrderScreen, PhoneFrame, ReadyScreen, ScanScreen, SentScreen } from './PhoneScreens'
 
 const STEPS = [
@@ -14,28 +17,112 @@ const STEPS = [
 const SCREENS = [ScanScreen, OrderScreen, SentScreen, ReadyScreen]
 const EASE = [0.22, 1, 0.36, 1] as const
 
-/** The kitchen ticket that flies out of the phone at step 3. */
-function KitchenTicket({ ready }: { ready: boolean }) {
+// The order from the phone's order screen: 2× Caramel Macchiato, 1× Butter Croissant
+const LINES = [{ id: 2, qty: 2 }, { id: 7, qty: 1 }].map(l => ({ ...l, item: MENU_ITEMS.find(i => i.id === l.id)! }))
+const TOTAL = LINES.reduce((s, l) => s + l.item.price * l.qty, 0)
+
+// Thermal printers feed paper in short bursts: eight eased steps over the run
+const FEED_STEPS = 8
+const feed = (t: number) => {
+  const i = Math.min(FEED_STEPS - 1, Math.floor(t * FEED_STEPS))
+  const f = t * FEED_STEPS - i
+  return (i + f * f * (3 - 2 * f)) / FEED_STEPS
+}
+const FEED_DELAY = 0.3
+const FEED_DURATION = 1.6
+
+/** The kitchen printer: a dark device like the phone, with a status light and a paper slot. */
+function Printer() {
   return (
-    <div data-theme="dark" className="w-[196px] rounded-[14px] border-2 border-line bg-surface p-3.5 text-ink shadow-lift">
-      <div className="flex items-center justify-between">
-        <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-ink-muted">
-          <ChefHat className="h-3.5 w-3.5" aria-hidden /> Kitchen
-        </span>
-        <motion.span
-          key={ready ? 'ready' : 'new'}
-          initial={{ scale: 0.7, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className={cn('rounded-full px-2 py-0.5 text-[10px] font-semibold', ready ? 'bg-status-ready-bg text-status-ready-text' : 'bg-status-progress-bg text-status-progress-text')}
-        >
-          {ready ? 'Ready' : 'New'}
-        </motion.span>
-      </div>
-      <p className="mt-2 font-display text-[30px] leading-none">Table 4</p>
-      <ul className="mt-2.5 space-y-1 border-t border-line pt-2.5 text-[13px]">
-        <li><span className="text-ink-muted">2×</span> Caramel Macchiato</li>
-        <li><span className="text-ink-muted">1×</span> Butter Croissant</li>
+    <div data-theme="dark" className="relative z-10 flex h-9 items-center justify-between rounded-[12px] border border-line-strong bg-surface px-3 text-ink shadow-lift">
+      <span className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest text-ink-muted">
+        <ChefHat className="h-3.5 w-3.5" aria-hidden /> Kitchen
+      </span>
+      {/* Blinks while it prints */}
+      <motion.span
+        className="h-1.5 w-1.5 rounded-full bg-status-ready-text"
+        initial={{ opacity: 0.3 }}
+        animate={{ opacity: [0.3, 1, 0.3, 1, 0.3, 1, 0.3, 1] }}
+        transition={{ delay: FEED_DELAY, duration: FEED_DURATION }}
+      />
+      <span className="absolute inset-x-2 -bottom-[3px] h-1.5 rounded-full bg-bg" />
+    </div>
+  )
+}
+
+/** The printed kitchen receipt: light paper in both modes, torn edge at the bottom. */
+function Receipt({ ready }: { ready: boolean }) {
+  return (
+    <div data-theme="light" className="receipt-edge bg-surface px-2.5 pb-5 pt-3 text-ink sm:px-3">
+      <p className="text-center font-mono text-[9px] uppercase tracking-widest text-ink-muted">{RESTAURANT.shortName}</p>
+      <p className="mt-1 text-center font-display text-[22px] leading-none sm:text-[26px]">Table 4</p>
+      <p className="mt-1 text-center font-mono text-[9px] text-ink-muted">Nº 0427 · Dine in</p>
+      <div className="perforation my-2.5" />
+      <ul className="space-y-1 text-[10px] leading-snug sm:text-[11px]">
+        {LINES.map(l => (
+          <li key={l.id} className="flex justify-between gap-2">
+            <span><span className="text-ink-muted">{l.qty}×</span> {l.item.name}</span>
+            <span className="tabular-nums">{peso(l.item.price * l.qty)}</span>
+          </li>
+        ))}
       </ul>
+      <div className="perforation my-2.5" />
+      <p className="flex justify-between text-[11px] font-semibold">
+        <span>Total</span>
+        <span className="tabular-nums">{peso(TOTAL)}</span>
+      </p>
+      <div className="mt-2.5 flex h-7 items-center justify-center">
+        <AnimatePresence mode="wait" initial={false}>
+          {ready ? (
+            <motion.span
+              key="ready"
+              initial={{ opacity: 0, scale: 1.6, rotate: -16 }}
+              animate={{ opacity: 1, scale: 1, rotate: -8 }}
+              exit={{ opacity: 0, transition: { duration: 0.15 } }}
+              transition={{ type: 'spring', stiffness: 500, damping: 20 }}
+              className="rounded-[6px] border-2 border-status-ready-text px-2 py-0.5 font-display text-[13px] uppercase leading-none tracking-wide text-status-ready-text"
+            >
+              Ready
+            </motion.span>
+          ) : (
+            <motion.span
+              key="sent"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, transition: { duration: 0.15 } }}
+              className="font-mono text-[9px] uppercase tracking-widest text-ink-muted"
+            >
+              Sent to kitchen
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  )
+}
+
+/** Printer plus the receipt feeding down out of its slot. */
+function KitchenPrinter({ ready }: { ready: boolean }) {
+  return (
+    <div aria-hidden>
+      <Printer />
+      {/* Clip only the top, so paper appears from the slot and its shadow stays whole */}
+      <div className="mx-2 -mt-[3px] [clip-path:inset(0_-2rem_-3rem_-2rem)]">
+        <motion.div
+          initial={{ y: '-100%' }}
+          animate={{ y: 0 }}
+          transition={{ delay: FEED_DELAY, duration: FEED_DURATION, ease: feed }}
+        >
+          {/* Paper settles with a small swing once it is out */}
+          <motion.div
+            className="paper-shadow origin-top"
+            animate={{ rotate: [0, 1.6, -0.9, 0.4, 0] }}
+            transition={{ delay: FEED_DELAY + FEED_DURATION, duration: 0.9, ease: 'easeOut' }}
+          >
+            <Receipt ready={ready} />
+          </motion.div>
+        </motion.div>
+      </div>
     </div>
   )
 }
@@ -53,7 +140,8 @@ export default function HowItWorks() {
   const rotateX = useTransform(smooth, [0, 0.5, 1], reduce ? [0, 0, 0] : [6, 2, 6])
   const rail = useTransform(scrollYProgress, [0, 1], [0, 1])
   const Screen = SCREENS[step]
-  const showKitchen = step >= 2
+  // The receipt prints once the order is sent and stays for the rest of the story
+  const printed = step >= 2
 
   return (
     <section id="how-it-works" ref={ref} className="relative scroll-mt-16 lg:h-[400vh] h-[340vh]">
@@ -98,10 +186,12 @@ export default function HowItWorks() {
 
           {/* Stage */}
           <div className="relative flex h-[min(54dvh,560px)] items-center justify-center [perspective:1400px] lg:h-[620px]">
-            <motion.div
-              animate={{ x: showKitchen ? -70 : 0 }}
-              transition={{ duration: 0.7, ease: EASE }}
-              className="preserve-3d relative"
+            {/* The phone steps aside for the printer, further on phones so they never overlap */}
+            <div
+              className={cn(
+                'preserve-3d relative transition-transform duration-700',
+                printed && '-translate-x-[84px] sm:-translate-x-[80px] lg:-translate-x-[90px]',
+              )}
             >
               <motion.div
                 style={{ rotateY, rotateX }}
@@ -124,19 +214,19 @@ export default function HowItWorks() {
                   </AnimatePresence>
                 </PhoneFrame>
               </motion.div>
-            </motion.div>
+            </div>
 
             <AnimatePresence>
-              {showKitchen && (
+              {printed && (
                 <motion.div
-                  key="kitchen"
-                  initial={{ opacity: 0, x: -120, y: 60, rotate: -14, scale: 0.55 }}
-                  animate={{ opacity: 1, x: 0, y: 0, rotate: 4, scale: 1 }}
-                  exit={{ opacity: 0, x: -120, y: 60, rotate: -14, scale: 0.55 }}
-                  transition={{ type: 'spring', stiffness: 160, damping: 18 }}
-                  className="absolute bottom-[8%] right-0 z-10 sm:right-[2%] lg:bottom-auto lg:right-0 lg:top-[30%]"
+                  key="printer"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10, transition: { duration: 0.2 } }}
+                  transition={{ duration: 0.3, ease: EASE }}
+                  className="absolute right-0 top-[4%] z-10 w-[148px] sm:right-[4%] sm:w-[176px] lg:right-0 lg:top-[14%] lg:w-[200px]"
                 >
-                  <KitchenTicket ready={step === 3} />
+                  <KitchenPrinter ready={step === 3} />
                 </motion.div>
               )}
             </AnimatePresence>
