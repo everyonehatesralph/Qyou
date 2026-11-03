@@ -166,7 +166,7 @@ export function createOrderSyncMiddleware() {
 
 export default function orderSyncPlugin(): Plugin {
   return {
-    name: 'deverse-order-sync',
+    name: 'qyou-order-sync',
     configureServer(server: ViteDevServer) {
       // Add middleware BEFORE Vite's own middleware
       server.middlewares.use(createOrderSyncMiddleware())

@@ -1,4 +1,4 @@
-# Cafe App Architecture: Concurrency, Low Latency & Parallel Distribution
+# Qyou Architecture: Concurrency, Low Latency & Parallel Distribution
 
 > **Core Philosophy:** Build a real-time ordering system that feels instant to users while handling multiple concurrent orders across devices simultaneously.
 
@@ -96,7 +96,7 @@ Tab 3: Order appears without refresh
 #### Code Example:
 ```typescript
 // src/context/BroadcastSync.ts
-const CHANNEL_NAME = 'deverse_cafe_sync'
+const CHANNEL_NAME = 'qyou_sync'
 const senderId = Math.random().toString(36).slice(2, 10)
 
 let channel: BroadcastChannel | null = null

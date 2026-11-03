@@ -1,19 +1,20 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DeVerse Cafe — Ordering System</title>
-    <meta name="description" content="Scan, order, and track your food at DeVerse Cafe." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Qyou — Don't queue. Just Qyou.</title>
+    <meta name="description" content="Qyou is QR table ordering for cafés and restaurants: guests scan, order and get notified from their own phone." />
+    <meta name="theme-color" content="#FAF7F2" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-    <!-- Set theme BEFORE any CSS renders to prevent flash -->
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=Outfit:wght@400;500&display=swap" rel="stylesheet" />
+    <!-- Set the mode before any CSS renders to prevent a flash -->
     <script>
       (function() {
         try {
-          var t = localStorage.getItem('deverse_theme');
-          if (t === 'light') document.documentElement.classList.replace('dark', 'light');
+          var t = localStorage.getItem('qyou_theme');
+          if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
         } catch(e) {}
       })();
     </script>

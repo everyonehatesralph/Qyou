@@ -27,5 +27,5 @@ app.get('*', (req, res) => {
 })
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🍰 DeVerse Cafe server running on http://0.0.0.0:${PORT}`)
+  console.log(`Qyou server running on http://0.0.0.0:${PORT}`)
 })

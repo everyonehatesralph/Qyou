@@ -1,4 +1,7 @@
 /** @type {import('tailwindcss').Config} */
+// Every color is a CSS custom property defined in src/styles/globals.css.
+const status = ['waiting', 'progress', 'ready', 'done', 'cancelled']
+
 export default {
   content: [
     "./index.html",
@@ -7,40 +10,54 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Core backgrounds — now powered by CSS vars for theme switching
-        background: 'var(--bg)',
-        surface:    'var(--surface)',
-        'surface-2':'var(--surface-2)',
-        'surface-3':'var(--surface-3)',
-        // Brand — rich caramel gold
-        primary:        'var(--primary)',
-        'primary-dark': '#A06B00',
-        'primary-light':'#E09B1A',
-        'primary-glow': 'rgba(200,134,10,0.18)',
-        // Accent — soft warm cream
-        accent:        '#E8C97A',
-        'accent-soft': 'rgba(232,201,122,0.12)',
-        // Text — theme-aware
-        'text-base':   'var(--text)',
-        'text-muted':  'var(--text-muted)',
-        'text-faint':  'var(--text-faint)',
-        // Border — theme-aware
-        border:        'var(--border)',
-        'border-light':'var(--border-light)',
-        // Status
-        success:       '#4ADE80',
-        'success-bg':  'rgba(74,222,128,0.1)',
-        warning:       '#FBBF24',
-        'warning-bg':  'rgba(251,191,36,0.1)',
-        error:         '#F87171',
-        'error-bg':    'rgba(248,113,113,0.1)',
-        info:          '#60A5FA',
-        'info-bg':     'rgba(96,165,250,0.1)',
+        bg:            'var(--bg)',
+        surface:       'var(--surface)',
+        'surface-2':   'var(--surface-2)',
+        'surface-3':   'var(--surface-3)',
+        line:          'var(--border)',
+        'line-strong': 'var(--border-strong)',
+        ink:           'var(--text)',
+        'ink-muted':   'var(--text-muted)',
+        'ink-faint':   'var(--text-faint)',
+        accent:        'var(--accent)',
+        'accent-hover':'var(--accent-hover)',
+        'accent-soft': 'var(--accent-soft)',
+        'accent-text': 'var(--accent-text)',
+        'on-accent':   'var(--on-accent)',
+        ...Object.fromEntries(status.flatMap(s => [
+          [`status-${s}-bg`, `var(--status-${s}-bg)`],
+          [`status-${s}-text`, `var(--status-${s}-text)`],
+        ])),
+
+        // Legacy aliases, removed in the cleanup task
+        background:     'var(--bg)',
+        primary:        'var(--accent)',
+        'primary-dark': 'var(--accent-hover)',
+        'primary-light':'var(--accent-hover)',
+        'primary-glow': 'var(--accent-soft)',
+        'text-base':    'var(--text)',
+        'text-muted':   'var(--text-muted)',
+        'text-faint':   'var(--text-faint)',
+        border:         'var(--border)',
+        'border-light': 'var(--border-strong)',
+        success:        'var(--status-ready-text)',
+        'success-bg':   'var(--status-ready-bg)',
+        warning:        'var(--status-waiting-text)',
+        'warning-bg':   'var(--status-waiting-bg)',
+        error:          'var(--status-cancelled-text)',
+        'error-bg':     'var(--status-cancelled-bg)',
+        info:           'var(--status-progress-text)',
+        'info-bg':      'var(--status-progress-bg)',
       },
       fontFamily: {
+        display: ['Fraunces', 'Georgia', 'serif'],
         sans: ['Outfit', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
+        control: '10px',
+        card:    '12px',
+        sheet:   '16px',
+        // Legacy keys, removed in the cleanup task
         'sm':  '6px',
         DEFAULT:'10px',
         'md':  '12px',
@@ -49,13 +66,12 @@ export default {
         '2xl': '24px',
       },
       boxShadow: {
-        'glow-primary': '0 0 24px rgba(200,134,10,0.25)',
-        'glow-sm':      '0 0 12px rgba(200,134,10,0.15)',
-        'card':         'var(--card-shadow)',
-        'card-hover':   'var(--card-shadow-hover)',
-      },
-      backdropBlur: {
-        'xs': '4px',
+        pop:            'var(--shadow-pop)',
+        // Legacy keys, removed in the cleanup task
+        'glow-primary': 'none',
+        'glow-sm':      'none',
+        'card':         'none',
+        'card-hover':   'none',
       },
     },
   },

@@ -1,4 +1,4 @@
-# DeVerse Cafe - Web Ordering System
+# Qyou — QR table ordering
 
 A progressive web app for restaurant table ordering with real-time status tracking, built for local network deployment.
 
@@ -128,4 +128,4 @@ On Raspberry Pi / Local PC:
 
 ## License
 
-Proprietary - DeVerse Cafe
+Proprietary - Qyou

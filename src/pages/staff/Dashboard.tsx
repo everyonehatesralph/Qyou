@@ -9,19 +9,9 @@ import { useSidebar } from '../../context/SidebarContext'
 import { useMemo, useCallback, memo } from 'react'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader, { HeaderButton, HeaderDivider } from '../../components/StaffHeader'
+import { RESTAURANT } from '../../config/restaurant'
 
-const TABLES = [
-  { id: 1, name: 'Table 1' },
-  { id: 2, name: 'Table 2' },
-  { id: 3, name: 'Table 3' },
-  { id: 4, name: 'Table 4' },
-  { id: 5, name: 'Table 5' },
-  { id: 6, name: 'Table 6' },
-  { id: 7, name: 'Table 7' },
-  { id: 8, name: 'Table 8' },
-  { id: 9, name: 'Table 9' },
-  { id: 10, name: 'Table 10' },
-]
+const TABLES = RESTAURANT.tables.map(t => ({ id: t.id, name: t.label }))
 
 const STATUS_COLOR: Record<string, string> = {
   pending:   '#FBBF24',

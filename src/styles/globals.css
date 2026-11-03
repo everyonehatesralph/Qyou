@@ -7,27 +7,96 @@
     box-sizing: border-box;
   }
 
-  /* ── Root fallback — ensures variables exist before JS ── */
-  :root {
-    --bg:           #0D0B0A;
-    --surface:      #171210;
-    --surface-2:    #211A15;
-    --surface-3:    #2C231B;
-    --text:         #F0E6D3;
-    --text-muted:   #9B8B7A;
-    --text-faint:   #5C4F44;
-    --border:       #2E2318;
-    --border-light: #3D3028;
-    --primary:      #C8860A;
-    --primary-hover:#E09B1A;
-    --glass-bg:     rgba(23, 18, 16, 0.85);
-    --card-bg:      #211A15;
-    --card-shadow:  0 4px 24px rgba(0,0,0,0.4);
-    --card-shadow-hover: 0 8px 32px rgba(0,0,0,0.5);
-    --input-bg:     #211A15;
-    --input-placeholder: #5C4F44;
-    --btn-ghost-bg: #2C231B;
-    --btn-ghost-hover: #2E2318;
+  /* ── Daylight tokens ─────────────────────────────────────────────────────
+     Mode is set with data-theme on <html>; any subtree can override it with
+     its own data-theme attribute. Accent tokens are also injected at startup
+     by src/theme/accent.ts from src/config/restaurant.ts; the values here are
+     the defaults used before that runs. scripts/check-contrast.mjs reads
+     these two blocks, so keep each selector on one line. */
+  :root, [data-theme="light"] {
+    color-scheme: light;
+    --bg: #FAF7F2;
+    --surface: #FFFFFF;
+    --surface-2: #F3EEE6;
+    --surface-3: #EAE3D8;
+    --border: #E9E2D8;
+    --border-strong: #D8CFC2;
+    --text: #1F1A17;
+    --text-muted: #6F655C;
+    --text-faint: #9C9188;
+    --accent: #9A5A0E;
+    --accent-hover: #834D0C;
+    --on-accent: #FFFFFF;
+    --accent-soft: #F3EBE2;
+    --accent-text: #7B480B;
+
+    --status-waiting-bg: #FDF0D5;
+    --status-waiting-text: #7A4A06;
+    --status-progress-bg: #E3EDFD;
+    --status-progress-text: #1E46A0;
+    --status-ready-bg: #DFF3E5;
+    --status-ready-text: #14612F;
+    --status-done-bg: #EFEAE3;
+    --status-done-text: #4F463F;
+    --status-cancelled-bg: #FBE4E4;
+    --status-cancelled-text: #8F1D1D;
+
+    --scrim: rgba(31, 26, 23, 0.45);
+    --glass-bg: rgba(250, 247, 242, 0.9);
+    --shadow-pop: 0 8px 28px rgba(31, 26, 23, 0.12);
+  }
+
+  [data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #14110F;
+    --surface: #1E1A17;
+    --surface-2: #27221E;
+    --surface-3: #312B26;
+    --border: #332C27;
+    --border-strong: #453C35;
+    --text: #F3ECE4;
+    --text-muted: #A89A8C;
+    --text-faint: #776B60;
+    --accent: #E0A04A;
+    --accent-hover: #E5AE65;
+    --on-accent: #1A1208;
+    --accent-soft: #413220;
+    --accent-text: #E5AE65;
+
+    --status-waiting-bg: #3A2C12;
+    --status-waiting-text: #F5C76B;
+    --status-progress-bg: #17284A;
+    --status-progress-text: #9DBDF5;
+    --status-ready-bg: #143322;
+    --status-ready-text: #86D9A2;
+    --status-done-bg: #2A2522;
+    --status-done-text: #C9BDB1;
+    --status-cancelled-bg: #3B1616;
+    --status-cancelled-text: #F4A3A3;
+
+    --scrim: rgba(0, 0, 0, 0.6);
+    --glass-bg: rgba(20, 17, 15, 0.9);
+    --shadow-pop: 0 8px 28px rgba(0, 0, 0, 0.45);
+  }
+
+  /* Tokens derived from the ones above. Declared on every themed element so
+     they resolve against that element's own mode. */
+  :root, [data-theme] {
+    --success: var(--status-ready-text);
+    --danger: var(--status-cancelled-text);
+    --warning: var(--status-waiting-text);
+
+    /* Legacy aliases, removed once every page uses the new names. */
+    --primary: var(--accent);
+    --primary-hover: var(--accent-hover);
+    --border-light: var(--border-strong);
+    --card-bg: var(--surface);
+    --card-shadow: none;
+    --card-shadow-hover: none;
+    --input-bg: var(--surface);
+    --input-placeholder: var(--text-faint);
+    --btn-ghost-bg: var(--surface-2);
+    --btn-ghost-hover: var(--surface-3);
   }
 
   html {
@@ -35,7 +104,6 @@
     scroll-behavior: smooth;
   }
 
-  /* ── Dark theme (default) ── */
   html, body {
     background-color: var(--bg);
     color: var(--text);
@@ -44,216 +112,110 @@
     font-family: 'Outfit', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    transition: background-color 0.35s ease, color 0.35s ease;
+    -webkit-tap-highlight-color: transparent;
   }
 
-  html.dark {
-    --bg:           #0D0B0A;
-    --surface:      #171210;
-    --surface-2:    #211A15;
-    --surface-3:    #2C231B;
-    --text:         #F0E6D3;
-    --text-muted:   #9B8B7A;
-    --text-faint:   #5C4F44;
-    --border:       #2E2318;
-    --border-light: #3D3028;
-    --primary:      #C8860A;
-    --primary-hover:#E09B1A;
-    --glass-bg:     rgba(23, 18, 16, 0.85);
-    --card-bg:      #211A15;
-    --card-shadow:  0 4px 24px rgba(0,0,0,0.4);
-    --card-shadow-hover: 0 8px 32px rgba(0,0,0,0.5);
-    --input-bg:     #211A15;
-    --input-placeholder: #5C4F44;
-    --btn-ghost-bg: #2C231B;
-    --btn-ghost-hover: #2E2318;
-  }
-
-  html.light {
-    --bg:           #F8F5F0;
-    --surface:      #FFFFFF;
-    --surface-2:    #F0EBE3;
-    --surface-3:    #E8E0D5;
-    --text:         #1A1612;
-    --text-muted:   #6B5E52;
-    --text-faint:   #9B8E82;
-    --border:       #DDD5CA;
-    --border-light: #C8BEB2;
-    --primary:      #B07508;
-    --primary-hover:#C8860A;
-    --glass-bg:     rgba(255, 255, 255, 0.85);
-    --card-bg:      #FFFFFF;
-    --card-shadow:  0 2px 12px rgba(0,0,0,0.06);
-    --card-shadow-hover: 0 6px 24px rgba(0,0,0,0.1);
-    --input-bg:     #F0EBE3;
-    --input-placeholder: #9B8E82;
-    --btn-ghost-bg: #F0EBE3;
-    --btn-ghost-hover: #E8E0D5;
-  }
-
-  /* Default to dark if no class yet */
-  html:not(.light):not(.dark) {
-    --bg:           #0D0B0A;
-    --surface:      #171210;
-    --surface-2:    #211A15;
-    --surface-3:    #2C231B;
-    --text:         #F0E6D3;
-    --text-muted:   #9B8B7A;
-    --text-faint:   #5C4F44;
-    --border:       #2E2318;
-    --border-light: #3D3028;
-    --primary:      #C8860A;
-    --primary-hover:#E09B1A;
-    --glass-bg:     rgba(23, 18, 16, 0.85);
-    --card-bg:      #211A15;
-    --card-shadow:  0 4px 24px rgba(0,0,0,0.4);
-    --card-shadow-hover: 0 8px 32px rgba(0,0,0,0.5);
-    --input-bg:     #211A15;
-    --input-placeholder: #5C4F44;
-    --btn-ghost-bg: #2C231B;
-    --btn-ghost-hover: #2E2318;
-  }
-  /* ── Scrollbar styling ── */
-  /* Dark theme scrollbar */
-  html.dark ::-webkit-scrollbar {
+  /* ── Scrollbars ── */
+  ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
-
-  html.dark ::-webkit-scrollbar-track {
+  ::-webkit-scrollbar-track {
     background: transparent;
   }
-
-  html.dark ::-webkit-scrollbar-thumb {
-    background: rgba(200, 134, 10, 0.5);
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
     border-radius: 4px;
-    transition: background 0.3s ease;
   }
-
-  html.dark ::-webkit-scrollbar-thumb:hover {
-    background: rgba(200, 134, 10, 0.8);
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-faint);
   }
-
-  /* Light theme scrollbar */
-  html.light ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  html.light ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  html.light ::-webkit-scrollbar-thumb {
-    background: rgba(176, 117, 8, 0.4);
-    border-radius: 4px;
-    transition: background 0.3s ease;
-  }
-
-  html.light ::-webkit-scrollbar-thumb:hover {
-    background: rgba(176, 117, 8, 0.7);
-  }
-
-  /* Firefox scrollbar */
   * {
-    scrollbar-color: rgba(200, 134, 10, 0.5) transparent;
+    scrollbar-color: var(--border-strong) transparent;
     scrollbar-width: thin;
   }
 
-  html.light * {
-    scrollbar-color: rgba(176, 117, 8, 0.4) transparent;
-  }
   #root {
     min-height: 100vh;
     width: 100%;
     overflow-x: hidden;
   }
-  input:not([type='checkbox']):not([type='radio']):not([type='range']),
-  select,
-  textarea {
-    background-color: var(--input-bg);
-    border: 1px solid var(--border);
+
+  /* Base field styling. Wrapped in :where() so utility classes can override it. */
+  :where(input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea) {
+    background-color: var(--surface);
+    border: 1px solid var(--border-strong);
     color: var(--text);
     border-radius: 10px;
     padding: 10px 14px;
-    font-size: 14px;
+    font-size: 16px;
     font-family: inherit;
     width: 100%;
-    transition: border-color 0.2s, background-color 0.35s ease, color 0.35s ease;
+    transition: border-color 0.15s, box-shadow 0.15s;
     outline: none;
   }
-  input:not([type='checkbox']):not([type='radio']):not([type='range']):focus,
-  select:focus,
-  textarea:focus {
-    border-color: var(--primary);
+  :where(input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea):focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
   }
   input::placeholder,
   textarea::placeholder {
-    color: var(--input-placeholder);
+    color: var(--text-faint);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 }
 
 @layer utilities {
   .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
 }
 
-/* ─── Component shorthands ──────────────────────────────────────────────────── */
+/* ─── Legacy component shorthands (removed in the cleanup task) ─────────── */
 @layer components {
   .glass {
     background-color: var(--glass-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border);
-    transition: background-color 0.35s ease;
   }
   .card {
-    background-color: var(--card-bg);
+    background-color: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    box-shadow: var(--card-shadow);
-    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.35s ease;
-  }
-  .card:hover {
-    border-color: var(--border-light);
-    box-shadow: var(--card-shadow-hover);
+    border-radius: 12px;
   }
   .btn-primary {
-    background-color: var(--primary);
-    font-weight: 600;
+    background-color: var(--accent);
+    color: var(--on-accent);
+    font-weight: 500;
     border-radius: 10px;
-    transition: all 0.2s;
-    box-shadow: 0 0 12px rgba(200,134,10,0.15);
+    transition: background-color 0.15s;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
   }
   .btn-primary:hover {
-    background-color: var(--primary-hover);
-    box-shadow: 0 0 24px rgba(200,134,10,0.25);
-  }
-  .btn-primary:active {
-    transform: scale(0.95);
+    background-color: var(--accent-hover);
   }
   .btn-ghost {
-    background-color: var(--btn-ghost-bg);
+    background-color: var(--surface-2);
     color: var(--text);
     font-weight: 500;
     border-radius: 10px;
     border: 1px solid var(--border);
-    transition: all 0.2s;
+    transition: background-color 0.15s;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
   }
   .btn-ghost:hover {
-    background-color: var(--btn-ghost-hover);
-    border-color: var(--border-light);
-  }
-  .btn-ghost:active {
-    transform: scale(0.95);
+    background-color: var(--surface-3);
   }
   .badge {
     display: inline-flex;
@@ -261,6 +223,6 @@
     padding: 2px 10px;
     border-radius: 9999px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 500;
   }
 }

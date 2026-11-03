@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { X, Printer } from 'lucide-react'
 import type { Order } from '../context/OrderContext'
+import { RESTAURANT } from '../config/restaurant'
 
 interface InvoiceModalProps {
   order: Order
@@ -31,7 +32,7 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Receipt #${order.id} — DeVerse Cafe</title>
+          <title>Receipt #${order.id} — ${RESTAURANT.name}</title>
           <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
           <style>
             * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -60,7 +61,7 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
         </head>
         <body>
           <div class="brand">
-            <h1>DeVerse Cafe</h1>
+            <h1>${RESTAURANT.name}</h1>
             <p>Official Receipt</p>
           </div>
           <hr class="dash" />
@@ -135,7 +136,7 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
           {/* Brand */}
           <div className="text-center mb-5">
             <h1 className="text-xl font-bold tracking-tight" style={{ color: '#1a1a1a' }}>
-              DeVerse Cafe
+              {RESTAURANT.name}
             </h1>
             <p className="text-xs mt-0.5" style={{ color: '#999' }}>Official Receipt</p>
           </div>
@@ -215,7 +216,7 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
           <div className="my-5" style={{ borderTop: '1px dashed #d0d0d0' }} />
 
           <p className="text-center text-[11px] leading-relaxed" style={{ color: '#bbb' }}>
-            Thank you for dining at DeVerse Cafe!<br />
+            Thank you for dining at {RESTAURANT.name}!<br />
             We hope to see you again soon. ☕
           </p>
         </div>

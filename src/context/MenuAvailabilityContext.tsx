@@ -8,7 +8,7 @@ import { broadcast, onSync } from './BroadcastSync'
 // ─── Menu Availability Context ─────────────────────────────────────────────────
 // Controls which items are available today. Uses BroadcastChannel for instant
 // cross-tab sync (<5ms) instead of the old 2s polling.
-const LS_AVAILABILITY = 'deverse_availability'
+const LS_AVAILABILITY = 'qyou_availability'
 
 function loadAvailability(): Record<number, boolean> {
   try {

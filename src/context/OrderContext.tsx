@@ -35,8 +35,8 @@ export interface Order {
 }
 
 // ─── localStorage helpers ──────────────────────────────────────────────────────
-const LS_ORDERS    = 'deverse_orders'
-const LS_MY_ORDERS = 'deverse_my_orders'
+const LS_ORDERS    = 'qyou_orders'
+const LS_MY_ORDERS = 'qyou_my_orders'
 
 function loadOrders(): Order[] {
   try {

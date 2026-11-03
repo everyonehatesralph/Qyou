@@ -4,27 +4,17 @@ import { useCallback, useState, useEffect } from 'react'
 import { useSidebar } from '../../context/SidebarContext'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
+import { RESTAURANT } from '../../config/restaurant'
 
-const TABLES = [
-  { id: 1, name: 'Table 1' },
-  { id: 2, name: 'Table 2' },
-  { id: 3, name: 'Table 3' },
-  { id: 4, name: 'Table 4' },
-  { id: 5, name: 'Table 5' },
-  { id: 6, name: 'Table 6' },
-  { id: 7, name: 'Table 7' },
-  { id: 8, name: 'Table 8' },
-  { id: 9, name: 'Table 9' },
-  { id: 10, name: 'Table 10' },
-]
+const TABLES = RESTAURANT.tables.map(t => ({ id: t.id, name: t.label }))
 
 // ─── PERMANENT QR SYSTEM ──────────────────────────────────────────────────────
 // Two types of QR codes:
 //   1. TABLE QR → URL to the ordering app: https://your-vercel.app/t/{tableId}
 //   2. WIFI  QR → Auto-connects phone to café WiFi: WIFI:T:WPA;S:ssid;P:pass;;
 // ──────────────────────────────────────────────────────────────────────────────
-const LS_KEY      = 'deverse_cafe_base_url'
-const LS_WIFI_KEY = 'deverse_cafe_wifi'
+const LS_KEY      = 'qyou_base_url'
+const LS_WIFI_KEY = 'qyou_wifi'
 
 interface WifiConfig {
   ssid: string
@@ -154,7 +144,7 @@ export default function QRCodeGenerator() {
         const url = URL.createObjectURL(blob)
         const a   = document.createElement('a')
         a.href     = url
-        a.download = `deverse-cafe-${tableName.toLowerCase().replace(/\s+/g, '-')}-qr.png`
+        a.download = `qyou-${tableName.toLowerCase().replace(/\s+/g, '-')}-qr.png`
         a.click()
         URL.revokeObjectURL(url)
       }, 'image/png')
@@ -168,7 +158,7 @@ export default function QRCodeGenerator() {
       if (!el) return ''
       return `
         <div class="card">
-          <h1>DeVerse Cafe</h1>
+          <h1>${RESTAURANT.name}</h1>
           <h2>${table.name}</h2>
           <div class="qr">${el.innerHTML}</div>
           <p>Scan to order from your table</p>
@@ -181,7 +171,7 @@ export default function QRCodeGenerator() {
     if (!win) return
     win.document.write(`
       <!DOCTYPE html><html><head>
-        <title>DeVerse Cafe — All Table QR Codes</title>
+        <title>${RESTAURANT.name} — All Table QR Codes</title>
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet"/>
         <style>
           * { box-sizing:border-box; margin:0; padding:0; }
@@ -232,7 +222,7 @@ export default function QRCodeGenerator() {
         </style>
       </head><body>
         <div class="card">
-          <h1>DeVerse Cafe</h1>
+          <h1>${RESTAURANT.name}</h1>
           <h2>${tableName}</h2>
           <div class="qr">${el.innerHTML}</div>
           <p>Scan to order from your table</p>
@@ -282,7 +272,7 @@ export default function QRCodeGenerator() {
                       <label className="text-text-muted text-xs font-medium mb-1 block">WiFi Name (SSID)</label>
                       <input
                         type="text"
-                        placeholder="e.g. DeVerse-Cafe-WiFi"
+                        placeholder="e.g. Cafe-Guest-WiFi"
                         value={wifi.ssid}
                         onChange={e => setWifi(w => ({ ...w, ssid: e.target.value }))}
                         className="w-full font-mono text-sm"

@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useOrders } from '../context/OrderContext'
 import ThemeToggle from '../components/ThemeToggle'
+import { RESTAURANT } from '../config/restaurant'
 
 const features = [
   { icon: Smartphone,  title: 'Scan & Order',      desc: 'Scan the QR code at your table to start ordering instantly' },
@@ -90,7 +91,7 @@ export default function Welcome() {
           <div className="flex justify-center mb-6">
             <img
               src="/assets/bean.png"
-              alt="DeVerse Cafe"
+              alt={RESTAURANT.name}
               className="w-20 h-20 sm:w-24 sm:h-24 object-contain drop-shadow-2xl"
               style={{ filter: 'drop-shadow(0 0 30px rgba(200,134,10,0.3))' }}
             />
@@ -101,7 +102,7 @@ export default function Welcome() {
             className="text-5xl sm:text-6xl md:text-7xl font-bold mb-4 tracking-tight leading-none"
             style={{ color: '#F0E6D3' }}
           >
-            DeVerse{' '}
+            {RESTAURANT.shortName}{' '}
             <span
               style={{
                 color: '#C8860A',
@@ -247,7 +248,7 @@ export default function Welcome() {
         <div className="text-center pb-10">
           <div className="flex items-center justify-center gap-2 mb-2">
             <img src="/assets/bean.png" alt="" className="w-4 h-4 opacity-40" />
-            <span className="text-text-faint text-xs">DeVerse Cafe</span>
+            <span className="text-text-faint text-xs">{RESTAURANT.name}</span>
           </div>
           <p className="text-text-faint text-[11px] opacity-60">
             Mobile ordering system · {new Date().getFullYear()}

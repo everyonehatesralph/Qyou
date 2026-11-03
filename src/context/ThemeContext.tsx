@@ -12,24 +12,23 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType | null>(null)
-const LS_KEY = 'deverse_theme'
+const LS_KEY = 'qyou_theme'
+const LS_KITCHEN_KEY = 'qyou_kitchen_theme'
 
-function getInitialTheme(): Theme {
+function readTheme(key: string, fallback: Theme): Theme {
   try {
-    const stored = localStorage.getItem(LS_KEY) as Theme | null
+    const stored = localStorage.getItem(key)
     if (stored === 'light' || stored === 'dark') return stored
   } catch { /* noop */ }
-  return 'dark' // default
+  return fallback
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme)
+  const [theme, setTheme] = useState<Theme>(() => readTheme(LS_KEY, 'light'))
 
-  // Apply theme class to <html> element
+  // Apply the app-wide mode to <html>; subtrees may override with their own data-theme
   useEffect(() => {
-    const root = document.documentElement
-    root.classList.remove('dark', 'light')
-    root.classList.add(theme)
+    document.documentElement.dataset.theme = theme
     try { localStorage.setItem(LS_KEY, theme) } catch { /* noop */ }
   }, [theme])
 
@@ -48,4 +47,22 @@ export function useTheme() {
   const ctx = useContext(ThemeContext)
   if (!ctx) throw new Error('useTheme must be used within ThemeProvider')
   return ctx
+}
+
+/**
+ * The kitchen screen's own mode, separate from the app-wide one.
+ * Defaults to dark; apply it with `data-theme={theme}` on the kitchen root.
+ */
+export function useKitchenTheme() {
+  const [theme, setTheme] = useState<Theme>(() => readTheme(LS_KITCHEN_KEY, 'dark'))
+
+  useEffect(() => {
+    try { localStorage.setItem(LS_KITCHEN_KEY, theme) } catch { /* noop */ }
+  }, [theme])
+
+  const toggle = useCallback(() => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark')
+  }, [])
+
+  return { theme, toggle }
 }

@@ -36,7 +36,7 @@ class OrderSyncClient {
   private initBroadcastChannel() {
     if (this.broadcastChannel) return
     try {
-      this.broadcastChannel = new BroadcastChannel('deverse_orders_sync')
+      this.broadcastChannel = new BroadcastChannel('qyou_orders_sync')
       this.broadcastChannel.onmessage = (ev) => {
         try {
           const orders = ev.data
@@ -106,7 +106,7 @@ class OrderSyncClient {
 
   private loadLocalOrders(): unknown[] {
     try {
-      const raw = localStorage.getItem('deverse_orders')
+      const raw = localStorage.getItem('qyou_orders')
       if (raw) return JSON.parse(raw)
     } catch { /* noop */ }
     return []

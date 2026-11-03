@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import ThemeToggle from './ThemeToggle'
+import { RESTAURANT } from '../config/restaurant'
 
 export default function CustomerHeader() {
   const navigate = useNavigate()
@@ -22,9 +23,9 @@ export default function CustomerHeader() {
           </div>
           <div className="flex flex-col">
             <div className="text-lg font-bold text-text-base leading-tight">
-              De<span style={{ color: '#C8860A' }}>Verse</span>
+              {RESTAURANT.shortName}
             </div>
-            <div className="text-xs text-text-muted font-medium">Cafe</div>
+            <div className="text-xs text-text-muted font-medium">Ordering by Qyou</div>
           </div>
         </button>
 

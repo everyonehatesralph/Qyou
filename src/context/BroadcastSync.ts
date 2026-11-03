@@ -8,7 +8,7 @@ import { metricsCollector } from '../services/metricsCollector'
 
 type Listener = (data: unknown) => void
 
-const CHANNEL_NAME = 'deverse_cafe_sync'
+const CHANNEL_NAME = 'qyou_sync'
 
 interface SyncMessage {
   type: 'orders_updated' | 'availability_updated' | 'auth_updated'

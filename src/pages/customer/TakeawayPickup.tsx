@@ -19,7 +19,7 @@ export default function TakeawayPickup() {
   // Build QR code value - URL to this page
   const qrUrl = typeof window !== 'undefined' 
     ? `${window.location.origin}/takeaway-pickup`
-    : 'https://deverse-cafe.local/takeaway-pickup'
+    : '/takeaway-pickup'
 
   const getStatusColor = (status: string) => {
     switch(status) {

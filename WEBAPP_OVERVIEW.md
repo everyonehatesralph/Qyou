@@ -1,8 +1,8 @@
-# Cafe Ordering System - Complete Webapp Overview
+# Qyou — Complete Webapp Overview
 
 ## 🎯 What is This Webapp?
 
-**Deverse Cafe** is a **real-time, multi-user ordering system** designed for cafes, restaurants, and food service establishments. It's a full-stack web application that connects **customers (diners)** with **staff (kitchen, waiters)** through a fast, responsive, live-syncing platform.
+**Qyou** is a **real-time, multi-user ordering system** designed for cafes, restaurants, and food service establishments. It's a full-stack web application that connects **customers (diners)** with **staff (kitchen, waiters)** through a fast, responsive, live-syncing platform.
 
 ### Core Purpose:
 Transform cafe operations from **paper-based orders** → **instant digital ordering** with **real-time kitchen visibility** and **concurrent order processing**.

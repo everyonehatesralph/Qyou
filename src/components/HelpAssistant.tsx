@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { HelpCircle, X, QrCode, Coffee, ShoppingCart, Clock, ChevronDown, ChevronUp } from 'lucide-react'
+import { RESTAURANT } from '../config/restaurant'
 const STEPS = [
   {
     icon: QrCode,
@@ -69,7 +70,7 @@ export default function HelpAssistant() {
         <div className="flex items-center justify-between px-5 py-4">
           <div>
             <h2 className="text-text-base font-bold text-lg">How can we help?</h2>
-            <p className="text-text-muted text-xs mt-0.5">DeVerse Cafe ordering guide</p>
+            <p className="text-text-muted text-xs mt-0.5">{RESTAURANT.name} ordering guide</p>
           </div>
           <button
             onClick={() => setOpen(false)}

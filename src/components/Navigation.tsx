@@ -4,6 +4,7 @@ import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useSidebar } from '../context/SidebarContext'
 import CustomerHeader from './CustomerHeader'
+import { RESTAURANT } from '../config/restaurant'
 
 
 const customerItems = [
@@ -59,12 +60,12 @@ export default function Navigation() {
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0"
             >
-              <img src="/assets/bean.png" alt="DeVerse Cafe" className="w-15 h-15 object-contain" />
+              <img src="/assets/bean.png" alt={RESTAURANT.name} className="w-15 h-15 object-contain" />
             </div>
             {sidebarExpanded && (
               <div className="min-w-0">
                 <span className="font-bold text-text-base text-sm block leading-tight">
-                  DeVerse <span className="text-primary">Cafe</span>
+                  {RESTAURANT.shortName}
                 </span>
               </div>
             )}

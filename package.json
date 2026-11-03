@@ -1,12 +1,14 @@
 {
-  "name": "deverse-cafe-web",
+  "name": "qyou-web",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "server": "node server/index.ts"
+    "server": "node server/index.ts",
+    "test": "node --test \"src/theme/*.test.ts\"",
+    "check:contrast": "node scripts/check-contrast.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",
