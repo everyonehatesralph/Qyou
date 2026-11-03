@@ -138,8 +138,13 @@ export async function auditKeyboard(page: Page, maxStops = 60): Promise<Finding[
   const visited = new Set<string>()
   for (let i = 0; i < maxStops; i++) {
     await page.keyboard.press('Tab')
-    // Let focus styles (and the near-zero reduced-motion transitions) reach the screen first
-    await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))))
+    // Let focus styles (and the near-zero reduced-motion transitions) reach the screen first:
+    // wait for the focused element's own transitions to finish, then a frame
+    await page.evaluate(async () => {
+      const el = document.activeElement
+      if (el) await Promise.all(el.getAnimations().map(a => a.finished.catch(() => undefined)))
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+    })
     const stop = await page.evaluate(() => {
       const el = document.activeElement as HTMLElement | null
       if (!el || el === document.body) return null
