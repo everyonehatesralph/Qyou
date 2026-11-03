@@ -49,6 +49,9 @@ const PAIRS = [
   ['border-strong', 'surface', 3.0],
   ['border-strong', 'bg', 3.0],
   ['text-muted', 'surface-3', 4.5],
+  // Staff sidebar: active item text and its accent icon on the active pill
+  ['text', 'surface-3', 4.5],
+  ['accent-text', 'surface-3', 3.0],
   // Chart bars against their cards and tracks (non-text contrast)
   ['chart', 'surface', 3.0],
   ['chart', 'surface-2', 3.0],

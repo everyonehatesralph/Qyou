@@ -352,3 +352,14 @@ Requested by the owner, with a delivery-app menu as the reference: guests choose
 - From 768 px the rounded staff content panel is pinned to the window like the sidebar and
   its content scrolls inside it (sticky page header included), so the panel's corners never
   slide away. Phones and short screens keep normal page scrolling.
+
+## Revision 6 (2026-11-04): staff sidebar
+
+- The restaurant leads (its tile and name, with a live/offline dot); links are grouped into
+  Service (Dashboard, Kitchen, Tables) and Manage (Menu, Analytics, QR codes) and are real
+  links. The active item is a quiet `surface-3` pill with an accent icon and an accent marker
+  on the sidebar's edge, instead of a solid ink pill.
+- Live counts: new orders on Dashboard (waiting colors) and orders in the kitchen on Kitchen
+  (progress colors), also on the phone tab bar. Collapsed, they show as dots.
+- The footer is one row: the Qyou mark, then theme and sign-out icon buttons. No divider lines;
+  spacing separates the parts.
