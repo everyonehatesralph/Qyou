@@ -42,6 +42,8 @@ const PAIRS = [
   ['accent-text', 'bg', 4.5],
   ['accent', 'surface', 3.0], // UI component (buttons, focus ring)
   ...STATUS.map(s => [`status-${s}-text`, `status-${s}-bg`, 4.5]),
+  // Table tiles and banners put regular text on status fills
+  ...STATUS.map(s => ['text-muted', `status-${s}-bg`, 4.5]),
   ['text-faint', 'surface', 3.0], // placeholders only
 ]
 
