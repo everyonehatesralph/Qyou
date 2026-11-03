@@ -419,7 +419,7 @@ export default function TeamFeatures() {
             onPointerLeave={() => setHovered(false)}
           >
             {/* On phones the screen stays in view while the list scrolls under it */}
-            <Reveal delay={0.1} className="sticky top-[4.75rem] z-10 lg:static lg:order-2 short:static">
+            <Reveal delay={0.1} className="sticky top-[calc(var(--landing-header,4rem)+0.75rem)] z-10 transition-[top] duration-[250ms] ease-[cubic-bezier(0.23,1,0.32,1)] lg:static lg:order-2 short:static">
               <Stage active={active} />
             </Reveal>
 
