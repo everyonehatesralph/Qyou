@@ -1,6 +1,7 @@
 import { ChevronRight, ClipboardList } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useMemo, useState } from 'react'
+import { motion } from 'framer-motion'
 import { useOrders, getMyOrderIds } from '../../context/OrderContext'
 import type { Order } from '../../context/OrderContext'
 import { useNow, timeAgo } from '../../hooks/useNow'
@@ -17,7 +18,13 @@ function OrderRow({ order, now, onOpen, onCancel }: { order: Order; now: number;
   const canCancel = order.status === 'pending' || order.status === 'confirmed'
 
   return (
-    <li className="rounded-card border border-line bg-surface">
+    <motion.li
+      layout
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      className="rounded-card border border-line bg-surface"
+    >
       <button
         type="button"
         onClick={onOpen}
@@ -25,7 +32,7 @@ function OrderRow({ order, now, onOpen, onCancel }: { order: Order; now: number;
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-            <span className="text-[15px] font-medium text-ink">Order {order.id}</span>
+            <span className="font-mono text-[13px] font-medium tracking-wide text-ink">Nº {order.id}</span>
             <StatusPill status={order.status} audience="customer" />
           </div>
           <p className="mt-1.5 truncate text-sm text-ink-muted">
@@ -53,7 +60,7 @@ function OrderRow({ order, now, onOpen, onCancel }: { order: Order; now: number;
           </Button>
         </div>
       )}
-    </li>
+    </motion.li>
   )
 }
 
@@ -81,7 +88,7 @@ export default function MyOrders() {
 
   return (
     <div className="min-h-screen bg-bg pb-28">
-      <div className="mx-auto max-w-3xl px-4 pt-5">
+      <div className="mx-auto max-w-3xl animate-enter px-4 pt-5">
         <PageHeader title="Your orders" subtitle={myOrders.length > 0 ? 'Orders placed from this phone.' : undefined} />
 
         {myOrders.length === 0 ? (

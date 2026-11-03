@@ -110,7 +110,7 @@ export default function OrderCheckoutModal({ open, cartItems, cartTotal, tableNa
                       selected ? 'border-accent bg-accent text-on-accent' : 'border-line-strong bg-surface',
                     )}
                   >
-                    {selected && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+                    {selected && <Check className="h-3.5 w-3.5 animate-pop" strokeWidth={3} />}
                   </span>
                   <span className="flex-1 text-[15px] text-ink">{addon.label.replace(/^\+\s*/, '')}</span>
                   <span className="text-sm tabular-nums text-ink-muted">{addon.price > 0 ? `+${peso(addon.price)}` : 'Free'}</span>

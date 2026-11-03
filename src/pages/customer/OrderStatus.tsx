@@ -1,6 +1,7 @@
 import { ArrowLeft, BellRing, Check, ClipboardList, Loader2, Receipt, ShoppingBag, UtensilsCrossed } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useState, useMemo } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useOrders } from '../../context/OrderContext'
 import type { Order, OrderStatus as Status } from '../../context/OrderContext'
 import { useReadyNotification } from '../../hooks/useReadyNotification'
@@ -8,7 +9,7 @@ import { clockTime } from '../../hooks/useNow'
 import { STATUS_STEP } from '../../theme/status'
 import { RESTAURANT } from '../../config/restaurant'
 import InvoiceModal from '../../components/InvoiceModal'
-import { Button, Card, EmptyState, IconButton, StatusPill, cn } from '../../components/ui'
+import { Button, Card, EmptyState, IconButton, StatusPill, Ticket, cn } from '../../components/ui'
 
 const peso = (n: number) => `${RESTAURANT.currency}${n.toFixed(0)}`
 
@@ -59,7 +60,11 @@ function Timeline({ order }: { order: Order }) {
                 !row.done && !row.current && 'border border-line-strong bg-surface',
               )}
             >
-              {row.done && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+              {row.done && (
+                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 500, damping: 22 }}>
+                  <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                </motion.span>
+              )}
               {row.current && <span className="h-2 w-2 animate-pulse rounded-full bg-ink" />}
             </span>
             <div className="flex min-w-0 flex-1 items-baseline justify-between gap-3">
@@ -125,40 +130,77 @@ export default function OrderStatus() {
 
   return (
     <div className="min-h-screen bg-bg pb-28">
-      <div className="mx-auto max-w-xl px-4 pt-3">
+      <div className="mx-auto max-w-xl animate-enter px-4 pt-3">
         <div className="flex items-center gap-1">
           <IconButton label="Back to your orders" onClick={() => navigate('/my-orders')} className="-ml-2.5">
             <ArrowLeft />
           </IconButton>
-          <p className="text-sm text-ink-muted">
-            Order {order.id} · {order.tableName}
-          </p>
+          <p className="text-sm text-ink-muted">Your order</p>
           <span className="ml-auto flex items-center gap-1.5 text-xs text-ink-muted" aria-live="polite">
             <span className={cn('h-2 w-2 rounded-full', isConnected ? 'bg-status-ready-text' : 'bg-status-waiting-text')} aria-hidden />
             {isConnected ? 'Live' : 'Connecting…'}
           </span>
         </div>
 
-        <header className="mt-3">
-          <h1 className="font-display text-[32px] leading-tight tracking-[-0.01em] text-ink">{headline.title}</h1>
-          <p className="mt-1.5 text-[15px] text-ink-muted">{headline.body(order)}</p>
-          <StatusPill status={order.status} audience="customer" className="mt-3" />
-        </header>
+        {/* The order as a queue ticket: status above the perforation, number on the stub */}
+        <div className="mt-3 drop-shadow-sm">
+          <Ticket
+            bodyClassName="px-5 pb-5 pt-5"
+            stubClassName="flex items-end justify-between gap-3 px-5 pb-5 pt-4"
+            stub={
+              <>
+                <div>
+                  <p className="font-mono text-[11px] uppercase tracking-widest text-ink-muted">Order Nº</p>
+                  <p className="font-display text-[34px] leading-none tracking-[-0.02em] text-ink">{order.id}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-mono text-[11px] uppercase tracking-widest text-ink-muted">{order.orderType === 'takeaway' ? 'Take away' : 'Dine in'}</p>
+                  <p className="mt-1 text-[15px] font-semibold text-ink">{order.tableName}</p>
+                </div>
+              </>
+            }
+          >
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.header
+                key={order.status}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+              >
+                <h1 className="font-display text-[32px] leading-[1.02] tracking-[-0.03em] text-ink">{headline.title}</h1>
+                <p className="mt-1.5 text-[15px] text-ink-muted">{headline.body(order)}</p>
+                <StatusPill status={order.status} audience="customer" className="mt-3" />
+              </motion.header>
+            </AnimatePresence>
+          </Ticket>
+        </div>
 
         {newReadyOrderId === order.id && (
-          <div className="mt-5 flex items-center gap-3 rounded-card bg-status-ready-bg p-4 text-status-ready-text" role="alert">
-            <BellRing className="h-5 w-5 shrink-0" aria-hidden />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mt-5 flex items-center gap-3 rounded-card bg-status-ready-bg p-4 text-status-ready-text"
+            role="alert"
+          >
+            <BellRing className="h-5 w-5 shrink-0 animate-ring" aria-hidden />
             <p className="flex-1 text-[15px] font-medium">Your order is ready!</p>
             <Button size="md" onClick={dismissNotification} className="h-9">OK</Button>
-          </div>
+          </motion.div>
         )}
 
         {isTakeaway && (
-          <Card className="mt-5 text-center">
-            <p className="text-sm text-ink-muted">Pickup code</p>
-            <p className="mt-1 text-[44px] font-medium leading-none tracking-[0.08em] text-ink">{order.takeawayCode}</p>
-            <p className="mt-2 text-sm text-ink-muted">Show this at the counter when your order is ready.</p>
-          </Card>
+          <div className="mt-4 drop-shadow-sm">
+            <Ticket
+              tone="accent"
+              bodyClassName="px-5 pb-4 pt-4 text-center"
+              stubClassName="px-5 pb-4 pt-3 text-center text-sm"
+              stub={<p>Show this at the counter when your order is ready.</p>}
+            >
+              <p className="font-mono text-[11px] uppercase tracking-widest">Pickup code</p>
+              <p className="mt-1 font-mono text-[42px] leading-none tracking-[0.04em]">{order.takeawayCode}</p>
+            </Ticket>
+          </div>
         )}
 
         <Card className="mt-5">

@@ -6,6 +6,7 @@ import { useOrderNotification } from '../../hooks/useOrderNotification'
 import { useNow, timeAgo } from '../../hooks/useNow'
 import { useSidebar } from '../../context/SidebarContext'
 import { useMemo, useState, memo, type ReactNode } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 import KpiCard from '../../components/KpiCard'
@@ -39,12 +40,19 @@ function SectionTitle({ title, count, action }: { title: string; count?: number;
 // ─── New order card ──────────────────────────────────────────────────────────
 const IncomingCard = memo(function IncomingCard({ order, now, onConfirm }: { order: Order; now: number; onConfirm: (id: string) => void }) {
   return (
-    <Card padding="none" className="flex flex-col border-status-waiting-text">
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 16, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.18 } }}
+      transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+    >
+    <Card padding="none" className="flex h-full flex-col border-status-waiting-text">
       <div className="flex items-start justify-between gap-3 p-4 pb-3">
         <div className="min-w-0">
           <p className="font-display text-xl leading-tight text-ink">{order.tableName}</p>
           <p className="mt-0.5 truncate text-sm text-ink-muted">
-            {order.customerName || 'Guest'} · Order {order.id}
+            {order.customerName || 'Guest'} · <span className="font-mono text-[13px]">Nº {order.id}</span>
           </p>
         </div>
         <div className="shrink-0 text-right">
@@ -55,7 +63,7 @@ const IncomingCard = memo(function IncomingCard({ order, now, onConfirm }: { ord
       {order.orderType === 'takeaway' && (
         <p className="mx-4 mb-2 inline-flex items-center gap-1.5 self-start rounded-full bg-surface-2 px-2.5 py-1 text-xs font-medium text-ink">
           <ShoppingBag className="h-3.5 w-3.5" aria-hidden />
-          Take away · {order.takeawayCode}
+          Take away · <span className="font-mono">{order.takeawayCode}</span>
         </p>
       )}
       <ul className="mx-4 space-y-1 border-t border-line pt-3 text-[15px] text-ink">
@@ -73,6 +81,7 @@ const IncomingCard = memo(function IncomingCard({ order, now, onConfirm }: { ord
         </Button>
       </div>
     </Card>
+    </motion.div>
   )
 })
 
@@ -158,9 +167,11 @@ export default function Dashboard() {
             </Card>
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {pendingOrders.map(order => (
-                <IncomingCard key={order.id} order={order} now={now} onConfirm={confirmOrder} />
-              ))}
+              <AnimatePresence initial={false}>
+                {pendingOrders.map(order => (
+                  <IncomingCard key={order.id} order={order} now={now} onConfirm={confirmOrder} />
+                ))}
+              </AnimatePresence>
             </div>
           )}
         </section>

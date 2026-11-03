@@ -6,6 +6,7 @@ import { useNow, minutesSince } from '../../hooks/useNow'
 import { useSidebar } from '../../context/SidebarContext'
 import { useKitchenTheme } from '../../context/ThemeContext'
 import { useMemo, useState, useCallback, memo } from 'react'
+import { LayoutGroup, motion } from 'framer-motion'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 import ThemeToggle from '../../components/ThemeToggle'
@@ -49,7 +50,13 @@ const KitchenCard = memo(function KitchenCard({ order, status, action, now, onAd
   const isTakeaway = order.orderType === 'takeaway'
 
   return (
-    <article
+    <motion.article
+      // Same layout id in every column, so a ticket slides across when its status changes
+      layoutId={order.id}
+      layout
+      initial={{ opacity: 0, scale: 0.92 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: 'spring', stiffness: 320, damping: 30 }}
       className={cn(
         'flex flex-col rounded-card border-2 bg-surface',
         veryLate ? 'border-status-cancelled-text' : late ? 'border-status-waiting-text' : status === 'ready' ? 'border-status-ready-text' : 'border-line',
@@ -60,7 +67,7 @@ const KitchenCard = memo(function KitchenCard({ order, status, action, now, onAd
         <div className="min-w-0 flex-1">
           <h3 className="font-display text-[30px] leading-none text-ink">{order.tableName}</h3>
           <p className="mt-1.5 truncate text-sm text-ink-muted">
-            {order.customerName || 'Guest'} · {order.id}
+            {order.customerName || 'Guest'} · <span className="font-mono text-[13px]">Nº {order.id}</span>
           </p>
         </div>
         <div
@@ -83,7 +90,7 @@ const KitchenCard = memo(function KitchenCard({ order, status, action, now, onAd
       {isTakeaway && (
         <p className="mx-4 mb-2 inline-flex items-center gap-1.5 self-start rounded-full bg-surface-2 px-2.5 py-1 text-sm font-medium text-ink">
           <ShoppingBag className="h-4 w-4" aria-hidden />
-          Take away · {order.takeawayCode}
+          Take away · <span className="font-mono">{order.takeawayCode}</span>
         </p>
       )}
 
@@ -114,7 +121,7 @@ const KitchenCard = memo(function KitchenCard({ order, status, action, now, onAd
           {action}
         </Button>
       </div>
-    </article>
+    </motion.article>
   )
 })
 
@@ -173,6 +180,7 @@ export default function OrderQueue() {
             />
           </div>
         ) : (
+          <LayoutGroup>
           <div className="grid gap-5 md:auto-cols-[minmax(272px,1fr)] md:grid-flow-col md:overflow-x-auto md:pb-2">
             {COLUMNS.map(col => {
               const list = byStatus[col.status]
@@ -207,6 +215,7 @@ export default function OrderQueue() {
               )
             })}
           </div>
+          </LayoutGroup>
         )}
 
         {servedOrders.length > 0 && (

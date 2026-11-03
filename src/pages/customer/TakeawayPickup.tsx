@@ -2,6 +2,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { Check, ShoppingBag } from 'lucide-react'
 import { useOrders } from '../../context/OrderContext'
 import { useMemo } from 'react'
+import { LayoutGroup, motion } from 'framer-motion'
 import { useNow, minutesSince } from '../../hooks/useNow'
 import { RESTAURANT } from '../../config/restaurant'
 import { EmptyState, StatusPill } from '../../components/ui'
@@ -50,6 +51,7 @@ export default function TakeawayPickup() {
         {ready.length === 0 && inProgress.length === 0 ? (
           <EmptyState icon={ShoppingBag} title="No take-away orders right now" body="New take-away orders appear here as soon as they are placed." />
         ) : (
+          <LayoutGroup>
           <div className="space-y-10">
             <section aria-labelledby="ready-heading">
               <h2 id="ready-heading" className="mb-4 flex items-center gap-2 font-display text-2xl text-ink">
@@ -61,13 +63,13 @@ export default function TakeawayPickup() {
               ) : (
                 <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                   {ready.map(order => (
-                    <li key={order.id} className="rounded-card border-2 border-status-ready-text bg-status-ready-bg px-3 py-5 text-center text-status-ready-text sm:px-5">
-                      <p className="whitespace-nowrap text-[28px] font-medium leading-none tracking-[0.04em] sm:text-[44px] sm:tracking-[0.06em]">{order.takeawayCode}</p>
+                    <motion.li layoutId={order.id} layout transition={{ type: 'spring', stiffness: 260, damping: 28 }} key={order.id} className="ticket rounded-card bg-status-ready-bg px-3 py-5 text-center text-status-ready-text [--notch-y:62%] sm:px-5">
+                      <p className="whitespace-nowrap font-mono text-[26px] leading-none sm:text-[40px]">{order.takeawayCode}</p>
                       <p className="mt-3 truncate text-[15px] font-medium">{order.customerName}</p>
                       <p className="mt-2 inline-flex items-center gap-1 text-sm font-medium">
                         <Check className="h-4 w-4" aria-hidden /> Ready
                       </p>
-                    </li>
+                    </motion.li>
                   ))}
                 </ul>
               )}
@@ -81,19 +83,20 @@ export default function TakeawayPickup() {
                 </h2>
                 <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                   {inProgress.map(order => (
-                    <li key={order.id} className="rounded-card border border-line bg-surface px-3 py-5 text-center sm:px-5">
-                      <p className="whitespace-nowrap text-[24px] font-medium leading-none tracking-[0.04em] text-ink sm:text-[36px] sm:tracking-[0.06em]">{order.takeawayCode}</p>
+                    <motion.li layoutId={order.id} layout transition={{ type: 'spring', stiffness: 260, damping: 28 }} key={order.id} className="ticket rounded-card bg-surface px-3 py-5 text-center [--notch-y:62%] sm:px-5">
+                      <p className="whitespace-nowrap font-mono text-[22px] leading-none text-ink sm:text-[32px]">{order.takeawayCode}</p>
                       <p className="mt-3 truncate text-[15px] text-ink">{order.customerName}</p>
                       <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
                         <StatusPill status={order.status} audience="customer" />
                         <span className="text-xs text-ink-muted">{minutesSince(order.createdAt, now)} min</span>
                       </div>
-                    </li>
+                    </motion.li>
                   ))}
                 </ul>
               </section>
             )}
           </div>
+          </LayoutGroup>
         )}
       </main>
 

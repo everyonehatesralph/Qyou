@@ -1,10 +1,11 @@
-import { Armchair, Users } from 'lucide-react'
+import { Users } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useState, useMemo, type FormEvent } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useOrders } from '../../context/OrderContext'
 import { RESTAURANT, tableLabel } from '../../config/restaurant'
-import { Button, LetterTile, TextInput } from '../../components/ui'
+import { Button, LetterTile, TextInput, Ticket } from '../../components/ui'
 import ThemeToggle from '../../components/ThemeToggle'
 
 /** Table check-in: the page a table's QR code opens. */
@@ -38,13 +39,25 @@ export default function TokenValidation() {
       <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center pb-16">
         <div className="text-center">
           <LetterTile text={RESTAURANT.logoText} tone="accent" size="lg" className="rounded-card" />
-          <h1 className="mt-5 text-balance font-display text-[32px] leading-tight tracking-[-0.01em] text-ink">
+          <h1 className="mt-5 text-balance font-display text-[30px] leading-[1.05] tracking-[-0.03em] text-ink">
             {RESTAURANT.name}
           </h1>
-          <p className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-sm font-medium text-ink">
-            <Armchair className="h-4 w-4 text-ink-muted" aria-hidden />
-            {tname}
-          </p>
+          <motion.div
+            initial={{ opacity: 0, y: 16, rotate: -6 }}
+            animate={{ opacity: 1, y: 0, rotate: -2 }}
+            transition={{ type: 'spring', stiffness: 220, damping: 18, delay: 0.1 }}
+            className="mx-auto mt-6 w-[220px] drop-shadow-md"
+          >
+            <Ticket
+              tone="accent"
+              bodyClassName="px-5 pb-3 pt-4"
+              stubClassName="px-5 pb-3.5 pt-2.5"
+              stub={<p className="font-mono text-[10px] uppercase tracking-widest">Ordering by Qyou</p>}
+            >
+              <p className="font-mono text-[10px] uppercase tracking-widest">You're at</p>
+              <p className="font-display text-[40px] leading-none tracking-[-0.03em]">{tname}</p>
+            </Ticket>
+          </motion.div>
         </div>
 
         {isTableOccupied ? (

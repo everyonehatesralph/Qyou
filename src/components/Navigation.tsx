@@ -4,13 +4,17 @@ import {
   ShoppingCart, UtensilsCrossed, ClipboardList, LayoutGrid, ChefHat, BookOpen, QrCode,
   LogOut, TrendingUp, Armchair, MoreHorizontal, ChevronRight, Sun, Moon, type LucideIcon,
 } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useSidebar } from '../context/SidebarContext'
 import { useTheme } from '../context/ThemeContext'
 import CustomerHeader from './CustomerHeader'
+import CartFlyLayer from './CartFly'
 import { RESTAURANT } from '../config/restaurant'
-import { BottomSheet, Wordmark, cn } from './ui'
+import { BottomSheet, TicketMark, Wordmark, cn } from './ui'
+
+const PILL_SPRING = { type: 'spring', stiffness: 420, damping: 34 } as const
 
 interface NavItem {
   path: string
@@ -41,7 +45,16 @@ const staffItems: NavItem[] = [
 const STAFF_BAR = staffItems.slice(0, 4)
 const STAFF_MORE = staffItems.slice(4)
 
-function BottomBarButton({ item, active, onClick, badge }: { item: NavItem; active: boolean; onClick: () => void; badge?: number }) {
+function BottomBarButton({ item, active, onClick, badge, pillId, cartTarget }: {
+  item: NavItem
+  active: boolean
+  onClick: () => void
+  badge?: number
+  /** Shared layout id so the active pill slides between tabs. */
+  pillId: string
+  /** Marks the icon the add-to-cart flight lands on. */
+  cartTarget?: boolean
+}) {
   const Icon = item.icon
   return (
     <button
@@ -53,10 +66,14 @@ function BottomBarButton({ item, active, onClick, badge }: { item: NavItem; acti
         active ? 'text-ink' : 'text-ink-muted hover:text-ink',
       )}
     >
-      <span className={cn('relative flex h-8 w-14 items-center justify-center rounded-full transition-colors duration-150', active && 'bg-surface-2')}>
-        <Icon className="h-5 w-5" aria-hidden />
+      <span className="relative flex h-8 w-14 items-center justify-center" data-cart-target={cartTarget || undefined}>
+        {active && <motion.span layoutId={pillId} transition={PILL_SPRING} className="absolute inset-0 rounded-full bg-surface-2" aria-hidden />}
+        <Icon className="relative h-5 w-5" aria-hidden />
         {!!badge && (
-          <span className="absolute -top-1 right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[11px] font-medium tabular-nums text-on-accent">
+          <span
+            key={badge}
+            className="absolute -top-1 right-1.5 flex h-[18px] min-w-[18px] animate-pop items-center justify-center rounded-full bg-accent px-1 text-[11px] font-semibold tabular-nums text-on-accent"
+          >
             {badge > 9 ? '9+' : badge}
           </span>
         )}
@@ -80,8 +97,8 @@ function StaffNavigation() {
   const signOut = () => { setMoreOpen(false); staffLogout(); navigate('/staff/login') }
 
   const rowClass = (active: boolean) => cn(
-    'flex h-11 w-full items-center gap-3 rounded-control px-3 text-[15px] transition-colors duration-150',
-    active ? 'bg-surface-2 font-medium text-ink' : 'text-ink-muted hover:bg-surface-2 hover:text-ink',
+    'relative flex h-11 w-full items-center gap-3 rounded-full px-3.5 text-[15px] transition-colors duration-150',
+    active ? 'font-semibold text-ink' : 'text-ink-muted hover:bg-surface-2 hover:text-ink',
     !expanded && 'justify-center px-0',
   )
 
@@ -102,11 +119,11 @@ function StaffNavigation() {
         >
           {expanded ? (
             <span className="min-w-0">
-              <Wordmark size="sm" className="[&>span]:text-[22px]" />
+              <Wordmark size="sm" />
               <span className="mt-1 block truncate text-xs text-ink-muted">{RESTAURANT.name}</span>
             </span>
           ) : (
-            <span className="font-display text-[22px] leading-none text-ink">Q</span>
+            <TicketMark size="md" />
           )}
         </button>
 
@@ -122,8 +139,13 @@ function StaffNavigation() {
                 title={expanded ? undefined : item.label}
                 className={rowClass(active)}
               >
-                <item.icon className="h-5 w-5 shrink-0" aria-hidden />
-                {expanded ? item.label : <span className="sr-only">{item.label}</span>}
+                {active && (
+                  <motion.span layoutId="staff-side-pill" transition={PILL_SPRING} className="absolute inset-0 rounded-full bg-surface-2" aria-hidden>
+                    <span className="absolute left-1.5 top-1/2 h-4 w-1 -translate-y-1/2 rounded-full bg-accent" />
+                  </motion.span>
+                )}
+                <item.icon className="relative h-5 w-5 shrink-0" aria-hidden />
+                {expanded ? <span className="relative">{item.label}</span> : <span className="sr-only">{item.label}</span>}
               </button>
             )
           })}
@@ -148,9 +170,10 @@ function StaffNavigation() {
       >
         <div className="grid h-16 grid-cols-5">
           {STAFF_BAR.map(item => (
-            <BottomBarButton key={item.path} item={item} active={isActive(item.path)} onClick={() => navigate(item.path)} />
+            <BottomBarButton key={item.path} item={item} pillId="staff-bar-pill" active={isActive(item.path)} onClick={() => navigate(item.path)} />
           ))}
           <BottomBarButton
+            pillId="staff-bar-pill"
             item={{ path: '#more', label: 'More', icon: MoreHorizontal }}
             active={STAFF_MORE.some(i => isActive(i.path)) || moreOpen}
             onClick={() => setMoreOpen(true)}
@@ -224,10 +247,13 @@ export default function Navigation() {
               active={location.pathname.startsWith(item.path) || !!item.also?.some(p => location.pathname.startsWith(p))}
               onClick={() => navigate(item.path)}
               badge={item.path === '/cart' ? cartCount : undefined}
+              pillId="customer-bar-pill"
+              cartTarget={item.path === '/cart'}
             />
           ))}
         </div>
       </nav>
+      <CartFlyLayer />
     </>
   )
 }
