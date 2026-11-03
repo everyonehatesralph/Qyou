@@ -1,13 +1,17 @@
 import {
-  createContext, useContext, useState, useCallback, useMemo,
+  createContext, useContext, useState, useCallback, useMemo, useEffect,
   type ReactNode,
 } from 'react'
+import { orderSync, type StaffSignIn } from '../services/orderSync'
 
 // ─── Auth Context ─────────────────────────────────────────────────────────────
-// Separated from AppContext so auth changes don't re-render order/menu consumers
+// Separated from AppContext so auth changes don't re-render order/menu consumers.
+// The staff PIN is checked by the order backend, never in the browser.
 interface AuthContextType {
   isStaff: boolean
-  staffLogin: (pin: string) => boolean
+  /** False until a staff sign-in saved on this device has been checked. */
+  authReady: boolean
+  staffLogin: (pin: string) => Promise<StaffSignIn>
   staffLogout: () => void
   customerName: string
   setCustomerName: (name: string) => void
@@ -18,20 +22,35 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
-const STAFF_PIN = '1234'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isStaff, setIsStaff]           = useState(false)
+  const [authReady, setAuthReady]       = useState(() => !orderSync.staff.mightHaveSession())
   const [customerName, setCustomerName] = useState('')
   const [tableId, setTableId]           = useState<number | null>(null)
   const [tableName, setTableName]       = useState('')
 
-  const staffLogin = useCallback((pin: string): boolean => {
-    if (pin === STAFF_PIN) { setIsStaff(true); return true }
-    return false
+  // Staff stay signed in across reloads on their own device
+  useEffect(() => {
+    if (authReady) return
+    let cancelled = false
+    orderSync.staff.restore()
+      .then(ok => { if (!cancelled) setIsStaff(ok) })
+      .catch(() => { /* treated as signed out */ })
+      .finally(() => { if (!cancelled) setAuthReady(true) })
+    return () => { cancelled = true }
+  }, [authReady])
+
+  const staffLogin = useCallback(async (pin: string): Promise<StaffSignIn> => {
+    const result = await orderSync.staff.signIn(pin)
+    if (result === 'ok') setIsStaff(true)
+    return result
   }, [])
 
-  const staffLogout = useCallback(() => setIsStaff(false), [])
+  const staffLogout = useCallback(() => {
+    setIsStaff(false)
+    orderSync.staff.signOut().catch(() => { /* already signed out */ })
+  }, [])
 
   const setTableSession = useCallback((tid: number, tname: string, cname: string) => {
     setTableId(tid); setTableName(tname); setCustomerName(cname)
@@ -42,11 +61,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(() => ({
-    isStaff, staffLogin, staffLogout,
+    isStaff, authReady, staffLogin, staffLogout,
     customerName, setCustomerName,
     tableId, tableName, setTableSession, clearSession,
   }), [
-    isStaff, staffLogin, staffLogout,
+    isStaff, authReady, staffLogin, staffLogout,
     customerName, tableId, tableName, setTableSession, clearSession,
   ])
 

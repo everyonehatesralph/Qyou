@@ -1,194 +1,245 @@
 /**
- * Client-side order sync — works in TWO modes:
+ * Shared orders: one client, two backends.
  *
- * MODE 1 (Local dev with Vite): SSE + REST API via the Vite plugin
- *   → Real-time push, cross-device sync on the same Wi-Fi
+ *   Supabase (production): Postgres prices and stores orders, Realtime pushes changes.
+ *   Order server (local dev, e2e, self-hosting): server/orderSyncPlugin.ts over REST + SSE.
  *
- * MODE 2 (Vercel / static deploy): localStorage + BroadcastChannel
- *   → Cross-tab sync on the same browser, no backend needed
+ * Supabase is used when VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set;
+ * VITE_ORDER_BACKEND=server|supabase overrides that.
  *
- * The client tries SSE first. If it fails (404, no server), it silently
- * falls back to localStorage-only mode. Orders still work — they just
- * live in the browser instead of a server.
+ * Staff devices follow every order. Guest devices follow the public order board and
+ * load their own orders by id, so a guest never receives another guest's items or name.
  */
+import { SUPABASE_CONFIGURED } from './supabaseClient'
+import { supabaseTransport } from './supabaseTransport'
+import { serverTransport } from './serverTransport'
+import {
+  guestView, isOrderId, sortOrders, withStatus,
+  type BoardRow, type Order, type OrderStatus, type PlaceOrderInput,
+} from './orderModel'
 
-type OnSyncCallback = (orders: unknown) => void
+export type StaffSignIn = 'ok' | 'wrong_pin' | 'not_staff' | 'too_many_attempts' | 'offline'
+
+export interface FeedHandlers<T> {
+  /** The whole feed, sent on every (re)connect; the server transport sends one per change. */
+  snapshot(rows: T[]): void
+  /** One changed row. */
+  change(row: T): void
+  down(): void
+}
+
+export type Feed = 'orders' | 'board'
+export type FeedRow<F extends Feed> = F extends 'orders' ? Order : BoardRow
+
+export interface Transport {
+  /** Staff follow 'orders' (needs a staff session), guests follow 'board'. */
+  subscribe<F extends Feed>(feed: F, on: FeedHandlers<FeedRow<F>>): () => void
+  getOrders(ids: string[]): Promise<Order[]>
+  placeOrder(input: PlaceOrderInput): Promise<Order>
+  setStatus(id: string, status: OrderStatus): Promise<Order>
+  cancelOrder(id: string): Promise<Order>
+  staff: {
+    /** Quick local check, so pages that never see staff never load the auth SDK. */
+    mightHaveSession(): boolean
+    restore(): Promise<boolean>
+    signIn(pin: string): Promise<StaffSignIn>
+    signOut(): Promise<void>
+  }
+}
+
+// ─── This phone's own orders ─────────────────────────────────────────────────
+const LS_MY_ORDERS = 'qyou_my_orders'
+
+export function getMyOrderIds(): string[] {
+  try {
+    const raw = localStorage.getItem(LS_MY_ORDERS)
+    if (raw) return JSON.parse(raw)
+  } catch { /* noop */ }
+  return []
+}
+
+function rememberMyOrder(orderId: string) {
+  try {
+    const ids = getMyOrderIds()
+    if (!ids.includes(orderId)) {
+      ids.unshift(orderId)
+      localStorage.setItem(LS_MY_ORDERS, JSON.stringify(ids.slice(0, 20)))
+    }
+  } catch { /* noop */ }
+}
+
+// ─── Client ──────────────────────────────────────────────────────────────────
+type Listener = (orders: Order[], connected: boolean) => void
+export type SyncRole = 'staff' | 'guest'
+
+const backend = import.meta.env.VITE_ORDER_BACKEND as string | undefined
+const useSupabase = backend ? backend === 'supabase' : SUPABASE_CONFIGURED
 
 class OrderSyncClient {
-  private eventSource: EventSource | null = null
-  private callbacks: Set<OnSyncCallback> = new Set()
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null
-  private _connected = false
-  private _mode: 'sse' | 'local' = 'local'
-  private _sseAttempted = false
-  private broadcastChannel: BroadcastChannel | null = null
+  readonly mode: 'supabase' | 'server' = useSupabase ? 'supabase' : 'server'
+  private transport: Transport = useSupabase ? supabaseTransport : serverTransport
+  private role: SyncRole = 'guest'
+  /** Staff: every order. Guest: this phone's orders. */
+  private orders = new Map<string, Order>()
+  /** Guest only: the public order board. */
+  private board = new Map<string, BoardRow>()
+  private connected = false
+  private listeners = new Set<Listener>()
+  private stop: (() => void) | null = null
+  private started = false
+  /** Bumped on every resubscribe so late answers for an old feed are dropped. */
+  private generation = 0
+  private ownRetry: ReturnType<typeof setTimeout> | null = null
 
-  connect() {
-    this.initBroadcastChannel()
-
-    // Only attempt SSE once — if it fails, stay in local mode
-    if (!this._sseAttempted) {
-      this._sseAttempted = true
-      this.attemptSSE()
-    }
+  /** Starts following orders. Called by the first page that reads them. */
+  start() {
+    if (this.started) return
+    this.started = true
+    this.resubscribe()
+    // Phones drop sockets while asleep; start clean when the page has been away a while
+    let hiddenAt = 0
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') hiddenAt = Date.now()
+      else if (Date.now() - hiddenAt > 30_000) this.resubscribe()
+    })
+    window.addEventListener('online', () => this.resubscribe())
   }
 
-  private initBroadcastChannel() {
-    if (this.broadcastChannel) return
-    try {
-      this.broadcastChannel = new BroadcastChannel('qyou_orders_sync')
-      this.broadcastChannel.onmessage = (ev) => {
-        try {
-          const orders = ev.data
-          if (Array.isArray(orders)) {
-            this.callbacks.forEach(cb => cb(orders))
-          }
-        } catch { /* ignore */ }
-      }
-    } catch { /* BroadcastChannel not supported */ }
+  setRole(role: SyncRole) {
+    if (role === this.role) return
+    this.role = role
+    this.orders.clear()
+    this.board.clear()
+    this.connected = false
+    if (this.started) this.resubscribe()
+    this.emit()
   }
 
-  /** Broadcast orders to other tabs */
-  broadcastToTabs(orders: unknown) {
-    try {
-      this.broadcastChannel?.postMessage(orders)
-    } catch { /* ignore */ }
+  onChange(listener: Listener): () => void {
+    this.listeners.add(listener)
+    listener(this.visible(), this.connected)
+    return () => { this.listeners.delete(listener) }
   }
 
-  private attemptSSE() {
-    try {
-      const es = new EventSource('/api/orders/stream')
+  get isConnected() { return this.connected }
 
-      // If SSE doesn't connect within 3s, give up and use local mode
-      const timeout = setTimeout(() => {
-        if (!this._connected) {
-          es.close()
-          this._mode = 'local'
-          this._connected = true // "connected" in local mode
-          this.callbacks.forEach(cb => cb(this.loadLocalOrders()))
-        }
-      }, 3000)
-
-      es.onmessage = (event) => {
-        clearTimeout(timeout)
-        try {
-          const orders = JSON.parse(event.data)
-          this._connected = true
-          this._mode = 'sse'
-          this.eventSource = es
-          this.callbacks.forEach(cb => cb(orders))
-        } catch { /* ignore */ }
-      }
-
-      es.onerror = () => {
-        clearTimeout(timeout)
-        es.close()
-        this.eventSource = null
-
-        if (this._mode === 'sse') {
-          // Was connected via SSE, lost connection — try reconnect
-          this._connected = false
-          this.scheduleReconnect()
-        } else {
-          // Never connected via SSE — stay in local mode permanently
-          this._mode = 'local'
-          this._connected = true
-          this.callbacks.forEach(cb => cb(this.loadLocalOrders()))
-        }
-      }
-    } catch {
-      // SSE not available at all
-      this._mode = 'local'
-      this._connected = true
-      this.callbacks.forEach(cb => cb(this.loadLocalOrders()))
-    }
+  private visible(): Order[] {
+    return this.role === 'staff'
+      ? sortOrders(this.orders.values())
+      : guestView([...this.orders.values()], [...this.board.values()])
   }
 
-  private loadLocalOrders(): unknown[] {
-    try {
-      const raw = localStorage.getItem('qyou_orders')
-      if (raw) return JSON.parse(raw)
-    } catch { /* noop */ }
-    return []
+  private emit() {
+    const orders = this.visible()
+    this.listeners.forEach(l => l(orders, this.connected))
   }
 
-  private scheduleReconnect() {
-    if (this.reconnectTimer) return
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null
-      this.attemptSSE()
-    }, 5000)
+  private setConnected(connected: boolean) {
+    if (connected === this.connected) return
+    this.connected = connected
+    this.emit()
   }
 
-  /** Send a new order to the server (SSE mode) or save locally */
-  async placeOrder(order: unknown): Promise<boolean> {
-    if (this._mode === 'local') {
-      // In local mode, localStorage is the source of truth
-      // OrderContext already saved to localStorage — just broadcast to tabs
-      this.broadcastToTabs(this.loadLocalOrders())
-      return true
-    }
+  private resubscribe() {
+    this.stop?.()
+    if (this.ownRetry) clearTimeout(this.ownRetry)
+    const gen = ++this.generation
+    const live = () => gen === this.generation
 
-    try {
-      const res = await fetch('/api/orders/place', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(order),
+    if (this.role === 'staff') {
+      this.stop = this.transport.subscribe('orders', {
+        snapshot: rows => {
+          if (!live()) return
+          this.orders = new Map(rows.map(o => [o.id, o]))
+          this.connected = true
+          this.emit()
+        },
+        change: row => { if (live()) { this.orders.set(row.id, row); this.emit() } },
+        down: () => { if (live()) this.setConnected(false) },
       })
-      return res.ok
-    } catch {
-      return false
-    }
-  }
-
-  /** Update an order's status */
-  async updateStatus(orderId: string, status: string): Promise<boolean> {
-    if (this._mode === 'local') {
-      this.broadcastToTabs(this.loadLocalOrders())
-      return true
+      return
     }
 
-    try {
-      const res = await fetch('/api/orders/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, status, timestamp: new Date().toISOString() }),
+    // Guests: the board is live; their own orders are reloaded whenever the feed reconnects
+    let ownLoaded = false
+    const loadOwn = () => {
+      const ids = getMyOrderIds().filter(isOrderId)
+      const done = (rows: Order[]) => {
+        if (!live()) return
+        this.orders = new Map(rows.map(o => [o.id, o]))
+        ownLoaded = true
+        this.connected = true
+        this.emit()
+      }
+      if (ids.length === 0) { done([]); return }
+      this.transport.getOrders(ids).then(done, err => {
+        if (!live()) return
+        console.warn('[orders] could not load this phone\'s orders', err)
+        this.ownRetry = setTimeout(loadOwn, 3000)
       })
-      return res.ok
-    } catch {
-      return false
+    }
+    this.stop = this.transport.subscribe('board', {
+      snapshot: rows => {
+        if (!live()) return
+        this.board = new Map(rows.map(r => [r.boardId, r]))
+        if (ownLoaded) this.emit()
+        else loadOwn()
+      },
+      change: row => { if (live()) { this.board.set(row.boardId, row); this.emit() } },
+      down: () => {
+        if (!live()) return
+        ownLoaded = false
+        this.setConnected(false)
+      },
+    })
+  }
+
+  // ── Writes ──
+
+  async placeOrder(input: PlaceOrderInput): Promise<Order> {
+    const order = await this.transport.placeOrder(input)
+    rememberMyOrder(order.id)
+    this.orders.set(order.id, order)
+    this.emit()
+    return order
+  }
+
+  /** Staff only; the server refuses anyone else. Shows the change at once and undoes it if refused. */
+  async updateStatus(id: string, status: OrderStatus): Promise<void> {
+    const before = this.orders.get(id)
+    if (before) { this.orders.set(id, withStatus(before, status)); this.emit() }
+    try {
+      const saved = await this.transport.setStatus(id, status)
+      this.orders.set(id, saved)
+      this.emit()
+    } catch (err) {
+      if (before) { this.orders.set(id, before); this.emit() }
+      throw err
     }
   }
 
-  /** Subscribe to state updates */
-  onSync(callback: OnSyncCallback): () => void {
-    this.callbacks.add(callback)
-    return () => this.callbacks.delete(callback)
+  async cancelOrder(id: string): Promise<void> {
+    if (this.role === 'staff') return this.updateStatus(id, 'cancelled')
+    const before = this.orders.get(id)
+    const boardBefore = before?.boardId ? this.board.get(before.boardId) : undefined
+    if (before) this.orders.set(id, withStatus(before, 'cancelled'))
+    if (boardBefore) this.board.set(boardBefore.boardId, withStatus(boardBefore, 'cancelled'))
+    this.emit()
+    try {
+      const saved = await this.transport.cancelOrder(id)
+      this.orders.set(id, saved)
+      this.emit()
+    } catch (err) {
+      if (before) this.orders.set(id, before)
+      if (boardBefore) this.board.set(boardBefore.boardId, boardBefore)
+      this.emit()
+      throw err
+    }
   }
 
-  get isConnected() {
-    return this._connected
-  }
+  // ── Staff sign-in ──
 
-  get mode() {
-    return this._mode
-  }
-
-  destroy() {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer)
-      this.reconnectTimer = null
-    }
-    if (this.eventSource) {
-      this.eventSource.close()
-      this.eventSource = null
-    }
-    if (this.broadcastChannel) {
-      this.broadcastChannel.close()
-      this.broadcastChannel = null
-    }
-    this.callbacks.clear()
-  }
+  get staff() { return this.transport.staff }
 }
 
 export const orderSync = new OrderSyncClient()

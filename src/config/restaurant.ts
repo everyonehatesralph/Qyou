@@ -14,6 +14,8 @@ export const RESTAURANT: {
   onAccent: { light: string; dark: string }
   currency: string
   tables: TableDef[]
+  /** Supabase Auth user the staff PIN signs in as; the PIN is its password. Not a secret. */
+  staffEmail: string
 } = {
   name: 'Qyou Demo Café',
   shortName: 'Demo Café',
@@ -22,6 +24,7 @@ export const RESTAURANT: {
   onAccent: { light: '#FFFFFF', dark: '#18181B' },
   currency: '₱',
   tables: Array.from({ length: 10 }, (_, i) => ({ id: i + 1, label: `Table ${i + 1}` })),
+  staffEmail: 'demo-cafe-staff@example.com',
 }
 
 /** Display label for a table id, falling back to `Table {id}` for unknown ids. */

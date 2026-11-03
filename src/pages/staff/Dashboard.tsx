@@ -16,6 +16,7 @@ import ConfirmDialog from '../../components/ConfirmDialog'
 import { Button, Card, EmptyState, StatusPill, cn } from '../../components/ui'
 import { RESTAURANT, tableLabel } from '../../config/restaurant'
 import { peso } from '../../utils/formatters'
+import { orderRef } from '../../services/orderModel'
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -53,7 +54,7 @@ const IncomingCard = memo(function IncomingCard({ order, now, onConfirm }: { ord
         <div className="min-w-0">
           <p className="font-display text-xl leading-tight text-ink">{order.tableName}</p>
           <p className="mt-0.5 truncate text-sm text-ink-muted">
-            {order.customerName || 'Guest'} · <span className="font-mono text-[13px]">Nº {order.id}</span>
+            {order.customerName || 'Guest'} · <span className="font-mono text-[13px]">Nº {orderRef(order)}</span>
           </p>
         </div>
         <div className="shrink-0 text-right">
@@ -190,7 +191,7 @@ export default function Dashboard() {
                   <div className="min-w-0 flex-1">
                     <p className="text-[15px] text-ink">
                       <span className="font-medium">{order.tableName}</span>
-                      <span className="text-ink-muted"> · {order.customerName || 'Guest'} · {order.id}</span>
+                      <span className="text-ink-muted"> · {order.customerName || 'Guest'} · {orderRef(order)}</span>
                     </p>
                     <p className="mt-0.5 truncate text-sm text-ink-muted">{itemsSummary(order)}</p>
                   </div>
@@ -210,7 +211,7 @@ export default function Dashboard() {
                   <div className="min-w-0 flex-1">
                     <p className="text-[15px] text-ink">
                       <span className="font-medium">{order.tableName}</span>
-                      <span className="text-ink-muted"> · {order.customerName || 'Guest'} · {order.id}</span>
+                      <span className="text-ink-muted"> · {order.customerName || 'Guest'} · {orderRef(order)}</span>
                     </p>
                     <p className="mt-0.5 truncate text-sm text-ink-muted">{itemsSummary(order)}</p>
                   </div>

@@ -3,6 +3,7 @@ import type { StatusGroup } from '../theme/status'
 import { STATUS_GROUP_CLASSES } from '../theme/status'
 import { peso } from '../utils/formatters'
 import { Button, StatusPill, cn } from './ui'
+import { orderRef } from '../services/orderModel'
 
 /** What a table needs next, from its open orders: new orders first, then ready, kitchen, served. */
 export function tableState(orders: Order[]): { group: StatusGroup | null; label: string } {
@@ -54,7 +55,7 @@ export default function TableCard({ label, orders, onFree, compact }: Props) {
           {orders.map(o => (
             <li key={o.id} className="flex items-center justify-between gap-2 px-3 py-2">
               <span className="min-w-0 truncate text-sm text-ink">
-                {o.customerName || 'Guest'} <span className="text-ink-muted">· {o.id}</span>
+                {o.customerName || 'Guest'} <span className="text-ink-muted">· {orderRef(o)}</span>
               </span>
               <StatusPill status={o.status} />
             </li>

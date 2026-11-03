@@ -2,6 +2,7 @@ import { Printer } from 'lucide-react'
 import type { Order } from '../context/OrderContext'
 import { RESTAURANT } from '../config/restaurant'
 import { BottomSheet, Button } from './ui'
+import { orderRef } from '../services/orderModel'
 
 interface InvoiceModalProps {
   order: Order
@@ -28,7 +29,7 @@ export default function InvoiceModal({ order, open, onClose }: InvoiceModalProps
   const money = (n: number, digits = 0) => `${RESTAURANT.currency}${n.toFixed(digits)}`
 
   const meta: [string, string][] = [
-    ['Order', order.id],
+    ['Order', orderRef(order)],
     ['Date', formatDate(order.createdAt)],
     ['Table', order.tableName],
     ['Name', order.customerName],
@@ -41,7 +42,7 @@ export default function InvoiceModal({ order, open, onClose }: InvoiceModalProps
     printWin.document.write(`<!DOCTYPE html>
       <html>
         <head>
-          <title>Order ${esc(order.id)} — ${esc(RESTAURANT.name)}</title>
+          <title>Order ${esc(orderRef(order))} — ${esc(RESTAURANT.name)}</title>
           <style>
             * { box-sizing: border-box; margin: 0; padding: 0; }
             body { font-family: system-ui, sans-serif; background: white; color: black; padding: 28px 24px; max-width: 340px; margin: 0 auto; }

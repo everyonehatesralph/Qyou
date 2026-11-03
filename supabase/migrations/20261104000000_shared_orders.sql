@@ -1,0 +1,329 @@
+-- Qyou shared orders.
+-- Run once in the Supabase SQL editor (or with `supabase db push`). Safe to run again.
+--
+-- Who can do what:
+--   guests (anon key, no sign-in)  place orders, read and cancel their own orders by id,
+--                                  read the public order board (no items, prices or dine-in names)
+--   staff (signed in + listed in   read every order, change any order's status
+--          public.staff_members)
+-- Nobody writes tables directly: every write goes through a function below, which prices
+-- orders from public.menu_items and ignores whatever the browser says things cost.
+
+-- ─── Menu: the prices the server charges ─────────────────────────────────────
+create table if not exists public.menu_items (
+  id         integer primary key,
+  name       text not null,
+  price      numeric(10, 2) not null check (price >= 0),
+  category   text not null,
+  available  boolean not null default true,
+  updated_at timestamptz not null default now()
+);
+
+-- Must match src/constants/menu.ts (a test checks this). Re-running updates names and prices
+-- but leaves "available" alone.
+insert into public.menu_items (id, name, price, category) values
+  (1,  'Signature Espresso',  120, 'Coffee'),
+  (2,  'Caramel Macchiato',   165, 'Coffee'),
+  (3,  'Matcha Latte',        175, 'Coffee'),
+  (4,  'Cold Brew',           155, 'Coffee'),
+  (5,  'Chamomile Honey Tea', 110, 'Tea'),
+  (6,  'Iced Lemon Verbena',  125, 'Tea'),
+  (7,  'Butter Croissant',    95,  'Pastry'),
+  (8,  'Almond Danish',       115, 'Pastry'),
+  (9,  'Avocado Toast',       195, 'Food'),
+  (10, 'Club Sandwich',       225, 'Food')
+on conflict (id) do update set
+  name = excluded.name, price = excluded.price, category = excluded.category, updated_at = now();
+
+-- ─── Staff: Supabase Auth users allowed to run the floor ─────────────────────
+create table if not exists public.staff_members (
+  user_id    uuid primary key references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+-- ─── Orders ──────────────────────────────────────────────────────────────────
+create table if not exists public.orders (
+  id            uuid primary key,                       -- made by the guest's phone; also its key to the order
+  board_id      uuid not null unique default gen_random_uuid(), -- public id on the order board
+  number        bigint generated always as identity unique, -- short ticket number staff call out (Nº 0042)
+  table_id      integer not null check (table_id >= 0),
+  table_name    text not null,
+  customer_name text not null default '',
+  items         jsonb not null,                         -- [{ id, name, price, quantity }] priced by the server
+  total         numeric(10, 2) not null check (total >= 0),
+  status        text not null default 'pending'
+                check (status in ('pending', 'confirmed', 'preparing', 'ready', 'served', 'paid', 'cancelled')),
+  order_type    text not null check (order_type in ('dineIn', 'takeaway')),
+  takeaway_code text not null default '',
+  notes         text,
+  created_at    timestamptz not null default now(),
+  confirmed_at  timestamptz,
+  preparing_at  timestamptz,
+  ready_at      timestamptz,
+  served_at     timestamptz,
+  paid_at       timestamptz,
+  cancelled_at  timestamptz
+);
+create index if not exists orders_created_at_idx on public.orders (created_at desc);
+create index if not exists orders_table_recent_idx on public.orders (table_id, created_at desc);
+
+-- ─── Order board: what any guest may see about other people's orders ────────
+-- Table occupancy for check-in and the take-away pickup screen. No items, totals or notes;
+-- names only for take-away orders, which the pickup screen calls out.
+create table if not exists public.order_board (
+  board_id      uuid primary key references public.orders (board_id) on delete cascade,
+  table_id      integer not null,
+  table_name    text not null,
+  order_type    text not null,
+  takeaway_code text not null,
+  customer_name text not null,
+  status        text not null,
+  created_at    timestamptz not null,
+  confirmed_at  timestamptz,
+  preparing_at  timestamptz,
+  ready_at      timestamptz,
+  served_at     timestamptz,
+  paid_at       timestamptz,
+  cancelled_at  timestamptz
+);
+create index if not exists order_board_created_at_idx on public.order_board (created_at desc);
+
+create or replace function public.sync_order_board() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.order_board as b (
+    board_id, table_id, table_name, order_type, takeaway_code, customer_name, status, created_at,
+    confirmed_at, preparing_at, ready_at, served_at, paid_at, cancelled_at
+  ) values (
+    new.board_id, new.table_id, new.table_name, new.order_type, new.takeaway_code,
+    case when new.order_type = 'takeaway' then new.customer_name else '' end,
+    new.status, new.created_at,
+    new.confirmed_at, new.preparing_at, new.ready_at, new.served_at, new.paid_at, new.cancelled_at
+  )
+  on conflict (board_id) do update set
+    status = excluded.status,
+    confirmed_at = excluded.confirmed_at, preparing_at = excluded.preparing_at,
+    ready_at = excluded.ready_at, served_at = excluded.served_at,
+    paid_at = excluded.paid_at, cancelled_at = excluded.cancelled_at;
+  return new;
+end $$;
+
+drop trigger if exists orders_sync_board on public.orders;
+create trigger orders_sync_board after insert or update on public.orders
+  for each row execute function public.sync_order_board();
+
+-- ─── Functions the app calls ─────────────────────────────────────────────────
+create or replace function public.is_staff() returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.staff_members where user_id = (select auth.uid()))
+$$;
+
+-- Errors are raised with a short code as the message; the app turns them into words.
+create or replace function public.place_order(
+  p_id            uuid,
+  p_table_id      integer,
+  p_table_name    text,
+  p_customer_name text,
+  p_order_type    text,
+  p_items         jsonb,
+  p_notes         text default null
+) returns public.orders
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_order       public.orders;
+  v_items       jsonb;
+  v_total       numeric(10, 2);
+  v_unknown     integer;
+  v_unavailable integer;
+  v_too_many    integer;
+  v_code        text := '';
+  v_tries       integer := 0;
+begin
+  -- The same id again is a retry of a request that already went through: hand back that order
+  select * into v_order from public.orders where id = p_id;
+  if found then return v_order; end if;
+
+  if p_id is null then raise exception 'invalid_order_id'; end if;
+  if p_order_type is null or p_order_type not in ('dineIn', 'takeaway') then raise exception 'invalid_order_type'; end if;
+  if p_table_id is null or p_table_id < 0 then raise exception 'invalid_table'; end if;
+  if jsonb_typeof(p_items) is distinct from 'array' or jsonb_array_length(p_items) = 0 then
+    raise exception 'empty_order';
+  end if;
+  if jsonb_array_length(p_items) > 30 then raise exception 'too_many_items'; end if;
+  if exists (
+    select 1 from jsonb_array_elements(p_items) e
+    -- CASE so the casts only run on values already known to be numbers
+    where case
+      when jsonb_typeof(e -> 'id') = 'number' and jsonb_typeof(e -> 'quantity') = 'number' then
+        (e ->> 'id')::numeric <> trunc((e ->> 'id')::numeric)
+        or (e ->> 'id')::numeric not between 1 and 2147483647
+        or (e ->> 'quantity')::numeric <> trunc((e ->> 'quantity')::numeric)
+        or (e ->> 'quantity')::numeric < 1
+      else true
+    end
+  ) then
+    raise exception 'invalid_items';
+  end if;
+  if exists (select 1 from jsonb_array_elements(p_items) e where (e ->> 'quantity')::numeric > 50) then
+    raise exception 'too_many_items';
+  end if;
+
+  -- Spam brake: one table (or the shared no-table slot) can't flood the kitchen
+  if (select count(*) from public.orders
+      where table_id = p_table_id and created_at > now() - interval '10 minutes') >= 30
+  or (select count(*) from public.orders where created_at > now() - interval '10 minutes') >= 300 then
+    raise exception 'too_many_orders';
+  end if;
+
+  with wanted as (
+    select (e ->> 'id')::integer as id, sum((e ->> 'quantity')::integer) as quantity, min(pos) as pos
+    from jsonb_array_elements(p_items) with ordinality as t (e, pos)
+    group by 1
+  )
+  select
+    jsonb_agg(jsonb_build_object('id', m.id, 'name', m.name, 'price', m.price, 'quantity', w.quantity) order by w.pos),
+    coalesce(sum(m.price * w.quantity), 0),
+    count(*) filter (where m.id is null),
+    count(*) filter (where m.id is not null and not m.available),
+    count(*) filter (where w.quantity > 50)
+  into v_items, v_total, v_unknown, v_unavailable, v_too_many
+  from wanted w left join public.menu_items m on m.id = w.id;
+
+  if v_unknown > 0 then raise exception 'unknown_item'; end if;
+  if v_unavailable > 0 then raise exception 'item_unavailable'; end if;
+  if v_too_many > 0 then raise exception 'too_many_items'; end if;
+
+  if p_order_type = 'takeaway' then
+    loop
+      -- No 0/O or 1/I, so the code reads cleanly off a screen
+      select 'T-' || string_agg(substr('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 1 + floor(random() * 32)::integer, 1), '')
+        into v_code from generate_series(1, 4);
+      v_tries := v_tries + 1;
+      exit when v_tries >= 20 or not exists (
+        select 1 from public.orders
+        where takeaway_code = v_code and status not in ('served', 'paid', 'cancelled')
+      );
+    end loop;
+  end if;
+
+  insert into public.orders (id, table_id, table_name, customer_name, items, total, order_type, takeaway_code, notes)
+  values (
+    p_id,
+    p_table_id,
+    left(coalesce(nullif(btrim(p_table_name), ''), 'Table ' || p_table_id), 40),
+    left(btrim(coalesce(p_customer_name, '')), 60),
+    v_items,
+    v_total,
+    p_order_type,
+    v_code,
+    nullif(left(btrim(coalesce(p_notes, '')), 500), '')
+  )
+  on conflict (id) do nothing
+  returning * into v_order;
+
+  if not found then select * into v_order from public.orders where id = p_id; end if;
+  return v_order;
+end $$;
+
+-- A guest's phone keeps the ids of the orders it placed; the id is the key to the order.
+create or replace function public.get_orders(p_ids uuid[]) returns setof public.orders
+language sql stable security definer set search_path = '' as $$
+  select * from public.orders where id = any (p_ids[1:50]) order by created_at desc
+$$;
+
+create or replace function public.cancel_order(p_id uuid) returns public.orders
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_order public.orders;
+begin
+  update public.orders set status = 'cancelled', cancelled_at = now()
+  where id = p_id and status in ('pending', 'confirmed')
+  returning * into v_order;
+  if not found then raise exception 'not_cancellable'; end if;
+  return v_order;
+end $$;
+
+create or replace function public.set_order_status(p_id uuid, p_status text) returns public.orders
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_order public.orders;
+begin
+  if not public.is_staff() then raise exception 'staff_only' using errcode = '42501'; end if;
+  if p_status is null or p_status not in ('pending', 'confirmed', 'preparing', 'ready', 'served', 'paid', 'cancelled') then
+    raise exception 'invalid_status';
+  end if;
+
+  update public.orders set
+    status       = p_status,
+    confirmed_at = case when p_status = 'confirmed' then now() else confirmed_at end,
+    preparing_at = case when p_status = 'preparing' then now() else preparing_at end,
+    ready_at     = case when p_status = 'ready'     then now() else ready_at end,
+    served_at    = case when p_status = 'served'    then now() else served_at end,
+    paid_at      = case when p_status = 'paid'      then now() else paid_at end,
+    cancelled_at = case when p_status = 'cancelled' then now() else cancelled_at end
+  where id = p_id
+  returning * into v_order;
+
+  if not found then raise exception 'order_not_found'; end if;
+  return v_order;
+end $$;
+
+-- ─── Access ──────────────────────────────────────────────────────────────────
+alter table public.menu_items    enable row level security;
+alter table public.staff_members enable row level security;
+alter table public.orders        enable row level security;
+alter table public.order_board   enable row level security;
+
+drop policy if exists "menu is public" on public.menu_items;
+create policy "menu is public" on public.menu_items
+  for select to anon, authenticated using (true);
+
+drop policy if exists "staff see their own membership" on public.staff_members;
+create policy "staff see their own membership" on public.staff_members
+  for select to authenticated using (user_id = (select auth.uid()));
+
+drop policy if exists "staff see every order" on public.orders;
+create policy "staff see every order" on public.orders
+  for select to authenticated using ((select public.is_staff()));
+
+drop policy if exists "order board is public" on public.order_board;
+create policy "order board is public" on public.order_board
+  for select to anon, authenticated using (true);
+
+-- Reads only, filtered by the policies above; direct writes are off for everyone.
+-- Granted explicitly so this works on projects that don't expose new tables by default.
+grant usage on schema public to anon, authenticated;
+grant select on public.menu_items, public.order_board to anon, authenticated;
+grant select on public.orders, public.staff_members to authenticated;
+revoke insert, update, delete, truncate on
+  public.menu_items, public.staff_members, public.orders, public.order_board
+  from anon, authenticated;
+
+revoke execute on function public.sync_order_board() from public, anon, authenticated;
+revoke execute on function public.is_staff() from public;
+revoke execute on function public.place_order(uuid, integer, text, text, text, jsonb, text) from public;
+revoke execute on function public.get_orders(uuid[]) from public;
+revoke execute on function public.cancel_order(uuid) from public;
+revoke execute on function public.set_order_status(uuid, text) from public, anon;
+
+grant execute on function public.is_staff() to anon, authenticated;
+grant execute on function public.place_order(uuid, integer, text, text, text, jsonb, text) to anon, authenticated;
+grant execute on function public.get_orders(uuid[]) to anon, authenticated;
+grant execute on function public.cancel_order(uuid) to anon, authenticated;
+grant execute on function public.set_order_status(uuid, text) to authenticated;
+
+-- ─── Live updates ────────────────────────────────────────────────────────────
+-- Staff screens follow public.orders, guests follow public.order_board.
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    if not exists (select 1 from pg_publication_tables
+                   where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'orders') then
+      alter publication supabase_realtime add table public.orders;
+    end if;
+    if not exists (select 1 from pg_publication_tables
+                   where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'order_board') then
+      alter publication supabase_realtime add table public.order_board;
+    end if;
+  end if;
+end $$;

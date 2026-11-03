@@ -8,6 +8,7 @@ import { useNow, timeAgo } from '../../hooks/useNow'
 import { ACTIVE_STATUSES, STATUS_GROUP_CLASSES, STATUS_META, STATUS_STEP } from '../../theme/status'
 import { RESTAURANT } from '../../config/restaurant'
 import { BottomSheet, Button, EmptyState, PageHeader, StatusPill, cn } from '../../components/ui'
+import { orderRef } from '../../services/orderModel'
 
 const peso = (n: number) => `${RESTAURANT.currency}${n.toFixed(0)}`
 
@@ -32,7 +33,7 @@ function OrderRow({ order, now, onOpen, onCancel }: { order: Order; now: number;
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-            <span className="font-mono text-[13px] font-medium tracking-wide text-ink">Nº {order.id}</span>
+            <span className="font-mono text-[13px] font-medium tracking-wide text-ink">Nº {orderRef(order)}</span>
             <StatusPill status={order.status} audience="customer" />
           </div>
           <p className="mt-1.5 truncate text-sm text-ink-muted">

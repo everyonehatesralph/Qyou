@@ -67,8 +67,8 @@ export function useApp() {
   const avail  = useMenuAvailability()
 
   // Bridge: placeOrder that auto-clears cart (old API compat)
-  const placeOrder = useMemo(() => (notes?: string): string => {
-    const orderId = order.placeOrder(
+  const placeOrder = useMemo(() => async (notes?: string): Promise<string> => {
+    const orderId = await order.placeOrder(
       cart.cartItems,
       auth.tableId,
       auth.tableName,

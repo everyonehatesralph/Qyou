@@ -12,6 +12,7 @@ import StaffHeader from '../../components/StaffHeader'
 import ThemeToggle from '../../components/ThemeToggle'
 import { Button, EmptyState, IconButton, cn } from '../../components/ui'
 import { peso } from '../../utils/formatters'
+import { orderRef } from '../../services/orderModel'
 
 // ─── Pipeline ────────────────────────────────────────────────────────────────
 type KitchenStatus = 'confirmed' | 'preparing' | 'ready'
@@ -67,7 +68,7 @@ const KitchenCard = memo(function KitchenCard({ order, status, action, now, onAd
         <div className="min-w-0 flex-1">
           <h3 className="whitespace-nowrap font-display text-[26px] leading-none text-ink xl:text-[30px]">{order.tableName}</h3>
           <p className="mt-1.5 truncate text-sm text-ink-muted">
-            {order.customerName || 'Guest'} · <span className="font-mono text-[13px]">Nº {order.id}</span>
+            {order.customerName || 'Guest'} · <span className="font-mono text-[13px]">Nº {orderRef(order)}</span>
           </p>
         </div>
         <div
@@ -228,7 +229,7 @@ export default function OrderQueue() {
                 <li key={order.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
                   <CheckCircle className="h-4 w-4 shrink-0 text-status-ready-text" aria-hidden />
                   <span className="text-ink">{order.tableName}</span>
-                  <span className="truncate text-ink-muted">· {order.customerName || 'Guest'} · {order.id}</span>
+                  <span className="truncate text-ink-muted">· {order.customerName || 'Guest'} · {orderRef(order)}</span>
                   <span className="ml-auto shrink-0 tabular-nums text-ink-muted">{peso(order.total)}</span>
                 </li>
               ))}

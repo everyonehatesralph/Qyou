@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
+import { STAFF_PIN, seedId } from './fixtures'
 
 // Every route at phone, tablet and desktop width, in light and dark:
 //  - no horizontal scrolling
@@ -40,7 +41,7 @@ async function pushRoute(page: Page, path: string) {
 
 async function staffSignIn(page: Page, path: string) {
   await page.goto('/staff/login')
-  for (const digit of '1234') await page.getByRole('button', { name: digit, exact: true }).click()
+  for (const digit of STAFF_PIN) await page.getByRole('button', { name: digit, exact: true }).click()
   await page.getByRole('button', { name: 'Sign in' }).click()
   await page.waitForURL('**/staff/dashboard')
   if (path !== '/staff/dashboard') await pushRoute(page, path)
@@ -51,7 +52,7 @@ const ROUTES: Route[] = [
   { id: 'checkin', path: '/t/1' },
   { id: 'menu', path: '/menu', setup: async page => { await checkIn(page); await addItems(page) } },
   { id: 'cart', path: '/cart', setup: async page => { await checkIn(page); await addItems(page); await page.getByRole('button', { name: /View cart/ }).click(); await page.waitForURL('**/cart') } },
-  { id: 'tracker', path: '/order/90001' },
+  { id: 'tracker', path: `/order/${seedId(1)}` },
   { id: 'myorders', path: '/my-orders' },
   { id: 'pickup', path: '/takeaway-pickup' },
   { id: 'expired', path: '/expired' },
@@ -98,13 +99,13 @@ for (const route of ROUTES) {
         page.on('response', res => { if (res.status() >= 400) problems.push(`HTTP ${res.status()}: ${res.url()}`) })
 
         await page.setViewportSize({ width, height: HEIGHT[width] })
-        await page.addInitScript(([t, k]) => {
+        await page.addInitScript(([t, k, myOrders]) => {
           localStorage.setItem('qyou_theme', t as string)
           if (k) localStorage.setItem('qyou_kitchen_theme', k as string)
           else localStorage.removeItem('qyou_kitchen_theme')
           // The "my orders" list reads this device's order ids
-          localStorage.setItem('qyou_my_orders', JSON.stringify(['90001', '90002', '90005']))
-        }, [appTheme, kitchenTheme])
+          localStorage.setItem('qyou_my_orders', JSON.stringify(myOrders))
+        }, [appTheme, kitchenTheme, [seedId(1), seedId(2), seedId(5)]] as const)
 
         if (route.staff) await staffSignIn(page, route.path)
         else if (route.setup) await route.setup(page)

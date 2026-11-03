@@ -1,91 +1,24 @@
 import {
   createContext, useContext, useState, useCallback, useMemo,
-  useEffect, type ReactNode,
+  useEffect, useRef, type ReactNode,
 } from 'react'
 import { orderSync } from '../services/orderSync'
+import { newOrderId, orderErrorText, type Order, type OrderStatus, type OrderType, type PlaceOrderInput } from '../services/orderModel'
 import { metricsCollector } from '../services/metricsCollector'
+import { useAuth } from './AuthContext'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-export interface OrderItem {
-  id: number
-  name: string
-  price: number
-  quantity: number
-}
-export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'served' | 'paid' | 'cancelled'
-export type OrderType = 'dineIn' | 'takeaway'
-export interface Order {
-  id: string
-  tableId: number
-  tableName: string
-  customerName: string
-  items: OrderItem[]
-  total: number
-  status: OrderStatus
-  orderType: OrderType
-  takeawayCode: string
-  createdAt: string
-  notes?: string
-  confirmedAt?: string
-  preparingAt?: string
-  readyAt?: string
-  servedAt?: string
-  paidAt?: string
-  cancelledAt?: string
-}
+export type { Order, OrderItem, OrderStatus, OrderType } from '../services/orderModel'
+export { getMyOrderIds } from '../services/orderSync'
 
-// ─── localStorage helpers ──────────────────────────────────────────────────────
-const LS_ORDERS    = 'qyou_orders'
-const LS_MY_ORDERS = 'qyou_my_orders'
-
-function loadOrders(): Order[] {
-  try {
-    const raw = localStorage.getItem(LS_ORDERS)
-    if (raw) return JSON.parse(raw) as Order[]
-  } catch { /* noop */ }
-  return []
-}
-
-function persistOrders(orders: Order[]) {
-  try { localStorage.setItem(LS_ORDERS, JSON.stringify(orders)) } catch { /* noop */ }
-}
-
-function saveMyOrderId(orderId: string) {
-  try {
-    const raw = localStorage.getItem(LS_MY_ORDERS)
-    const ids: string[] = raw ? JSON.parse(raw) : []
-    if (!ids.includes(orderId)) {
-      ids.unshift(orderId)
-      localStorage.setItem(LS_MY_ORDERS, JSON.stringify(ids.slice(0, 20)))
-    }
-  } catch { /* noop */ }
-}
-
-export function getMyOrderIds(): string[] {
-  try {
-    const raw = localStorage.getItem(LS_MY_ORDERS)
-    if (raw) return JSON.parse(raw)
-  } catch { /* noop */ }
-  return []
-}
-
-function makeOrderId() {
-  return Math.floor(10000 + Math.random() * 90000).toString()
-}
-
-// Generate short takeaway code for easy reference (e.g., "T-42K9")
-function makeTakeawayCode(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  let code = ''
-  for (let i = 0; i < 4; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return `T-${code}`
-}
+// Orders used to live in this browser only; drop that stale copy
+try { localStorage.removeItem('qyou_orders') } catch { /* noop */ }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 interface OrderContextType {
+  /** Staff: every order. Guests: their own orders, plus other people's active orders without items or totals. */
   orders: Order[]
+  /** Resolves with the new order's id once the restaurant has it; rejects with words to show the guest. */
   placeOrder: (
     cartItems: { id: number; name: string; price: number; quantity: number }[],
     tableId: number | null,
@@ -93,162 +26,95 @@ interface OrderContextType {
     customerName: string,
     orderType: OrderType,
     notes?: string,
-  ) => string
+  ) => Promise<string>
   updateOrderStatus: (orderId: string, status: OrderStatus) => void
   cancelOrder: (orderId: string) => void
   getOrder: (orderId: string) => Order | undefined
   isConnected: boolean
-  syncMode: 'sse' | 'local'
+  syncMode: 'supabase' | 'server'
 }
 
 const OrderContext = createContext<OrderContextType | null>(null)
 
 export function OrderProvider({ children }: { children: ReactNode }) {
-  const [orders, setOrders] = useState<Order[]>(loadOrders)
+  const { isStaff } = useAuth()
+  const [orders, setOrders] = useState<Order[]>([])
   const [isConnected, setIsConnected] = useState(false)
-  const [syncMode, setSyncMode] = useState<'sse' | 'local'>('local')
+  /** The last order that failed to send; retrying the same cart reuses its id, so it can't land twice. */
+  const lastFailed = useRef<{ key: string; id: string } | null>(null)
 
-  // ── Connect SSE (if available) + BroadcastChannel sync ──
   useEffect(() => {
-    orderSync.connect()
+    orderSync.setRole(isStaff ? 'staff' : 'guest')
+  }, [isStaff])
+
+  useEffect(() => {
     metricsCollector.recordSSEConnection(true)
-
-    // SSE or BroadcastChannel updates
-    const unsub = orderSync.onSync((payload) => {
-      const serverOrders = payload as Order[]
-      setOrders(serverOrders)
-      setIsConnected(true)
-      setSyncMode(orderSync.mode)
-      persistOrders(serverOrders)
-      
-      // Track SSE latency
-      const latency = Math.random() * 10 + 5 // Simulated 5-15ms latency
-      metricsCollector.recordSSEUpdateLatency(latency)
+    const unsub = orderSync.onChange((next, connected) => {
+      setOrders(next)
+      setIsConnected(connected)
     })
-
-    // Check connection status periodically
-    const interval = setInterval(() => {
-      setIsConnected(orderSync.isConnected)
-      setSyncMode(orderSync.mode)
-    }, 3000)
-
-    // ── Cross-tab localStorage sync (fallback for non-BroadcastChannel browsers) ──
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === LS_ORDERS && e.newValue) {
-        try {
-          const updated = JSON.parse(e.newValue) as Order[]
-          setOrders(updated)
-        } catch { /* noop */ }
-      }
-    }
-    window.addEventListener('storage', handleStorage)
-
     return () => {
       unsub()
-      clearInterval(interval)
-      window.removeEventListener('storage', handleStorage)
       metricsCollector.recordSSEConnection(false)
     }
   }, [])
 
   // ── Place order ──
-  const placeOrder = useCallback((
+  const placeOrder = useCallback(async (
     cartItems: { id: number; name: string; price: number; quantity: number }[],
     tableId: number | null,
     tableName: string,
     customerName: string,
     orderType: OrderType,
     notes?: string,
-  ): string => {
+  ): Promise<string> => {
     const startTime = performance.now()
     metricsCollector.recordOrderInFlight(true)
-    
-    const id = makeOrderId()
-    const newOrder: Order = {
-      id,
+
+    // Only ids and quantities go up: the server prices the order from its menu
+    const request: Omit<PlaceOrderInput, 'id'> = {
       tableId:      tableId ?? 0,
       tableName:    tableName || `Table ${tableId}`,
       customerName,
-      items:        cartItems.map(ci => ({ id: ci.id, name: ci.name, price: ci.price, quantity: ci.quantity })),
-      total:        cartItems.reduce((s, i) => s + i.price * i.quantity, 0),
-      status:       'pending',
       orderType,
-      takeawayCode: orderType === 'takeaway' ? makeTakeawayCode() : '',
-      createdAt:    new Date().toISOString(),
+      items:        cartItems.map(ci => ({ id: ci.id, quantity: ci.quantity })),
       notes,
     }
+    const key = JSON.stringify(request)
+    const id = lastFailed.current?.key === key ? lastFailed.current.id : newOrderId()
 
-    // Optimistic update
-    setOrders(prev => {
-      const next = [newOrder, ...prev]
-      persistOrders(next)
-      return next
-    })
-
-    saveMyOrderId(id)
-
-    // Send to server or broadcast to tabs
-    orderSync.placeOrder(newOrder).then(() => {
-      const latency = performance.now() - startTime
-      metricsCollector.recordOrderLatency(latency)
+    try {
+      const order = await orderSync.placeOrder({ id, ...request })
+      lastFailed.current = null
+      metricsCollector.recordOrderLatency(performance.now() - startTime)
       metricsCollector.recordOrderProcessed(true)
-      metricsCollector.recordOrderInFlight(false)
-    }).catch(() => {
+      return order.id
+    } catch (err) {
+      lastFailed.current = { key, id }
       metricsCollector.recordOrderProcessed(false)
+      throw new Error(orderErrorText(err))
+    } finally {
       metricsCollector.recordOrderInFlight(false)
-    })
-
-    return id
+    }
   }, [])
 
-  // ── Update status ──
+  // ── Update status (staff) ──
   const updateOrderStatus = useCallback((orderId: string, status: OrderStatus) => {
-    const timestamp = new Date().toISOString()
-    const STAGE_TS: Partial<Record<OrderStatus, keyof Order>> = {
-      confirmed: 'confirmedAt',
-      preparing: 'preparingAt',
-      ready:     'readyAt',
-      served:    'servedAt',
-      paid:      'paidAt',
-    }
-    const tsKey = STAGE_TS[status]
-
-    // Optimistic update
-    setOrders(prev => {
-      const next = prev.map(o => o.id === orderId
-        ? { ...o, status, ...(tsKey ? { [tsKey]: timestamp } : {}) }
-        : o
-      )
-      persistOrders(next)
-      return next
-    })
-
-    // Send to server or broadcast to tabs
-    orderSync.updateStatus(orderId, status)
+    const startTime = performance.now()
+    orderSync.updateStatus(orderId, status).then(
+      () => metricsCollector.recordSSEUpdateLatency(performance.now() - startTime),
+      err => console.warn(`[orders] could not mark ${orderId} ${status}:`, orderErrorText(err)),
+    )
   }, [])
 
   // ── Cancel order ──
   const cancelOrder = useCallback((orderId: string) => {
-    const timestamp = new Date().toISOString()
-    
     // Can only cancel pending or confirmed orders
     const order = orders.find(o => o.id === orderId)
     if (!order || !['pending', 'confirmed'].includes(order.status)) {
       return
     }
-
-    // Optimistic update
-    setOrders(prev => {
-      const next = prev.map(o => o.id === orderId
-        ? { ...o, status: 'cancelled' as OrderStatus, cancelledAt: timestamp }
-        : o
-      )
-      persistOrders(next)
-      return next
-    })
-
-    // Send to server or broadcast to tabs
-    orderSync.updateStatus(orderId, 'cancelled')
+    orderSync.cancelOrder(orderId).catch(err => console.warn(`[orders] could not cancel ${orderId}:`, orderErrorText(err)))
   }, [orders])
 
   const getOrder = useCallback(
@@ -257,8 +123,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   )
 
   const value = useMemo(() => ({
-    orders, placeOrder, updateOrderStatus, cancelOrder, getOrder, isConnected, syncMode,
-  }), [orders, placeOrder, updateOrderStatus, cancelOrder, getOrder, isConnected, syncMode])
+    orders, placeOrder, updateOrderStatus, cancelOrder, getOrder, isConnected, syncMode: orderSync.mode,
+  }), [orders, placeOrder, updateOrderStatus, cancelOrder, getOrder, isConnected])
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>
 }
@@ -266,5 +132,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 export function useOrders() {
   const ctx = useContext(OrderContext)
   if (!ctx) throw new Error('useOrders must be used within OrderProvider')
+  // Pages that show orders start the live feed; the landing page never opens one
+  useEffect(() => { orderSync.start() }, [])
   return ctx
 }

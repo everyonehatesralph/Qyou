@@ -1,43 +1,53 @@
 import { useState, useCallback, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import type { StaffSignIn } from '../../services/orderSync'
 import { ArrowLeft, Delete, Lock } from 'lucide-react'
 import ThemeToggle from '../../components/ThemeToggle'
 import { RESTAURANT } from '../../config/restaurant'
 import { Button, Wordmark, cn } from '../../components/ui'
 
-const PIN_LENGTH = 4
+const PIN_LENGTH = 6
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'back'] as const
+
+const SIGN_IN_ERRORS: Record<Exclude<StaffSignIn, 'ok'>, string> = {
+  wrong_pin: 'Incorrect PIN. Try again.',
+  not_staff: 'This account is not set up as staff yet.',
+  too_many_attempts: 'Too many tries. Wait a few minutes and try again.',
+  offline: "Can't reach the server. Check the connection and try again.",
+}
 
 export default function StaffLogin() {
   const navigate = useNavigate()
-  const { staffLogin } = useAuth()
-  const [pin, setPin]         = useState('')
-  const [error, setError]     = useState(false)
-  const [shaking, setShaking] = useState(false)
+  const { staffLogin, isStaff, authReady } = useAuth()
+  const [pin, setPin]           = useState('')
+  const [error, setError]       = useState('')
+  const [shaking, setShaking]   = useState(false)
+  const [checking, setChecking] = useState(false)
 
   const handleDigit = useCallback((d: string) => {
     setPin(prev => (prev.length >= PIN_LENGTH ? prev : prev + d))
-    setError(false)
+    setError('')
   }, [])
 
   const handleBackspace = useCallback(() => {
     setPin(prev => prev.slice(0, -1))
-    setError(false)
+    setError('')
   }, [])
 
-  const handleSubmit = useCallback(() => {
-    if (pin.length < PIN_LENGTH) return
-    const ok = staffLogin(pin)
-    if (ok) {
-      navigate('/staff/dashboard', { replace: true })
-    } else {
-      setError(true)
+  const handleSubmit = useCallback(async () => {
+    if (pin.length < PIN_LENGTH || checking) return
+    setChecking(true)
+    const result = await staffLogin(pin)
+    setChecking(false)
+    // On success isStaff flips and the redirect below takes over
+    if (result !== 'ok') {
+      setError(SIGN_IN_ERRORS[result])
       setShaking(true)
       setPin('')
       setTimeout(() => setShaking(false), 450)
     }
-  }, [pin, staffLogin, navigate])
+  }, [pin, checking, staffLogin])
 
   // Physical keyboard: digits, Backspace, Enter
   useEffect(() => {
@@ -50,6 +60,9 @@ export default function StaffLogin() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [handleDigit, handleBackspace, handleSubmit])
+
+  // Already signed in on this device
+  if (authReady && isStaff) return <Navigate to="/staff/dashboard" replace />
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-bg px-4">
@@ -64,7 +77,7 @@ export default function StaffLogin() {
         <div className="text-center">
           <Wordmark size="lg" />
           <h1 className="mt-6 font-display text-2xl text-ink">Staff sign in</h1>
-          <p className="mt-1 text-sm text-ink-muted">{RESTAURANT.name} · Enter your 4-digit PIN</p>
+          <p className="mt-1 text-sm text-ink-muted">{RESTAURANT.name} · Enter your {PIN_LENGTH}-digit PIN</p>
         </div>
 
         <div
@@ -83,8 +96,8 @@ export default function StaffLogin() {
           ))}
         </div>
 
-        <p className={cn('mt-4 h-5 text-center text-sm', error ? 'text-status-cancelled-text' : 'text-transparent')} aria-live="assertive">
-          {error ? 'Incorrect PIN. Try again.' : ''}
+        <p className={cn('mt-4 min-h-5 text-center text-sm', error ? 'text-status-cancelled-text' : 'text-transparent')} aria-live="assertive">
+          {error}
         </p>
 
         <div className="mt-4 grid grid-cols-3 gap-3">
@@ -113,11 +126,11 @@ export default function StaffLogin() {
           size="lg"
           fullWidth
           leftIcon={<Lock />}
-          disabled={pin.length < PIN_LENGTH}
+          disabled={pin.length < PIN_LENGTH || checking}
           onClick={handleSubmit}
           className="mt-6"
         >
-          Sign in
+          {checking ? 'Checking…' : 'Sign in'}
         </Button>
       </main>
     </div>

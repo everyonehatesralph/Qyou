@@ -18,21 +18,30 @@ export default function Cart() {
   const { placeOrder: placeOrderRaw } = useOrders()
   const [showCheckout, setShowCheckout] = useState(false)
   const [placing, setPlacing] = useState(false)
+  const [placeError, setPlaceError] = useState('')
 
-  const handleConfirm = (opts: CheckoutOptions) => {
+  const handleConfirm = async (opts: CheckoutOptions) => {
     setPlacing(true)
+    setPlaceError('')
     const fullNotes = [
       opts.dineIn ? 'Dine In' : 'Take Away',
       ...opts.addOns.map(a => a.label),
       opts.notes,
     ].filter(Boolean).join(' | ')
 
-    setTimeout(() => {
-      const orderId = placeOrderRaw(cartItems, tableId, tableName, customerName, opts.dineIn ? 'dineIn' : 'takeaway', fullNotes)
+    try {
+      // A short minimum so "Placing order…" never just flickers
+      const [orderId] = await Promise.all([
+        placeOrderRaw(cartItems, tableId, tableName, customerName, opts.dineIn ? 'dineIn' : 'takeaway', fullNotes),
+        new Promise(resolve => setTimeout(resolve, 400)),
+      ])
       clearCart()
       setShowCheckout(false)
       navigate(`/order/${orderId}`, { replace: true })
-    }, 400)
+    } catch (err) {
+      setPlaceError(err instanceof Error ? err.message : String(err))
+      setPlacing(false)
+    }
   }
 
   return (
@@ -135,6 +144,7 @@ export default function Cart() {
         cartTotal={cartTotal}
         tableName={tableName}
         placing={placing}
+        error={placeError}
         onConfirm={handleConfirm}
         onClose={() => { if (!placing) setShowCheckout(false) }}
       />

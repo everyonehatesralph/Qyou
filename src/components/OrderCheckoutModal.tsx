@@ -10,6 +10,8 @@ interface Props {
   cartTotal: number
   tableName: string
   placing?: boolean
+  /** Why the last try didn't go through, in words for the guest. */
+  error?: string
   onConfirm: (opts: CheckoutOptions) => void
   onClose: () => void
 }
@@ -41,7 +43,7 @@ const peso = (n: number) => `${RESTAURANT.currency}${n.toFixed(0)}`
 type OrderType = 'dineIn' | 'takeaway'
 
 /** Checkout sheet: order type, add-ons, notes, total, Place order. */
-export default function OrderCheckoutModal({ open, cartItems, cartTotal, tableName, placing, onConfirm, onClose }: Props) {
+export default function OrderCheckoutModal({ open, cartItems, cartTotal, tableName, placing, error, onConfirm, onClose }: Props) {
   const [orderType, setOrderType] = useState<OrderType | null>(null)
   const [addOns, setAddOns] = useState<AddOn[]>([])
   const [notes, setNotes] = useState('')
@@ -72,6 +74,7 @@ export default function OrderCheckoutModal({ open, cartItems, cartTotal, tableNa
       footer={
         <>
           {!orderType && <p className="mb-3 text-center text-sm text-ink-muted">Choose dine in or take away to continue.</p>}
+          {error && !placing && <p role="alert" className="mb-3 text-center text-sm text-status-cancelled-text">{error}</p>}
           <Button variant="primary" size="lg" fullWidth disabled={!orderType || placing} onClick={submit} className="justify-between">
             <span>{placing ? 'Placing order…' : 'Place order'}</span>
             <span className="tabular-nums">{peso(grandTotal)}</span>

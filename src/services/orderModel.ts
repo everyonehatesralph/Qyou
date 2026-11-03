@@ -1,0 +1,225 @@
+// Order shapes and the rules both order backends share: how an order is priced,
+// what the public order board shows and what a guest's phone gets to see.
+// No imports, so the Node order server can load this file as-is.
+
+export interface OrderItem {
+  id: number
+  name: string
+  price: number
+  quantity: number
+}
+export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'served' | 'paid' | 'cancelled'
+export type OrderType = 'dineIn' | 'takeaway'
+export interface Order {
+  /** Random UUID made by the guest's phone; it is also the guest's key to the order. */
+  id: string
+  /** Short ticket number from the server, for people to read out. */
+  number?: number
+  /** Public id of this order on the order board (see BoardRow). */
+  boardId?: string
+  tableId: number
+  tableName: string
+  customerName: string
+  items: OrderItem[]
+  total: number
+  status: OrderStatus
+  orderType: OrderType
+  takeawayCode: string
+  createdAt: string
+  notes?: string
+  confirmedAt?: string
+  preparingAt?: string
+  readyAt?: string
+  servedAt?: string
+  paidAt?: string
+  cancelledAt?: string
+}
+
+/** What anyone may see about an order: enough for table check-in and the pickup screen. */
+export interface BoardRow {
+  boardId: string
+  tableId: number
+  tableName: string
+  orderType: OrderType
+  takeawayCode: string
+  /** Take-away orders only; empty for dine-in. */
+  customerName: string
+  status: OrderStatus
+  createdAt: string
+  confirmedAt?: string
+  preparingAt?: string
+  readyAt?: string
+  servedAt?: string
+  paidAt?: string
+  cancelledAt?: string
+}
+
+/** What a phone sends to place an order. Prices are never sent: the server looks them up. */
+export interface PlaceOrderInput {
+  id: string
+  tableId: number
+  tableName: string
+  customerName: string
+  orderType: OrderType
+  items: { id: number; quantity: number }[]
+  notes?: string
+}
+
+export const ORDER_STATUSES: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'ready', 'served', 'paid', 'cancelled']
+
+/** The timestamp each status stamps when an order moves into it. */
+export const STAGE_TIMESTAMP: Partial<Record<OrderStatus, keyof Order & keyof BoardRow>> = {
+  confirmed: 'confirmedAt',
+  preparing: 'preparingAt',
+  ready:     'readyAt',
+  served:    'servedAt',
+  paid:      'paidAt',
+  cancelled: 'cancelledAt',
+}
+const STAGE_KEYS = ['confirmedAt', 'preparingAt', 'readyAt', 'servedAt', 'paidAt', 'cancelledAt'] as const
+
+/** Orders that still hold a table or wait at the pickup counter. */
+const ON_BOARD: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'ready', 'served']
+
+export function withStatus<T extends Order | BoardRow>(o: T, status: OrderStatus, at = new Date().toISOString()): T {
+  const key = STAGE_TIMESTAMP[status]
+  return { ...o, status, ...(key ? { [key]: at } : {}) } as T
+}
+
+export function toBoardRow(o: Order & { boardId: string }): BoardRow {
+  const row: BoardRow = {
+    boardId: o.boardId,
+    tableId: o.tableId,
+    tableName: o.tableName,
+    orderType: o.orderType,
+    takeawayCode: o.takeawayCode,
+    customerName: o.orderType === 'takeaway' ? o.customerName : '',
+    status: o.status,
+    createdAt: o.createdAt,
+  }
+  for (const k of STAGE_KEYS) if (o[k]) row[k] = o[k]
+  return row
+}
+
+const newestFirst = (a: { createdAt: string }, b: { createdAt: string }) =>
+  new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+
+/**
+ * A guest's phone: its own orders in full, with status kept current from the board,
+ * plus other people's active orders as board-only entries (no items, no total).
+ */
+export function guestView(own: Order[], board: BoardRow[]): Order[] {
+  const rows = new Map(board.map(r => [r.boardId, r]))
+  const ownBoardIds = new Set<string>()
+  const mine = own.map(o => {
+    if (!o.boardId) return o
+    ownBoardIds.add(o.boardId)
+    const row = rows.get(o.boardId)
+    if (!row) return o
+    const live: Order = { ...o, status: row.status }
+    for (const k of STAGE_KEYS) if (row[k]) live[k] = row[k]
+    return live
+  })
+  const others: Order[] = board
+    .filter(r => !ownBoardIds.has(r.boardId) && ON_BOARD.includes(r.status))
+    .map(r => ({ ...r, id: `board:${r.boardId}`, items: [], total: 0 }))
+  return [...mine, ...others].sort(newestFirst)
+}
+
+export function sortOrders(orders: Iterable<Order>): Order[] {
+  return [...orders].sort(newestFirst)
+}
+
+// ─── Pricing (the Node order server; Supabase does the same in SQL) ──────────
+export interface MenuPrice {
+  id: number
+  name: string
+  price: number
+  available: boolean
+}
+
+export class OrderError extends Error {
+  code: string
+  constructor(code: string) {
+    super(code)
+    this.code = code
+  }
+}
+
+const MAX_LINES = 30
+const MAX_PER_ITEM = 50
+
+export function priceOrder(menu: MenuPrice[], lines: unknown): { items: OrderItem[]; total: number } {
+  if (!Array.isArray(lines) || lines.length === 0) throw new OrderError('empty_order')
+  if (lines.length > MAX_LINES) throw new OrderError('too_many_items')
+  const wanted = new Map<number, number>()
+  for (const line of lines as { id?: unknown; quantity?: unknown }[]) {
+    const { id, quantity } = line ?? {}
+    if (!Number.isInteger(id) || (id as number) < 1 || !Number.isInteger(quantity) || (quantity as number) < 1) {
+      throw new OrderError('invalid_items')
+    }
+    wanted.set(id as number, (wanted.get(id as number) ?? 0) + (quantity as number))
+  }
+  const items: OrderItem[] = []
+  for (const [id, quantity] of wanted) {
+    const item = menu.find(m => m.id === id)
+    if (!item) throw new OrderError('unknown_item')
+    if (!item.available) throw new OrderError('item_unavailable')
+    if (quantity > MAX_PER_ITEM) throw new OrderError('too_many_items')
+    items.push({ id, name: item.name, price: item.price, quantity })
+  }
+  return { items, total: items.reduce((s, i) => s + i.price * i.quantity, 0) }
+}
+
+/** Pickup code like "T-4KQ9"; no 0/O or 1/I so it reads cleanly off a screen. */
+export function makeTakeawayCode(taken: Set<string> = new Set()): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  for (let tries = 0; ; tries++) {
+    let code = 'T-'
+    for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length))
+    if (!taken.has(code) || tries >= 20) return code
+  }
+}
+
+// ─── Ids ─────────────────────────────────────────────────────────────────────
+/** What people see and say: "0042". Orders from before numbers existed show their old id. */
+export function orderRef(o: Pick<Order, 'id' | 'number'>): string {
+  if (o.number) return String(o.number).padStart(4, '0')
+  return o.id.length <= 8 ? o.id : o.id.slice(0, 6).toUpperCase()
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+export function isOrderId(id: unknown): id is string {
+  return typeof id === 'string' && UUID.test(id)
+}
+
+/** Random v4 UUID. Falls back to getRandomValues on plain-http LAN addresses, where randomUUID is missing. */
+export function newOrderId(): string {
+  const c = globalThis.crypto
+  if (typeof c.randomUUID === 'function') return c.randomUUID()
+  const b = c.getRandomValues(new Uint8Array(16))
+  b[6] = (b[6] & 0x0f) | 0x40
+  b[8] = (b[8] & 0x3f) | 0x80
+  const h = Array.from(b, x => x.toString(16).padStart(2, '0')).join('')
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
+}
+
+// ─── Error text ──────────────────────────────────────────────────────────────
+const ERROR_TEXT: Record<string, string> = {
+  empty_order:      'Your cart is empty.',
+  unknown_item:     'Something in your cart is no longer on the menu. Remove it and try again.',
+  item_unavailable: 'Something in your cart just sold out. Remove it and try again.',
+  invalid_items:    'Something in your cart looks wrong. Remove it and add it again.',
+  too_many_items:   'That order is too big for one ticket. Split it into smaller orders.',
+  too_many_orders:  'Lots of orders from this table just now. Ask the staff for help.',
+  not_cancellable:  'The kitchen has started on this order, so it can no longer be cancelled.',
+  staff_only:       'Sign in as staff to change orders.',
+}
+
+/** Words for a guest or staff member, from an error code (or any thrown value). */
+export function orderErrorText(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error ?? '')
+  const code = Object.keys(ERROR_TEXT).find(k => message.includes(k))
+  return code ? ERROR_TEXT[code] : 'Could not reach the restaurant. Check your connection and try again.'
+}

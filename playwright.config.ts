@@ -17,6 +17,7 @@ export default defineConfig({
   projects: [
     { name: 'seed', testMatch: /seed\.setup\.ts/ },
     { name: 'screens', testMatch: /screens\.spec\.ts/, dependencies: ['seed'] },
+    { name: 'flow', testMatch: /shared-orders\.spec\.ts/, dependencies: ['seed'] },
   ],
   use: {
     baseURL: `http://localhost:${PORT}`,
@@ -30,5 +31,7 @@ export default defineConfig({
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
     timeout: 60_000,
+    // Always the local order server (server/orderSyncPlugin.ts), even when .env.local points at Supabase
+    env: { VITE_ORDER_BACKEND: 'server', QYOU_STAFF_PIN: '123456' },
   },
 })

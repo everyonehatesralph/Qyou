@@ -12,7 +12,8 @@ const PORT = process.env.VITE_SERVER_PORT || 3000
 
 app.use(cors())
 // Order API (same as the dev server). Mounted before express.json() because it reads the request body itself.
-app.use(createOrderSyncMiddleware())
+// Staff sign in with QYOU_STAFF_PIN; without it nobody can change orders.
+app.use(createOrderSyncMiddleware({ staffPin: process.env.QYOU_STAFF_PIN }))
 app.use(express.json())
 app.use(express.static(path.join(__dirname, '../dist')))
 

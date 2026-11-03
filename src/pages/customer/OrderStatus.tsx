@@ -10,6 +10,7 @@ import { STATUS_STEP } from '../../theme/status'
 import { RESTAURANT } from '../../config/restaurant'
 import InvoiceModal from '../../components/InvoiceModal'
 import { Button, Card, EmptyState, IconButton, StatusPill, Ticket, cn } from '../../components/ui'
+import { orderRef } from '../../services/orderModel'
 
 const peso = (n: number) => `${RESTAURANT.currency}${n.toFixed(0)}`
 
@@ -109,7 +110,7 @@ export default function OrderStatus() {
           <EmptyState
             icon={ClipboardList}
             title="We can't find this order"
-            body={`There is no order ${orderId ?? ''} on this device. It may have been placed on another phone.`}
+            body="There is no such order on this device. It may have been placed on another phone."
             action={<Button variant="primary" onClick={() => navigate('/my-orders')}>See your orders</Button>}
           />
         ) : (
@@ -151,7 +152,7 @@ export default function OrderStatus() {
               <>
                 <div>
                   <p className="font-mono text-[11px] uppercase tracking-widest text-ink-muted">Order Nº</p>
-                  <p className="font-display text-[34px] leading-none tracking-[-0.02em] text-ink">{order.id}</p>
+                  <p className="font-display text-[34px] leading-none tracking-[-0.02em] text-ink">{orderRef(order)}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-mono text-[11px] uppercase tracking-widest text-ink-muted">{order.orderType === 'takeaway' ? 'Take away' : 'Dine in'}</p>

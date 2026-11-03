@@ -9,19 +9,26 @@ Built with React 18, TypeScript, Vite, Tailwind CSS and Framer Motion.
 
 ```bash
 npm install
-npm run dev          # Vite dev server on http://localhost:5173 (also serves the order API)
+npm run dev          # Vite dev server on http://localhost:5173 (also serves the order API; staff PIN 123456)
 ```
 
-Production:
+## Where orders live
 
-```bash
-npm run build        # type-check and build to dist/
-npm run server       # Express server on port 3000: serves dist/ and the order API
-```
+Every phone and staff screen shares the same orders, live. There are two backends behind one
+client (`src/services/orderSync.ts`):
 
-Orders sync between devices through the order API (`server/orderSyncPlugin.ts`, used by both the
-dev server and `server/index.ts`). Orders are kept in `server/orders.json`. Without the API
-(for example a static deploy) the app falls back to syncing between tabs of one browser.
+- **Supabase** (production, the Vercel site): Postgres stores the orders and Realtime pushes
+  changes. Used when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set. Setup:
+  [SUPABASE_SETUP.md](SUPABASE_SETUP.md).
+- **Order server** (`server/orderSyncPlugin.ts`): the same rules over REST + SSE, kept in
+  `server/orders.json`. Used by `npm run dev`, the e2e suite, and `npm run build && npm run server`
+  (Express on port 3000; set `QYOU_STAFF_PIN`). `VITE_ORDER_BACKEND=server|supabase` forces one.
+
+Either way the server prices every order from its own menu (the browser only sends item ids
+and quantities), order ids are random UUIDs made on the phone (a retry can't create a second
+order), and only signed-in staff can change an order's status. Guests' phones receive their own
+orders plus a public board (table, pickup code, status), never other guests' items or dine-in
+names.
 
 ## Screens
 
@@ -60,7 +67,8 @@ Messenger values hide those buttons on the landing page.
 ## Checks
 
 ```bash
-npm test                 # color math and accent contrast tests (node --test)
+npm test                 # color math, order rules, and the Supabase schema on in-process Postgres (node --test)
+npm run test:e2e         # every screen (axe, overflow) plus a two-device order flow (Playwright)
 npm run check:contrast   # every text/background token pair in both modes meets WCAG AA
 npm run check:colors     # fails on hex/rgb() color literals in .tsx files (default: src)
 npm run build
@@ -70,10 +78,12 @@ npm run build
 
 This is a working prototype, not yet production-ready:
 
-- The staff PIN is checked in the browser and sign-in is lost on reload. There is no real
-  authentication on the staff screens or the order API.
-- Orders are stored in a JSON file by the dev/Express server; there is no database.
-- Menu name/price edits and sold-out switches are not shared across devices.
+- Staff share one 6-digit PIN per restaurant (a Supabase Auth account), so there is no
+  per-person audit trail.
+- Menu name/price edits and sold-out switches are not shared across devices, and the server
+  doesn't know about sold-out switches yet. Prices on the menu come from
+  `src/constants/menu.ts`; the server charges what the database's `menu_items` says (a test
+  checks they match).
 - Add-on prices are shown at checkout but not included in the stored order total.
 - "Free table" marks a table's unpaid (and cancelled) orders as paid.
 
