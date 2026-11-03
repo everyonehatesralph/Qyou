@@ -140,7 +140,7 @@ export default function OrderStatus() {
           </span>
         </div>
 
-        {/* The order as a queue ticket: status above the perforation, number on the stub */}
+        {/* The order as a queue ticket: status above the perforation, the queue number big on the stub */}
         <div className="mt-3 drop-shadow-sm">
           <Ticket
             bodyClassName="px-5 pb-5 pt-5"
@@ -148,8 +148,8 @@ export default function OrderStatus() {
             stub={
               <>
                 <div>
-                  <p className="font-mono text-[11px] uppercase tracking-widest text-ink-muted">Order Nº</p>
-                  <p className="font-display text-[34px] leading-none tracking-[-0.02em] text-ink">{orderRef(order)}</p>
+                  <p className="font-mono text-[11px] uppercase tracking-widest text-ink-muted">Your number</p>
+                  <p className="mt-1 font-display text-[64px] leading-[0.85] tracking-[-0.04em] text-ink">{orderRef(order)}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-mono text-[11px] uppercase tracking-widest text-ink-muted">{order.orderType === 'takeaway' ? 'Take away' : 'Dine in'}</p>

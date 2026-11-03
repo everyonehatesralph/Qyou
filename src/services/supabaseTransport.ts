@@ -28,6 +28,7 @@ interface BoardDbRow extends StageColumns {
 interface OrderDbRow extends BoardDbRow {
   id: string
   number: number | string
+  order_day: string
   items: OrderItem[]
   total: number | string
   notes: string | null
@@ -72,6 +73,7 @@ function orderFromRow(r: OrderDbRow): Order {
   return {
     id: r.id,
     number: Number(r.number),
+    orderDay: r.order_day,
     boardId: r.board_id,
     tableId: r.table_id,
     tableName: r.table_name,

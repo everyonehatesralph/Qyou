@@ -70,6 +70,9 @@ On Vercel, add the same two variables for **Production** and **Preview**, then r
   a table. Sending the same order id twice returns the first order.
 - Only staff can change the menu (`save_menu_item`, `set_menu_item_available`,
   `remove_menu_item`). Removed items are kept, switched off, so old orders still name them.
+- Each order gets the day's next queue number from `order_counters`, taken under a row lock so
+  two orders at the same moment never share one; numbers restart at 1 at midnight Manila time
+  (`restaurant_day()`). A number is unique only with its day.
 - Only users in `staff_members` can read `orders` or call `set_order_status`.
 - Nobody can insert, update or delete table rows directly.
 - `orders`, `order_board` and `menu_items` are in the `supabase_realtime` publication, so

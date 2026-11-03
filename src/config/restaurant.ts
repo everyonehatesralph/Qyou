@@ -16,6 +16,9 @@ export const RESTAURANT: {
   tables: TableDef[]
   /** Supabase Auth user the staff PIN signs in as; the PIN is its password. Not a secret. */
   staffEmail: string
+  /** Where the restaurant is: queue numbers start again at 001 at midnight here.
+   *  The database has the same zone in public.restaurant_day(). */
+  timeZone: string
 } = {
   name: 'Qyou Demo Café',
   shortName: 'Demo Café',
@@ -25,6 +28,7 @@ export const RESTAURANT: {
   currency: '₱',
   tables: Array.from({ length: 10 }, (_, i) => ({ id: i + 1, label: `Table ${i + 1}` })),
   staffEmail: 'demo-cafe-staff@example.com',
+  timeZone: 'Asia/Manila',
 }
 
 /** Display label for a table id, falling back to `Table {id}` for unknown ids. */

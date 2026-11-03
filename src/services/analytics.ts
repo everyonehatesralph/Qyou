@@ -179,10 +179,12 @@ export function csvField(value: string | number): string {
   return `"${s.replace(/"/g, '""')}"`
 }
 
-export function salesCsv(sales: Order[], ref: (o: Order) => string): string {
-  const header = ['Order', 'Order ID', 'Customer', 'Table', 'Type', 'Items', 'Total', 'Status', 'Placed', 'Served', 'Paid']
+/** `day`: the restaurant's day of an order (orders from before queue numbers have no orderDay). */
+export function salesCsv(sales: Order[], ref: (o: Order) => string, day: (o: Order) => string): string {
+  // A queue number repeats daily, so it comes with its day; the order id is the unique key
+  const header = ['Day', 'Queue no.', 'Order ID', 'Customer', 'Table', 'Type', 'Items', 'Total', 'Status', 'Placed', 'Served', 'Paid']
   const rows = sales.map(o => [
-    ref(o), o.id, o.customerName, o.tableName, o.orderType === 'takeaway' ? 'Take away' : 'Dine in',
+    o.orderDay ?? day(o), ref(o), o.id, o.customerName, o.tableName, o.orderType === 'takeaway' ? 'Take away' : 'Dine in',
     o.items.map(i => `${i.quantity}x ${i.name}`).join('; '), o.total, o.status,
     o.createdAt, o.servedAt ?? '', o.paidAt ?? '',
   ].map(csvField).join(','))

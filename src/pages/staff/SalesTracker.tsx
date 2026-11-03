@@ -10,7 +10,8 @@ import { Button, Card, EmptyState, Segmented, cn } from '../../components/ui'
 import { STATUS_GROUP_CLASSES, STATUS_META } from '../../theme/status'
 import { peso } from '../../utils/formatters'
 import { useMenuState } from '../../context/MenuContext'
-import { orderRef } from '../../services/orderModel'
+import { orderRef, restaurantDay } from '../../services/orderModel'
+import { RESTAURANT } from '../../config/restaurant'
 import {
   PIPELINE, byHour, categoryMix, dailyTrend, inRange, isSale, itemSales, pipeline, salesCsv, summarize,
   type Range,
@@ -101,7 +102,7 @@ export default function SalesTracker() {
   // ── CSV Export ─────────────────────────────────────────────────────────────
   const exportCSV = useCallback(() => {
     // The byte-order mark makes Excel read ₱ and accented names correctly
-    const blob = new Blob(['\uFEFF' + salesCsv(completed, orderRef)], { type: 'text/csv;charset=utf-8' })
+    const blob = new Blob(['\uFEFF' + salesCsv(completed, orderRef, o => restaurantDay(new Date(o.createdAt), RESTAURANT.timeZone))], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url; a.download = `qyou-sales-${new Date().toISOString().slice(0, 10)}.csv`; a.click()

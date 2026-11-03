@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { MENU_ITEMS, SEED_MENU } from '../constants/menu.ts'
 import {
   guestView, isOpenOrder, isOrderId, newOrderId, openOrdersByTable, orderErrorText, orderRef, priceOrder,
-  settleTable, toBoardRow, withStatus, OrderError, type BoardRow, type Order,
+  restaurantDay, settleTable, toBoardRow, withStatus, OrderError, type BoardRow, type Order,
 } from './orderModel.ts'
 
 const order = (over: Partial<Order> = {}): Order & { boardId: string } => ({
@@ -121,9 +121,10 @@ test('order ids are v4 UUIDs, with or without crypto.randomUUID', () => {
   assert.ok(!isOrderId('board:1234'))
 })
 
-test('orderRef is the short ticket number', () => {
-  assert.equal(orderRef({ id: newOrderId(), number: 42 }), '0042')
-  assert.equal(orderRef({ id: newOrderId(), number: 12345 }), '12345')
+test("orderRef is the day's queue number, three digits", () => {
+  assert.equal(orderRef({ id: newOrderId(), number: 1 }), '001')
+  assert.equal(orderRef({ id: newOrderId(), number: 42 }), '042')
+  assert.equal(orderRef({ id: newOrderId(), number: 1234 }), '1234')
   assert.equal(orderRef({ id: '90001' }), '90001')
   assert.equal(orderRef({ id: 'abcdef12-0000-4000-8000-000000000000' }), 'ABCDEF')
 })
@@ -160,4 +161,12 @@ test('freeing a table pays what was served and cancels what the kitchen has not 
   assert.deepEqual(pay.map(o => o.status), ['served', 'ready'])
   assert.deepEqual(cancel.map(o => o.status), ['preparing', 'pending', 'confirmed'])
   assert.equal(payTotal, 420)
+})
+
+test('the restaurant day turns over at midnight in its timezone, not UTC', () => {
+  // 11:59pm and 12:01am in Manila (UTC+8)
+  assert.equal(restaurantDay(new Date('2026-11-04T15:59:00Z'), 'Asia/Manila'), '2026-11-04')
+  assert.equal(restaurantDay(new Date('2026-11-04T16:01:00Z'), 'Asia/Manila'), '2026-11-05')
+  // The same instant is still the 4th in UTC
+  assert.equal(restaurantDay(new Date('2026-11-04T16:01:00Z'), 'UTC'), '2026-11-04')
 })

@@ -40,6 +40,11 @@ items or dine-in names.
   Several phones can order at one table. A table is occupied while it has orders that are
   neither paid nor cancelled. **Free table** marks ready and served orders paid and cancels
   orders the kitchen hasn't finished; the dialog says which before staff confirm.
+- **Queue numbers**: every order gets the day's next number (Nº 001, 002…), starting again at
+  midnight in the restaurant's timezone (`timeZone` in `src/config/restaurant.ts`, and
+  `public.restaurant_day()` in the database). It is the headline of the order page and the
+  receipt, for staff to call out. Numbers repeat across days, so the order id (a UUID) stays
+  the real key; the CSV export lists day, number and id.
 - **Alerts**: the dashboard rings for each new order and the kitchen for each confirmed one;
   a guest's phone rings when its order is ready, on any page. Each order rings once per device
   (remembered by id), so reloads and reconnects neither repeat nor miss a ring. Staff screens

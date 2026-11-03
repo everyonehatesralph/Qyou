@@ -57,7 +57,8 @@ create table if not exists public.staff_members (
 create table if not exists public.orders (
   id            uuid primary key,                       -- made by the guest's phone; also its key to the order
   board_id      uuid not null unique default gen_random_uuid(), -- public id on the order board
-  number        bigint generated always as identity unique, -- short ticket number staff call out (Nº 0042)
+  number        integer not null,                       -- the day's queue number staff call out (Nº 042)
+  order_day     date not null,                          -- the restaurant's day that number belongs to
   table_id      integer not null check (table_id >= 0),
   table_name    text not null,
   customer_name text not null default '',
@@ -76,8 +77,34 @@ create table if not exists public.orders (
   paid_at       timestamptz,
   cancelled_at  timestamptz
 );
+-- Earlier versions numbered orders with one ever-growing identity; numbers are per day now
+alter table public.orders add column if not exists order_day date;
+alter table public.orders alter column number drop identity if exists;
+alter table public.orders drop constraint if exists orders_number_key;
+update public.orders set order_day = (created_at at time zone 'Asia/Manila')::date where order_day is null;
+alter table public.orders alter column order_day set not null;
+-- A queue number repeats every day, so it is only unique together with its day
+create unique index if not exists orders_day_number_key on public.orders (order_day, number);
 create index if not exists orders_created_at_idx on public.orders (created_at desc);
 create index if not exists orders_table_recent_idx on public.orders (table_id, created_at desc);
+
+-- ─── Queue numbers: 001, 002… from the start of each day ────────────────────
+-- One row per day. Taking the next number locks that day's row, so two orders placed at
+-- the same moment can never get the same number.
+create table if not exists public.order_counters (
+  day         date primary key,
+  last_number integer not null
+);
+-- Orders from before this table existed: each day carries on after its highest number
+insert into public.order_counters as c (day, last_number)
+select order_day, max(number) from public.orders group by order_day
+on conflict (day) do update set last_number = greatest(c.last_number, excluded.last_number);
+
+-- The restaurant's calendar day. Its timezone lives here and in RESTAURANT.timeZone.
+create or replace function public.restaurant_day() returns date
+language sql stable set search_path = '' as $$
+  select (now() at time zone 'Asia/Manila')::date
+$$;
 
 -- ─── Order board: what any guest may see about other people's orders ────────
 -- Table occupancy for check-in and the take-away pickup screen. No items, totals or notes;
@@ -150,6 +177,8 @@ declare
   v_too_many    integer;
   v_code        text := '';
   v_tries       integer := 0;
+  v_day         date;
+  v_number      integer;
 begin
   -- The same id again is a retry of a request that already went through: hand back that order
   select * into v_order from public.orders where id = p_id;
@@ -222,9 +251,18 @@ begin
     end loop;
   end if;
 
-  insert into public.orders (id, table_id, table_name, customer_name, items, total, order_type, takeaway_code, notes)
+  -- Today's next queue number. Last, after every check, so a refused order never uses one up
+  -- (and if anything fails after this, the transaction rolls the counter back too).
+  v_day := public.restaurant_day();
+  insert into public.order_counters as c (day, last_number) values (v_day, 1)
+  on conflict (day) do update set last_number = c.last_number + 1
+  returning c.last_number into v_number;
+
+  insert into public.orders (id, number, order_day, table_id, table_name, customer_name, items, total, order_type, takeaway_code, notes)
   values (
     p_id,
+    v_number,
+    v_day,
     p_table_id,
     left(coalesce(nullif(btrim(p_table_name), ''), 'Table ' || p_table_id), 40),
     left(btrim(coalesce(p_customer_name, '')), 60),
@@ -357,6 +395,7 @@ alter table public.menu_items    enable row level security;
 alter table public.staff_members enable row level security;
 alter table public.orders        enable row level security;
 alter table public.order_board   enable row level security;
+alter table public.order_counters enable row level security;
 
 drop policy if exists "menu is public" on public.menu_items;
 create policy "menu is public" on public.menu_items
@@ -382,8 +421,10 @@ grant select on public.orders, public.staff_members to authenticated;
 revoke insert, update, delete, truncate on
   public.menu_items, public.staff_members, public.orders, public.order_board
   from anon, authenticated;
+revoke all on public.order_counters from anon, authenticated;
 
 revoke execute on function public.sync_order_board() from public, anon, authenticated;
+revoke execute on function public.restaurant_day() from public, anon, authenticated;
 revoke execute on function public.is_staff() from public;
 revoke execute on function public.place_order(uuid, integer, text, text, text, jsonb, text) from public;
 revoke execute on function public.get_orders(uuid[]) from public;

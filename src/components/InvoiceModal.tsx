@@ -1,7 +1,7 @@
 import { Printer } from 'lucide-react'
 import type { Order } from '../context/OrderContext'
 import { RESTAURANT } from '../config/restaurant'
-import { BottomSheet, Button } from './ui'
+import { BottomSheet, Button, cn } from './ui'
 import { orderRef } from '../services/orderModel'
 
 interface InvoiceModalProps {
@@ -28,12 +28,14 @@ export default function InvoiceModal({ order, open, onClose }: InvoiceModalProps
   const vat = order.total - subtotal
   const money = (n: number, digits = 0) => `${RESTAURANT.currency}${n.toFixed(digits)}`
 
+  const queueNo = orderRef(order)
   const meta: [string, string][] = [
-    ['Order', orderRef(order)],
     ['Date', formatDate(order.createdAt)],
     ['Table', order.tableName],
     ['Name', order.customerName],
     ...(order.notes ? [['Notes', order.notes] as [string, string]] : []),
+    // The queue number repeats every day; this id is what finds the order later
+    ['Order ID', order.id],
   ]
 
   const handlePrint = () => {
@@ -42,12 +44,15 @@ export default function InvoiceModal({ order, open, onClose }: InvoiceModalProps
     printWin.document.write(`<!DOCTYPE html>
       <html>
         <head>
-          <title>Order ${esc(orderRef(order))} — ${esc(RESTAURANT.name)}</title>
+          <title>Nº ${esc(queueNo)} — ${esc(RESTAURANT.name)}</title>
           <style>
             * { box-sizing: border-box; margin: 0; padding: 0; }
             body { font-family: system-ui, sans-serif; background: white; color: black; padding: 28px 24px; max-width: 340px; margin: 0 auto; }
             h1 { font-size: 20px; font-weight: 600; text-align: center; }
             .sub { font-size: 11px; color: dimgray; text-align: center; margin-top: 2px; }
+            .queue { text-align: center; margin-top: 14px; }
+            .queue span { display: block; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: dimgray; }
+            .queue b { display: block; font-size: 56px; line-height: 1; font-weight: 800; letter-spacing: -1px; }
             hr { border: none; border-top: 1px dashed gray; margin: 14px 0; }
             .meta { font-size: 11px; line-height: 1.7; }
             .meta b { font-weight: 600; }
@@ -64,6 +69,7 @@ export default function InvoiceModal({ order, open, onClose }: InvoiceModalProps
         <body>
           <h1>${esc(RESTAURANT.name)}</h1>
           <p class="sub">Order summary</p>
+          <div class="queue"><span>Your number</span><b>${esc(queueNo)}</b></div>
           <hr />
           <div class="meta">${meta.map(([k, v]) => `<div><b>${esc(k)}</b> &nbsp; ${esc(v)}</div>`).join('')}</div>
           <hr />
@@ -97,11 +103,16 @@ export default function InvoiceModal({ order, open, onClose }: InvoiceModalProps
       description={RESTAURANT.name}
       footer={<Button fullWidth size="lg" leftIcon={<Printer />} onClick={handlePrint}>Print</Button>}
     >
+      <div className="mb-5 text-center">
+        <p className="font-mono text-[11px] uppercase tracking-widest text-ink-muted">Your number</p>
+        <p className="mt-1 font-display text-[64px] leading-[0.85] tracking-[-0.04em] text-ink">{queueNo}</p>
+      </div>
+
       <dl className="space-y-1.5 text-sm">
         {meta.map(([label, value]) => (
           <div key={label} className="flex items-start justify-between gap-4">
             <dt className="text-ink-muted">{label}</dt>
-            <dd className="max-w-[65%] text-right text-ink">{value}</dd>
+            <dd className={cn('max-w-[65%] text-right text-ink', label === 'Order ID' && 'break-all font-mono text-xs text-ink-muted')}>{value}</dd>
           </div>
         ))}
       </dl>

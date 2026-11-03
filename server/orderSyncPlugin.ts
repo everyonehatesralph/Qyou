@@ -25,8 +25,9 @@ import { randomBytes, randomUUID, timingSafeEqual } from 'crypto'
 import fs from 'fs'
 import path from 'path'
 import { SEED_MENU, type MenuItem } from '../src/constants/menu.ts'
+import { RESTAURANT } from '../src/config/restaurant.ts'
 import {
-  ORDER_STATUSES, OrderError, isOrderId, makeTakeawayCode, priceOrder, sortOrders, toBoardRow, withStatus,
+  ORDER_STATUSES, OrderError, isOrderId, makeTakeawayCode, priceOrder, restaurantDay, sortOrders, toBoardRow, withStatus,
   type Order, type OrderStatus,
 } from '../src/services/orderModel.ts'
 
@@ -217,10 +218,15 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
             throw new OrderError('too_many_orders')
           }
           const activeCodes = new Set(orders.filter(o => !['served', 'paid', 'cancelled'].includes(o.status)).map(o => o.takeawayCode))
+          // Today's next queue number. Synchronous from here to the push, so two requests can't share one
+          const orderDay = restaurantDay(new Date(), RESTAURANT.timeZone)
+          const dayOf = (o: StoredOrder) => o.orderDay ?? restaurantDay(new Date(o.createdAt), RESTAURANT.timeZone)
+          const number = orders.filter(o => dayOf(o) === orderDay).reduce((max, o) => Math.max(max, o.number ?? 0), 0) + 1
           const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
           const order: StoredOrder = {
             id: body.id,
-            number: orders.reduce((max, o) => Math.max(max, o.number ?? 0), 0) + 1,
+            number,
+            orderDay,
             boardId: randomUUID(),
             tableId: body.tableId,
             tableName: text(body.tableName, 40) || `Table ${body.tableId}`,

@@ -132,8 +132,14 @@ test('CSV fields are quoted and formulas are defused', () => {
   assert.equal(csvField('=HYPERLINK("x")'), `"'=HYPERLINK(""x"")"`)
   assert.equal(csvField('+639171234567'), `"'+639171234567"`)
   assert.equal(csvField(-5), '"-5"')
-  const csv = salesCsv([order({ customerName: 'Jo, Jr.', number: 42 })], o => String(o.number))
-  const [header, row] = csv.split('\r\n')
-  assert.match(header, /^"Order","Order ID","Customer"/)
-  assert.match(row, /^"42","00000000-[^"]+","Jo, Jr\."/)
+  const csv = salesCsv(
+    [order({ customerName: 'Jo, Jr.', number: 42, orderDay: '2026-11-04' }), order({ number: 7 })],
+    o => String(o.number).padStart(3, '0'),
+    () => '2026-11-03',
+  )
+  const [header, row, older] = csv.split('\r\n')
+  assert.match(header, /^"Day","Queue no\.","Order ID","Customer"/)
+  assert.match(row, /^"2026-11-04","042","00000000-[^"]+","Jo, Jr\."/)
+  // An order saved before queue numbers had a day: the day comes from the caller
+  assert.match(older, /^"2026-11-03","007",/)
 })

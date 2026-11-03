@@ -149,6 +149,9 @@ test('the server prices orders from its menu', async ({ request }) => {
   })
   expect((await noTable.json()).error).toBe('invalid_table')
   expect(order.takeawayCode).toMatch(/^T-[A-HJ-NP-Z2-9]{4}$/)
+  // Today's queue number, on the restaurant's (Manila) calendar
+  expect(Number.isInteger(order.number) && order.number >= 1).toBe(true)
+  expect(order.orderDay).toBe(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date()))
 
   // Same id again: the first order comes back, nothing is added
   const again = await (await request.post('/api/orders/place', {

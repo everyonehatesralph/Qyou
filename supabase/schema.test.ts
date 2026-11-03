@@ -16,7 +16,7 @@ const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0
 let db: PGlite
 
 /** A Postgres with the Supabase pieces the migration needs, and the migration applied. */
-async function supabaseLikeDb({ defaultGrants }: { defaultGrants: boolean }) {
+async function supabaseLikeDb({ defaultGrants, before = '' }: { defaultGrants: boolean; before?: string }) {
   const pg = new PGlite()
   await pg.exec(`
     create role anon nologin;
@@ -32,6 +32,7 @@ async function supabaseLikeDb({ defaultGrants }: { defaultGrants: boolean }) {
   // Supabase's usual default: API roles get every privilege on new tables, which the
   // migration has to take back. Some newer projects skip it, so reads must not rely on it.
   if (defaultGrants) await pg.exec('alter default privileges in schema public grant all on tables to anon, authenticated')
+  if (before) await pg.exec(before)
   await pg.exec(MIGRATION)
   await pg.exec(`
     insert into auth.users (id, email) values ('${STAFF}', 'staff@example.com'), ('${STRANGER}', 'someone@example.com');
@@ -62,7 +63,7 @@ async function rejects(promise: Promise<unknown>, code: string) {
 }
 
 const place = (who: string, id: string, items: unknown, opts: { table?: number; type?: string; name?: string } = {}) =>
-  as<{ id: string; total: string; items: { id: number; name: string; price: number; quantity: number; category: string; addon: boolean }[]; takeaway_code: string; board_id: string; status: string }>(
+  as<{ id: string; number: number; order_day: Date; total: string; items: { id: number; name: string; price: number; quantity: number; category: string; addon: boolean }[]; takeaway_code: string; board_id: string; status: string }>(
     who,
     `select * from public.place_order($1, $2, $3, $4, $5, $6::jsonb, $7)`,
     [id, opts.table ?? 4, `Table ${opts.table ?? 4}`, opts.name ?? 'Ana', opts.type ?? 'dineIn', JSON.stringify(items), 'Dine In'],
@@ -237,6 +238,35 @@ test('running the migration again keeps staff menu edits', async () => {
   assert.deepEqual([row.name, Number(row.price)], ['Espresso', 130])
 })
 
+test('queue numbers count up through the day and start at 1 the next day', async () => {
+  const today = (await db.query<{ n: number }>(
+    'select coalesce(max(number), 0)::int as n from public.orders where order_day = public.restaurant_day()')).rows[0].n
+  const a = await place('anon', uuid(30), [{ id: 1, quantity: 1 }])
+  const b = await place('anon', uuid(31), [{ id: 1, quantity: 1 }])
+  assert.deepEqual([a.number, b.number], [today + 1, today + 2])
+
+  // Replaying an order doesn't use up a number
+  assert.equal((await place('anon', uuid(31), [{ id: 1, quantity: 1 }])).number, today + 2)
+  // Neither does a refused one
+  await rejects(place('anon', uuid(32), [{ id: 999, quantity: 1 }]), 'unknown_item')
+  assert.equal((await place('anon', uuid(33), [{ id: 1, quantity: 1 }])).number, today + 3)
+
+  // Tomorrow, in the restaurant's timezone
+  await db.exec(`create or replace function public.restaurant_day() returns date language sql stable set search_path = ''
+    as $$ select (now() at time zone 'Asia/Manila')::date + 1 $$`)
+  const tomorrow = await place('anon', uuid(34), [{ id: 1, quantity: 1 }])
+  assert.equal(tomorrow.number, 1)
+  assert.equal(tomorrow.order_day.getTime() - a.order_day.getTime(), 86_400_000)
+  await db.exec(MIGRATION) // puts restaurant_day back
+
+  // A number repeats across days, never within one
+  await rejects(db.query(
+    `insert into public.orders (id, number, order_day, table_id, table_name, items, total, order_type)
+     values ($1, $2, $3, 1, 'Table 1', '[]', 0, 'dineIn')`, [uuid(35), b.number, b.order_day]), 'duplicate key')
+  // Guests can't see or move the counter
+  await rejects(as('anon', 'select * from public.order_counters'), 'permission denied')
+})
+
 test('orders, the board and the menu are published for live updates', async () => {
   const rows = (await db.query<{ tablename: string }>(
     `select tablename from pg_publication_tables where pubname = 'supabase_realtime' order by tablename`)).rows
@@ -252,4 +282,30 @@ test('works on a project that does not expose new tables by default', async () =
   // No grant at all here, so it is refused outright rather than filtered to nothing
   await rejects(as('anon', 'select * from public.orders', [], bare), 'permission denied')
   await bare.close()
+})
+
+test('upgrading from numbers that never reset keeps old numbers and carries on after them', async () => {
+  // public.orders as the first version of this migration made it: one ever-growing number
+  const old = await supabaseLikeDb({
+    defaultGrants: true,
+    before: `
+      create table public.orders (
+        id uuid primary key, board_id uuid not null unique default gen_random_uuid(),
+        number bigint generated always as identity unique,
+        table_id integer not null, table_name text not null, customer_name text not null default '',
+        items jsonb not null, total numeric(10, 2) not null, status text not null default 'pending',
+        order_type text not null, takeaway_code text not null default '', notes text,
+        created_at timestamptz not null default now(),
+        confirmed_at timestamptz, preparing_at timestamptz, ready_at timestamptz,
+        served_at timestamptz, paid_at timestamptz, cancelled_at timestamptz
+      );
+      insert into public.orders (id, table_id, table_name, items, total, order_type)
+      values ('${uuid(600)}', 2, 'Table 2', '[]', 0, 'dineIn'), ('${uuid(601)}', 2, 'Table 2', '[]', 0, 'dineIn');`,
+  })
+  const before = (await old.query<{ number: number }>('select number::int from public.orders order by number')).rows
+  assert.deepEqual(before.map(r => r.number), [1, 2])
+  const [next] = await as<{ number: number }>('anon',
+    `select number from public.place_order($1, 2, 'Table 2', 'Ana', 'dineIn', '[{"id": 1, "quantity": 1}]'::jsonb)`, [uuid(602)], old)
+  assert.equal(Number(next.number), 3)
+  await old.close()
 })

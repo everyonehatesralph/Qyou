@@ -16,8 +16,11 @@ export type OrderType = 'dineIn' | 'takeaway'
 export interface Order {
   /** Random UUID made by the guest's phone; it is also the guest's key to the order. */
   id: string
-  /** Short ticket number from the server, for people to read out. */
+  /** Today's queue number from the server (Nº 042), what staff call out. Starts again at 1
+   *  every day, so it only identifies an order together with orderDay; `id` is the real key. */
   number?: number
+  /** The restaurant's calendar day the number belongs to, YYYY-MM-DD. */
+  orderDay?: string
   /** Public id of this order on the order board (see BoardRow). */
   boardId?: string
   tableId: number
@@ -218,10 +221,15 @@ export function makeTakeawayCode(taken: Set<string> = new Set()): string {
 }
 
 // ─── Ids ─────────────────────────────────────────────────────────────────────
-/** What people see and say: "0042". Orders from before numbers existed show their old id. */
+/** What people see and say: the queue number as "042". Orders from before numbers existed show their old id. */
 export function orderRef(o: Pick<Order, 'id' | 'number'>): string {
-  if (o.number) return String(o.number).padStart(4, '0')
+  if (o.number) return String(o.number).padStart(3, '0')
   return o.id.length <= 8 ? o.id : o.id.slice(0, 6).toUpperCase()
+}
+
+/** The calendar day at `at` in `timeZone`, as YYYY-MM-DD (what queue numbers count within). */
+export function restaurantDay(at: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(at)
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
