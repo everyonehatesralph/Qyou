@@ -23,7 +23,7 @@ export default function LandingHeader() {
             <a
               key={s.href}
               href={s.href}
-              className="rounded-full px-3 py-2 text-[15px] font-medium text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink"
+              className="inline-flex h-11 items-center rounded-full px-3 text-[15px] font-medium text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink"
             >
               {s.label}
             </a>

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import IconButton from './IconButton'
 import { cn } from './cn'
+import { focusMain } from './focus'
 
 export interface BottomSheetProps {
   open: boolean
@@ -18,8 +19,10 @@ export interface BottomSheetProps {
   className?: string
 }
 
-const FOCUSABLE =
-  'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+// Tab stops only: radio groups keep their unselected options at tabindex -1
+const FOCUSABLE = ['a[href]', 'button:not([disabled])', 'input:not([disabled])', 'select:not([disabled])', 'textarea:not([disabled])', '[tabindex]']
+  .map(s => `${s}:not([tabindex="-1"])`)
+  .join(',')
 const WIDE = '(min-width: 768px)'
 const EASE = [0.32, 0.72, 0, 1] as const
 
@@ -41,6 +44,20 @@ export default function BottomSheet({ open, onClose, title, description, childre
   onCloseRef.current = onClose
   const titleId = useId()
   const wide = useIsWide()
+  // A body that scrolls but holds nothing focusable must take focus itself, or
+  // keyboard users cannot scroll it (WCAG 2.1.1)
+  const [bodyScrolls, setBodyScrolls] = useState(false)
+  const [bodyEl, setBodyEl] = useState<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!bodyEl) return
+    const check = () => setBodyScrolls(bodyEl.scrollHeight > bodyEl.clientHeight + 1 && !bodyEl.querySelector(FOCUSABLE))
+    const ro = new ResizeObserver(check)
+    ro.observe(bodyEl)
+    Array.from(bodyEl.children).forEach(c => ro.observe(c))
+    check()
+    return () => ro.disconnect()
+  }, [bodyEl])
 
   useEffect(() => {
     if (!open) return
@@ -78,7 +95,9 @@ export default function BottomSheet({ open, onClose, title, description, childre
       cancelAnimationFrame(raf)
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = prevOverflow
-      previouslyFocused?.focus?.()
+      // Back to what opened it; if that is gone (e.g. a cancelled order's button), the page heading
+      if (previouslyFocused?.isConnected) previouslyFocused.focus()
+      else focusMain()
     }
   }, [open])
 
@@ -106,6 +125,8 @@ export default function BottomSheet({ open, onClose, title, description, childre
             tabIndex={-1}
             className={cn(
               'relative flex max-h-[92dvh] w-full flex-col rounded-t-sheet bg-surface text-ink shadow-pop outline-none',
+              // Short screens: the whole sheet scrolls, so the footer can't squeeze the content to a sliver
+              'short:overflow-y-auto short:overscroll-contain',
               'md:max-h-[85vh] md:max-w-lg md:rounded-sheet',
               className,
             )}
@@ -129,8 +150,12 @@ export default function BottomSheet({ open, onClose, title, description, childre
               </div>
             )}
             <div
+              ref={setBodyEl}
+              tabIndex={bodyScrolls ? 0 : undefined}
+              role={bodyScrolls ? 'region' : undefined}
+              aria-labelledby={bodyScrolls && title ? titleId : undefined}
               className={cn(
-                'min-h-0 flex-1 overflow-y-auto overscroll-contain px-5',
+                'min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 short:flex-none short:overflow-visible',
                 footer ? 'pb-4' : 'pb-[max(1.25rem,env(safe-area-inset-bottom))]',
               )}
             >

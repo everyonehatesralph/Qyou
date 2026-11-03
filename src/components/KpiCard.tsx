@@ -16,9 +16,9 @@ interface Props {
 export default function KpiCard({ label, value, group, hint, className }: Props) {
   return (
     <Card padding="none" className={cn('p-4', className)}>
-      <p className="flex items-center gap-2 text-sm text-ink-muted">
+      <p className="flex items-center gap-2 text-sm leading-tight text-ink-muted">
         {group && <span className={cn('h-2 w-2 shrink-0 rounded-full', STATUS_GROUP_CLASSES[group].fill)} aria-hidden />}
-        <span className="truncate">{label}</span>
+        <span className="min-w-0">{label}</span>
       </p>
       <p className="mt-2 text-[28px] font-medium leading-none tabular-nums tracking-[-0.01em] text-ink">{value}</p>
       {hint && <p className="mt-1.5 text-[13px] text-ink-muted">{hint}</p>}

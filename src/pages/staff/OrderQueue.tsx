@@ -82,7 +82,7 @@ const KitchenCard = memo(function KitchenCard({ order, status, action, now, onAd
           </p>
           {late && <p className="mt-1 text-xs font-medium">{veryLate ? 'Very late' : 'Waiting long'}</p>}
         </div>
-        <IconButton label="Hide from this screen" onClick={() => onHide(order.id)} className="-mr-2 -mt-2 h-9 w-9 text-ink-muted">
+        <IconButton label="Hide from this screen" onClick={() => onHide(order.id)} className="-mr-2.5 -mt-2.5 text-ink-muted">
           <EyeOff />
         </IconButton>
       </div>

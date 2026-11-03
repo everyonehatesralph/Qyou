@@ -1,3 +1,5 @@
+import plugin from 'tailwindcss/plugin'
+
 /** @type {import('tailwindcss').Config} */
 // Every color is a CSS custom property defined in src/styles/globals.css.
 const status = ['waiting', 'progress', 'ready', 'done', 'cancelled']
@@ -89,5 +91,13 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // `short:` for phones turned sideways (and other short windows): bars get out of the way.
+    // A variant, not a screen: a raw screen would switch off the min-[…] and max-[…] variants.
+    plugin(({ addVariant }) => {
+      addVariant('short', '@media (max-height: 600px)')
+      // Wide and tall (desktops, tablets upright): room to keep the guest header pinned
+      addVariant('roomy', '@media (min-width: 768px) and (min-height: 800px)')
+    }),
+  ],
 }

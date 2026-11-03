@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, type Ref } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Minus, Plus } from 'lucide-react'
 import { cn } from './cn'
@@ -12,11 +12,13 @@ export interface QuantityStepperProps {
   itemName?: string
   /** Called with the + button when it adds one (e.g. to animate into the cart). */
   onIncrementFrom?: (button: HTMLButtonElement) => void
+  /** The + button, e.g. to move focus onto it when the stepper replaces an Add button. */
+  incrementRef?: Ref<HTMLButtonElement>
   className?: string
 }
 
 /** − n + control. Pressing minus at `min` calls onChange(min). The number ticks up or down. */
-export default function QuantityStepper({ value, onChange, min = 0, max = 99, itemName, onIncrementFrom, className }: QuantityStepperProps) {
+export default function QuantityStepper({ value, onChange, min = 0, max = 99, itemName, onIncrementFrom, incrementRef, className }: QuantityStepperProps) {
   const name = itemName ? ` ${itemName}` : ''
   const prev = useRef(value)
   const dir = value >= prev.current ? 1 : -1
@@ -31,7 +33,8 @@ export default function QuantityStepper({ value, onChange, min = 0, max = 99, it
       <button type="button" className={btn} aria-label={`Remove one${name}`} onClick={() => onChange(Math.max(min, value - 1))}>
         <Minus className="h-4 w-4" />
       </button>
-      <span className="relative h-6 w-6 overflow-hidden text-center text-[15px] font-semibold tabular-nums text-ink" aria-live="polite">
+      {/* Callers announce changes (see announce); a live region here would read both numbers mid-tick */}
+      <span className="relative h-6 w-6 overflow-hidden text-center text-[15px] font-semibold tabular-nums text-ink">
         <AnimatePresence initial={false} mode="popLayout" custom={dir}>
           <motion.span
             key={value}
@@ -52,6 +55,7 @@ export default function QuantityStepper({ value, onChange, min = 0, max = 99, it
         </AnimatePresence>
       </span>
       <button
+        ref={incrementRef}
         type="button"
         className={btn}
         aria-label={`Add one${name}`}

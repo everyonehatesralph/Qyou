@@ -74,7 +74,7 @@ export function ColumnChart({ data, title, height = 140, labelEvery = 1, fill = 
       <div className="mt-1.5 flex gap-[2px]" aria-hidden>
         {data.map((d, i) => (
           <span key={d.label} className="flex min-w-0 flex-1 justify-center">
-            <span className={cn('whitespace-nowrap text-[11px]', d.emphasis ? 'font-semibold text-ink' : 'text-ink-muted')}>
+            <span className={cn('whitespace-nowrap text-xs', d.emphasis ? 'font-semibold text-ink' : 'text-ink-muted')}>
               {showLabel(i) ? d.label : ''}
             </span>
           </span>
@@ -100,7 +100,7 @@ export function BarList({ data, className, rank }: { data: BarDatum[]; className
       {data.map((d, i) => (
         <li key={d.key}>
           <div className="mb-1.5 flex items-baseline justify-between gap-3 text-[15px]">
-            <span className="min-w-0 truncate text-ink">
+            <span className="min-w-0 text-ink">
               {rank && <span className="mr-2 tabular-nums text-ink-muted">{i + 1}</span>}
               {d.label}
             </span>

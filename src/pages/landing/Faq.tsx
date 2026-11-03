@@ -71,7 +71,7 @@ function Item({ q, a }: { q: string; a: string }) {
 
 export default function Faq() {
   return (
-    <section id="faq" className="scroll-mt-16">
+    <section id="faq">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-20 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16 lg:py-28">
         <Reveal>
           <SectionHeading eyebrow="FAQ" title="Questions owners ask us." />

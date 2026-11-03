@@ -53,7 +53,7 @@ export default function TableCard({ label, orders, onFree, compact }: Props) {
         <ul className="mt-3 divide-y divide-line rounded-control border border-line bg-surface">
           {orders.map(o => (
             <li key={o.id} className="flex items-center justify-between gap-2 px-3 py-2">
-              <span className="min-w-0 truncate text-sm text-ink">
+              <span className="min-w-0 break-words text-sm text-ink">
                 {o.customerName || 'Guest'} <span className="text-ink-muted">· {o.id}</span>
               </span>
               <StatusPill status={o.status} />
@@ -72,7 +72,7 @@ export default function TableCard({ label, orders, onFree, compact }: Props) {
         <Button
           variant={compact ? 'ghost' : 'secondary'}
           onClick={onFree}
-          className={cn('mt-3', compact ? '-mx-1 -mb-1 h-9 justify-start px-2 text-sm' : 'w-full')}
+          className={cn('mt-3', compact ? '-mx-1 -mb-1 justify-start px-2 text-sm' : 'w-full')}
         >
           Free table
         </Button>

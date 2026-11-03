@@ -253,7 +253,7 @@ export default function SalesTracker() {
                           {count > 0 && <span className="absolute inset-0 bg-chart" style={{ opacity: 0.12 + intensity * 0.38 }} aria-hidden />}
                           <span className="relative">{count || '·'}</span>
                         </div>
-                        <span className="text-[10px] text-ink-muted">{hourLabel(h)}</span>
+                        <span className="text-xs text-ink-muted">{hourLabel(h)}</span>
                       </div>
                     )
                   })}
@@ -271,7 +271,7 @@ export default function SalesTracker() {
                   {itemStats.map((item, idx) => (
                     <li key={item.id}>
                       <div className="mb-1.5 flex items-baseline justify-between gap-3">
-                        <span className="min-w-0 truncate text-[15px] text-ink">
+                        <span className="min-w-0 text-[15px] text-ink">
                           <span className="mr-2 tabular-nums text-ink-muted">{idx + 1}</span>
                           {item.name}
                         </span>
@@ -324,7 +324,7 @@ export default function SalesTracker() {
                       <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium tabular-nums', idx === 0 ? 'bg-ink text-bg' : 'bg-surface-2 text-ink-muted')}>
                         {idx + 1}
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-ink">{item.name}</span>
+                      <span className="min-w-0 flex-1 text-ink">{item.name}</span>
                       <span className="tabular-nums text-ink-muted">{item.qty}×</span>
                     </li>
                   ))}
@@ -336,7 +336,7 @@ export default function SalesTracker() {
                   <ul className="space-y-2.5">
                     {bottomItems.map(item => (
                       <li key={item.id} className="flex items-center gap-3 text-[15px]">
-                        <span className="min-w-0 flex-1 truncate text-ink">{item.name}</span>
+                        <span className="min-w-0 flex-1 text-ink">{item.name}</span>
                         <span className="tabular-nums text-ink-muted">{item.qty}×</span>
                       </li>
                     ))}

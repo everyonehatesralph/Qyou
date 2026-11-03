@@ -65,7 +65,7 @@ export default function TakeawayPickup() {
                   {ready.map(order => (
                     <motion.li layoutId={order.id} layout transition={{ type: 'spring', stiffness: 260, damping: 28 }} key={order.id} className="ticket rounded-card bg-status-ready-bg px-3 py-5 text-center text-status-ready-text [--notch-y:62%] sm:px-5">
                       <p className="whitespace-nowrap font-mono text-[26px] leading-none sm:text-[40px]">{order.takeawayCode}</p>
-                      <p className="mt-3 truncate text-[15px] font-medium">{order.customerName}</p>
+                      <p className="mt-3 break-words text-[15px] font-medium">{order.customerName}</p>
                       <p className="mt-2 inline-flex items-center gap-1 text-sm font-medium">
                         <Check className="h-4 w-4" aria-hidden /> Ready
                       </p>
@@ -85,7 +85,7 @@ export default function TakeawayPickup() {
                   {inProgress.map(order => (
                     <motion.li layoutId={order.id} layout transition={{ type: 'spring', stiffness: 260, damping: 28 }} key={order.id} className="ticket rounded-card bg-surface px-3 py-5 text-center [--notch-y:62%] sm:px-5">
                       <p className="whitespace-nowrap font-mono text-[22px] leading-none text-ink sm:text-[32px]">{order.takeawayCode}</p>
-                      <p className="mt-3 truncate text-[15px] text-ink">{order.customerName}</p>
+                      <p className="mt-3 break-words text-[15px] text-ink">{order.customerName}</p>
                       <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
                         <StatusPill status={order.status} audience="customer" />
                         <span className="text-xs text-ink-muted">{minutesSince(order.createdAt, now)} min</span>

@@ -27,7 +27,7 @@ export default function StaffPageShell({ children, theme, className }: Props) {
       <div
         data-theme={theme}
         className={cn(
-          'min-h-screen bg-bg text-ink pb-[calc(4rem+env(safe-area-inset-bottom))]',
+          'min-h-screen bg-bg text-ink pb-[calc(4rem+env(safe-area-inset-bottom))] short:pb-[calc(3rem+env(safe-area-inset-bottom))]',
           'md:min-h-[calc(100vh-1rem)] md:overflow-clip md:rounded-sheet md:border md:border-line md:pb-0',
           className,
         )}

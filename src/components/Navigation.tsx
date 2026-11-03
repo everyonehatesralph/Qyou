@@ -62,11 +62,11 @@ function BottomBarButton({ item, active, onClick, badge, pillId, cartTarget }: {
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'relative flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors duration-150',
+        'relative flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors duration-150 short:flex-row short:gap-2 short:text-[13px]',
         active ? 'text-ink' : 'text-ink-muted hover:text-ink',
       )}
     >
-      <span className="relative flex h-8 w-14 items-center justify-center" data-cart-target={cartTarget || undefined}>
+      <span className="relative flex h-8 w-14 items-center justify-center short:h-7 short:w-11" data-cart-target={cartTarget || undefined}>
         {active && <motion.span layoutId={pillId} transition={PILL_SPRING} className="absolute inset-0 rounded-full bg-ink" aria-hidden />}
         <Icon className={cn('relative h-5 w-5 transition-colors duration-150', active && 'text-bg')} aria-hidden />
         {!!badge && (
@@ -167,7 +167,7 @@ function StaffNavigation() {
         aria-label="Staff"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
       >
-        <div className="grid h-16 grid-cols-5">
+        <div className="grid h-16 grid-cols-5 short:h-12">
           {STAFF_BAR.map(item => (
             <BottomBarButton key={item.path} item={item} pillId="staff-bar-pill" active={isActive(item.path)} onClick={() => navigate(item.path)} />
           ))}
@@ -238,7 +238,7 @@ export default function Navigation() {
         aria-label="Main"
         className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]"
       >
-        <div className="mx-auto grid h-16 max-w-md grid-cols-3">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-3 short:h-12">
           {customerItems.map(item => (
             <BottomBarButton
               key={item.path}

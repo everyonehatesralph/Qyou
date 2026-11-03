@@ -1,6 +1,6 @@
 import { ArrowLeft, BellRing, Check, ClipboardList, Loader2, Receipt, ShoppingBag, UtensilsCrossed } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useOrders } from '../../context/OrderContext'
 import type { Order, OrderStatus as Status } from '../../context/OrderContext'
@@ -9,7 +9,7 @@ import { clockTime } from '../../hooks/useNow'
 import { STATUS_STEP } from '../../theme/status'
 import { RESTAURANT } from '../../config/restaurant'
 import InvoiceModal from '../../components/InvoiceModal'
-import { Button, Card, EmptyState, IconButton, StatusPill, Ticket, cn } from '../../components/ui'
+import { Button, Card, EmptyState, IconButton, StatusPill, Ticket, announce, cn } from '../../components/ui'
 
 const peso = (n: number) => `${RESTAURANT.currency}${n.toFixed(0)}`
 
@@ -102,9 +102,20 @@ export default function OrderStatus() {
 
   const order = useMemo(() => orders.find(o => o.id === orderId), [orders, orderId])
 
+  // Status changes arrive live; read them out (not the status the page opened with)
+  const lastStatus = useRef(order?.status)
+  useEffect(() => {
+    if (!order) return
+    if (lastStatus.current && lastStatus.current !== order.status) {
+      const h = HEADLINES[order.status] ?? HEADLINES.pending
+      announce(`${h.title}. ${h.body(order)}`)
+    }
+    lastStatus.current = order.status
+  }, [order])
+
   if (!order) {
     return (
-      <div className="min-h-screen bg-bg px-4 pb-28 pt-8">
+      <main className="min-h-screen bg-bg px-4 pb-28 pt-8">
         {isConnected ? (
           <EmptyState
             icon={ClipboardList}
@@ -118,7 +129,7 @@ export default function OrderStatus() {
             <p className="text-sm">Loading your order…</p>
           </div>
         )}
-      </div>
+      </main>
     )
   }
 
@@ -129,7 +140,7 @@ export default function OrderStatus() {
   const itemCount = order.items.reduce((s, i) => s + i.quantity, 0)
 
   return (
-    <div className="min-h-screen bg-bg pb-28">
+    <main className="min-h-screen bg-bg pb-28">
       <div className="mx-auto max-w-xl animate-enter px-4 pt-3">
         <div className="flex items-center gap-1">
           <IconButton label="Back to your orders" onClick={() => navigate('/my-orders')} className="-ml-2.5">
@@ -150,11 +161,11 @@ export default function OrderStatus() {
             stub={
               <>
                 <div>
-                  <p className="font-mono text-[11px] uppercase tracking-widest text-ink-muted">Order Nº</p>
+                  <p className="font-mono text-xs uppercase tracking-widest text-ink-muted">Order Nº</p>
                   <p className="font-display text-[34px] leading-none tracking-[-0.02em] text-ink">{order.id}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-mono text-[11px] uppercase tracking-widest text-ink-muted">{order.orderType === 'takeaway' ? 'Take away' : 'Dine in'}</p>
+                  <p className="font-mono text-xs uppercase tracking-widest text-ink-muted">{order.orderType === 'takeaway' ? 'Take away' : 'Dine in'}</p>
                   <p className="mt-1 text-[15px] font-semibold text-ink">{order.tableName}</p>
                 </div>
               </>
@@ -185,7 +196,7 @@ export default function OrderStatus() {
           >
             <BellRing className="h-5 w-5 shrink-0 animate-ring" aria-hidden />
             <p className="flex-1 text-[15px] font-medium">Your order is ready!</p>
-            <Button size="md" onClick={dismissNotification} className="h-9">OK</Button>
+            <Button size="md" onClick={dismissNotification} className="-my-1.5">OK</Button>
           </motion.div>
         )}
 
@@ -197,7 +208,7 @@ export default function OrderStatus() {
               stubClassName="px-5 pb-4 pt-3 text-center text-sm"
               stub={<p>Show this at the counter when your order is ready.</p>}
             >
-              <p className="font-mono text-[11px] uppercase tracking-widest">Pickup code</p>
+              <p className="font-mono text-xs uppercase tracking-widest">Pickup code</p>
               <p className="mt-1 font-mono text-[42px] leading-none tracking-[0.04em]">{order.takeawayCode}</p>
             </Ticket>
           </div>
@@ -249,13 +260,14 @@ export default function OrderStatus() {
           </div>
         </Card>
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
+        {/* Side by side from 640px; stacked full width on phones so neither label is squeezed */}
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <Button leftIcon={<Receipt />} onClick={() => setShowSummary(true)}>Order summary</Button>
           <Button variant="ghost" onClick={() => navigate('/menu')}>Order more</Button>
         </div>
       </div>
 
       <InvoiceModal order={order} open={showSummary} onClose={() => setShowSummary(false)} />
-    </div>
+    </main>
   )
 }

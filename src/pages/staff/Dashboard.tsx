@@ -206,8 +206,9 @@ export default function Dashboard() {
             <SectionTitle title="Awaiting payment" count={servedOrders.length} />
             <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
               {servedOrders.map(order => (
-                <li key={order.id} className="flex items-center gap-3 px-4 py-3">
-                  <div className="min-w-0 flex-1">
+                // Narrow phones: who and what on one line, amount and Mark paid below
+                <li key={order.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+                  <div className="min-w-0 flex-1 basis-full min-[460px]:basis-0">
                     <p className="text-[15px] text-ink">
                       <span className="font-medium">{order.tableName}</span>
                       <span className="text-ink-muted"> · {order.customerName || 'Guest'} · {order.id}</span>
@@ -215,7 +216,7 @@ export default function Dashboard() {
                     <p className="mt-0.5 truncate text-sm text-ink-muted">{itemsSummary(order)}</p>
                   </div>
                   <p className="text-[15px] font-medium tabular-nums text-ink">{peso(order.total)}</p>
-                  <Button leftIcon={<Banknote />} onClick={() => markPaid(order.id)}>Mark paid</Button>
+                  <Button leftIcon={<Banknote />} onClick={() => markPaid(order.id)} className="ml-auto min-[460px]:ml-0">Mark paid</Button>
                 </li>
               ))}
             </ul>
