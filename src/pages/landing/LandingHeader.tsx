@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom'
-import { motion, useScroll, useSpring } from 'framer-motion'
 import { Wordmark, buttonClasses } from '../../components/ui'
 
 const SECTIONS = [
@@ -9,9 +8,6 @@ const SECTIONS = [
 ]
 
 export default function LandingHeader() {
-  const { scrollYProgress } = useScroll()
-  const progress = useSpring(scrollYProgress, { stiffness: 200, damping: 30, restDelta: 0.001 })
-
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-glass backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6 lg:gap-8">
@@ -38,8 +34,6 @@ export default function LandingHeader() {
           </a>
         </div>
       </div>
-      {/* Reading progress */}
-      <motion.div style={{ scaleX: progress }} className="absolute inset-x-0 -bottom-px h-0.5 origin-left bg-accent" aria-hidden />
     </header>
   )
 }

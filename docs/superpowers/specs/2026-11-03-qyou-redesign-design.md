@@ -370,3 +370,8 @@ Requested by the owner, with a delivery-app menu as the reference: guests choose
   setting like every page. The setting is remembered per device, so a kitchen tablet set to
   dark stays dark. This replaces "the kitchen screen defaults to dark" from the original spec:
   with the sidebar's theme button, two switches that changed different things were confusing.
+
+## Revision 8 (2026-11-04): no reading-progress line
+
+- The thin accent reading-progress line under the landing header is removed (owner: it looked
+  like a stray line over the content passing behind the header).
