@@ -3,7 +3,7 @@ import { metricsCollector, type MetricsSnapshot } from '../../services/metricsCo
 import { useSidebar } from '../../context/SidebarContext'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
-import { BarChart3 } from 'lucide-react'
+import { Card, cn } from '../../components/ui'
 
 export default function MetricsMonitor() {
   const { expanded: sidebarExpanded, toggle: toggleSidebar } = useSidebar()
@@ -26,24 +26,24 @@ export default function MetricsMonitor() {
     return () => clearInterval(interval)
   }, [])
 
-  if (!metrics) return <div className="p-4 text-text-base">Loading metrics...</div>
+  if (!metrics) return <StaffPageShell><p className="p-6 text-ink-muted">Loading metrics…</p></StaffPageShell>
 
   return (
     <StaffPageShell>
       <StaffHeader
-        icon={BarChart3}
-        title="Performance Metrics"
-        actions={
-          <span className="text-xs" style={{ color: '#5C4F44' }}>Updated: {new Date(metrics.timestamp).toLocaleTimeString()}</span>
-        }
+        title="Performance metrics"
+        subtitle={`Developer view · updated ${new Date(metrics.timestamp).toLocaleTimeString()}`}
         sidebarExpanded={sidebarExpanded}
         onSidebarToggle={toggleSidebar}
       />
 
-      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 pb-24 md:pb-8">
+      <main className="mx-auto max-w-6xl space-y-6 px-4 py-5 sm:px-6 sm:py-6">
+        <p className="rounded-card border border-line bg-status-waiting-bg px-4 py-3 text-sm text-status-waiting-text">
+          Some figures on this page are simulated (for example the live latency), so they do not describe real traffic.
+        </p>
 
         {/* Grid Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {/* ─── CONCURRENCY METRICS ─── */}
           <MetricCard title="Active SSE Connections" value={metrics.concurrency.activeSSEConnections} unit="connections" />
           <MetricCard title="Active Requests" value={metrics.concurrency.activeRequests} unit="requests" />
@@ -147,9 +147,9 @@ export default function MetricsMonitor() {
         </div>
 
         {/* Performance Status Bar */}
-        <div className="rounded-xl p-6" style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}>
-          <h2 className="text-xl font-bold mb-4 text-text-base">Performance Status</h2>
-          <div className="space-y-6">
+        <Card>
+          <h2 className="mb-4 font-display text-xl text-ink">Performance status</h2>
+          <div className="space-y-5">
             <PerformanceIndicator
               label="Concurrency Health"
               value={metrics.concurrency.activeSSEConnections + metrics.concurrency.activeRequests}
@@ -189,12 +189,12 @@ export default function MetricsMonitor() {
               unit="%"
             />
           </div>
-        </div>
+        </Card>
 
         {/* Information */}
-        <div className="mt-8 rounded-xl p-6" style={{ backgroundColor: 'rgba(200,134,10,0.05)', border: '1px solid rgba(200,134,10,0.2)' }}>
-          <h2 className="text-lg font-bold mb-3 text-text-base">What do these metrics mean?</h2>
-          <ul className="space-y-2 text-sm text-text-muted">
+        <Card>
+          <h2 className="mb-3 font-display text-lg text-ink">What do these metrics mean?</h2>
+          <ul className="space-y-2 text-sm text-ink-muted [&_strong]:font-medium [&_strong]:text-ink">
             <li>
               <strong>Active SSE Connections:</strong> Users connected and receiving live updates
             </li>
@@ -217,7 +217,7 @@ export default function MetricsMonitor() {
               <strong>Error Rate:</strong> Percentage of failed orders (should be less than 1%)
             </li>
           </ul>
-        </div>
+        </Card>
       </main>
     </StaffPageShell>
   )
@@ -235,42 +235,20 @@ interface MetricCardProps {
 }
 
 function MetricCard({ title, value, unit, target, isLive, isError }: MetricCardProps) {
-  let borderColor = '#2E2318'
-  let bgColor = '#171210'
-  let accentColor = '#C8860A'
-
-  if (isError) {
-    accentColor = '#F87171'
-  } else if (isLive) {
-    accentColor = '#4ADE80'
-  }
-
   return (
-    <div
-      className="rounded-xl p-5 transition-all duration-300"
-      style={{
-        backgroundColor: bgColor,
-        border: `1px solid ${borderColor}`,
-        boxShadow: isLive ? `0 0 12px rgba(74,222,128,0.2)` : 'none',
-      }}
-    >
-      <p className="text-sm text-text-muted mb-2">{title}</p>
-      <div className="flex items-baseline gap-2">
-        <p className="text-3xl font-bold text-text-base">{value}</p>
-        {isLive && (
-          <span
-            className="w-2 h-2 rounded-full animate-pulse"
-            style={{ backgroundColor: '#4ADE80' }}
-          />
-        )}
+    <Card padding="none" className="p-4">
+      <p className="text-sm text-ink-muted">{title}</p>
+      <div className="mt-2 flex items-baseline gap-2">
+        <p className="text-[28px] font-medium leading-none tabular-nums text-ink">{value}</p>
+        <span className="text-sm text-ink-muted">{unit}</span>
+        {isLive && <span className="h-2 w-2 animate-pulse rounded-full bg-status-ready-text" aria-hidden />}
       </div>
-      <p className="text-xs text-text-faint mt-1">{unit}</p>
       {target && (
-        <p className="text-xs mt-2" style={{ color: accentColor }}>
+        <p className={cn('mt-2 text-xs', isError ? 'text-status-cancelled-text' : 'text-ink-muted')}>
           Target: {target}
         </p>
       )}
-    </div>
+    </Card>
   )
 }
 
@@ -291,40 +269,28 @@ function PerformanceIndicator({
   unit,
 }: PerformanceIndicatorProps) {
   let status = 'Good'
-  let statusColor = '#4ADE80'
+  let tone = { fill: 'bg-status-ready-text', pill: 'bg-status-ready-bg text-status-ready-text' }
 
   if (value >= critical[0] && value <= critical[1]) {
     status = 'Critical'
-    statusColor = '#F87171'
+    tone = { fill: 'bg-status-cancelled-text', pill: 'bg-status-cancelled-bg text-status-cancelled-text' }
   } else if (value >= warning[0] && value <= warning[1]) {
     status = 'Warning'
-    statusColor = '#FBBF24'
+    tone = { fill: 'bg-status-waiting-text', pill: 'bg-status-waiting-bg text-status-waiting-text' }
   }
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="w-32 text-sm font-semibold text-text-base">{label}</div>
-      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#2E2318' }}>
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="w-36 text-sm font-medium text-ink">{label}</div>
+      <div className="h-2 min-w-[8rem] flex-1 overflow-hidden rounded-full bg-surface-2">
         <div
-          className="h-full transition-all duration-300"
-          style={{
-            width: Math.min(100, (value / 100) * 100) + '%',
-            backgroundColor: statusColor,
-          }}
+          className={cn('h-full transition-[width] duration-300', tone.fill)}
+          style={{ width: Math.min(100, (value / 100) * 100) + '%' }}
         />
       </div>
-      <div className="text-right w-40">
-        <span className="text-sm font-mono text-text-base">{value.toFixed(2)} {unit}</span>
-        <span
-          className="ml-2 text-xs font-bold uppercase px-2 py-1 rounded"
-          style={{
-            backgroundColor: statusColor + '20',
-            color: statusColor,
-            border: `1px solid ${statusColor}`,
-          }}
-        >
-          {status}
-        </span>
+      <div className="flex items-center gap-2">
+        <span className="text-sm tabular-nums text-ink">{value.toFixed(2)} {unit}</span>
+        <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', tone.pill)}>{status}</span>
       </div>
     </div>
   )

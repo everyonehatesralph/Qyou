@@ -1,13 +1,13 @@
-import { useMemo, useState, useCallback } from 'react'
-import {
-  TrendingUp, TrendingDown, BarChart2, DollarSign, ShoppingBag, Award,
-  Clock, Users, Download, Zap, Coffee, Activity, PieChart,
-} from 'lucide-react'
+import { useMemo, useState, useCallback, type ReactNode } from 'react'
+import { BarChart3, Download } from 'lucide-react'
 import { useOrders } from '../../context/OrderContext'
 import { useSidebar } from '../../context/SidebarContext'
 import StaffPageShell from '../../components/StaffPageShell'
-import StaffHeader, { HeaderDivider } from '../../components/StaffHeader'
-// types inferred from useOrders()
+import StaffHeader from '../../components/StaffHeader'
+import KpiCard from '../../components/KpiCard'
+import { Button, Card, EmptyState, Segmented, cn } from '../../components/ui'
+import { STATUS_GROUP_CLASSES, STATUS_META } from '../../theme/status'
+import { peso } from '../../utils/formatters'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function minutesBetween(a: string, b: string) {
@@ -24,6 +24,24 @@ function dayLabel(d: number) {
 }
 
 type TimeFilter = 'today' | '7d' | '30d' | 'all'
+
+function Panel({ title, children, className }: { title: string; children: ReactNode; className?: string }) {
+  return (
+    <Card className={className}>
+      <h2 className="mb-4 font-display text-lg text-ink">{title}</h2>
+      {children}
+    </Card>
+  )
+}
+
+/** Horizontal bar used by the item, category and pipeline lists. */
+function Bar({ value, max, fill = 'bg-accent' }: { value: number; max: number; fill?: string }) {
+  return (
+    <div className="h-2 rounded-full bg-surface-2">
+      <div className={cn('h-2 rounded-full transition-[width] duration-500', fill)} style={{ width: `${Math.max((value / max) * 100, value > 0 ? 2 : 0)}%` }} />
+    </div>
+  )
+}
 
 export default function SalesTracker() {
   const { orders } = useOrders()
@@ -102,7 +120,7 @@ export default function SalesTracker() {
       const ds = d.toDateString()
       const dayOrders = completed.filter(o => new Date(o.createdAt).toDateString() === ds)
       days.push({
-        label: i === 0 ? 'Today' : i === 1 ? 'Yesterday' : dayLabel(d.getDay()),
+        label: i === 0 ? 'Today' : i === 1 ? 'Yest.' : dayLabel(d.getDay()),
         orders: dayOrders.length,
         revenue: dayOrders.reduce((s, o) => s + o.total, 0),
       })
@@ -134,18 +152,17 @@ export default function SalesTracker() {
     return [...map.entries()].sort((a, b) => b[1].rev - a[1].rev)
   }, [completed])
   const catMaxRev = categoryData[0]?.[1].rev ?? 1
-  const CAT_COLORS: Record<string, string> = { Coffee: '#C8860A', Tea: '#4ADE80', Pastry: '#F472B6', Food: '#60A5FA' }
 
-  // ── Smart insights ────────────────────────────────────────────────────────
+  // ── Insights ──────────────────────────────────────────────────────────────
   const insights = useMemo(() => {
     const msgs: string[] = []
-    if (busiestHour >= 0 && totalOrders > 0) msgs.push(`🔥 Peak hour is ${hourLabel(busiestHour)} with ${hourlyData.counts[busiestHour]} orders`)
-    if (quietestHour >= 0 && totalOrders > 0) msgs.push(`💤 Quietest hour is ${hourLabel(quietestHour)} — consider promotions`)
-    if (avgServeMin > 0) msgs.push(`⏱️ Average serve time is ${avgServeMin.toFixed(1)} minutes`)
-    if (topItems[0]) msgs.push(`🏆 "${topItems[0].name}" is your #1 seller (${topItems[0].qty} sold)`)
-    if (bottomItems[0]) msgs.push(`📉 "${bottomItems[0].name}" has low demand — consider reviewing`)
-    if (avgOrderVal > 0) msgs.push(`💰 Average order value is ₱${avgOrderVal.toFixed(0)}`)
-    if (uniqueCustomers > 0) msgs.push(`👥 ${uniqueCustomers} unique customers served`)
+    if (busiestHour >= 0 && totalOrders > 0) msgs.push(`Peak hour is ${hourLabel(busiestHour)} with ${hourlyData.counts[busiestHour]} orders.`)
+    if (quietestHour >= 0 && totalOrders > 0) msgs.push(`Quietest hour is ${hourLabel(quietestHour)}; a good time for promotions.`)
+    if (avgServeMin > 0) msgs.push(`Average time from order to served is ${avgServeMin.toFixed(1)} minutes.`)
+    if (topItems[0]) msgs.push(`“${topItems[0].name}” is your top seller (${topItems[0].qty} sold).`)
+    if (bottomItems[0]) msgs.push(`“${bottomItems[0].name}” sells the least; worth reviewing.`)
+    if (avgOrderVal > 0) msgs.push(`Average order value is ${peso(avgOrderVal)}.`)
+    if (uniqueCustomers > 0) msgs.push(`${uniqueCustomers} different guests ordered.`)
     return msgs
   }, [busiestHour, quietestHour, avgServeMin, topItems, bottomItems, avgOrderVal, uniqueCustomers, hourlyData, totalOrders])
 
@@ -165,284 +182,177 @@ export default function SalesTracker() {
   return (
     <StaffPageShell>
       <StaffHeader
-        icon={BarChart2}
-        title="Sales Analytics"
-        actions={
-          <>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#4ADE80' }} />
-              <span className="text-[10px]" style={{ color: '#5C4F44' }}>Live</span>
-            </span>
-            <HeaderDivider />
-            {([['today', 'Today'], ['7d', '7D'], ['30d', '30D'], ['all', 'All']] as [TimeFilter, string][]).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setTimeFilter(key)}
-                className="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all"
-                style={timeFilter === key
-                  ? { backgroundColor: 'rgba(200,134,10,0.12)', color: '#C8860A' }
-                  : { color: '#5C4F44' }
-                }
-              >
-                {label}
-              </button>
-            ))}
-            <HeaderDivider />
-            <button
-              onClick={exportCSV}
-              className="flex items-center gap-1 h-7 px-2.5 rounded-md text-sm font-medium transition-all"
-              style={{ color: '#9B8B7A', border: '1px solid #2E2318' }}
-            >
-              <Download className="w-3 h-3" /><span className="text-sm">CSV</span>
-            </button>
-          </>
-        }
+        title="Sales"
+        subtitle="Served and paid orders"
+        actions={<Button leftIcon={<Download />} onClick={exportCSV} disabled={completed.length === 0}>CSV</Button>}
         sidebarExpanded={sidebarExpanded}
         onSidebarToggle={toggleSidebar}
       />
 
-      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 pb-24 md:pb-8">
+      <main className="mx-auto max-w-6xl space-y-5 px-4 py-5 sm:px-6 sm:py-6">
+        <Segmented<TimeFilter>
+          label="Time range"
+          value={timeFilter}
+          onChange={setTimeFilter}
+          options={[
+            { value: 'today', label: 'Today' },
+            { value: '7d', label: '7 days' },
+            { value: '30d', label: '30 days' },
+            { value: 'all', label: 'All' },
+          ]}
+          className="max-w-md"
+        />
 
-        {/* ── KPI Cards ──────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
-          {[
-            { label: 'Revenue',       val: `₱${totalRevenue.toFixed(0)}`,     icon: DollarSign,  color: '#C8860A', sub: '' },
-            { label: 'Orders',        val: totalOrders,                        icon: ShoppingBag, color: '#4ADE80', sub: '' },
-            { label: 'Avg Order',     val: `₱${avgOrderVal.toFixed(0)}`,      icon: Award,       color: '#F472B6', sub: '' },
-            { label: 'Customers',     val: uniqueCustomers,                    icon: Users,       color: '#60A5FA', sub: '' },
-            { label: 'Avg Serve',     val: `${avgServeMin.toFixed(1)}m`,       icon: Clock,       color: '#FBBF24', sub: '' },
-            { label: 'Peak Hour',     val: totalOrders > 0 ? hourLabel(busiestHour) : '—', icon: Zap, color: '#F87171', sub: '' },
-          ].map(s => (
-            <div key={s.label} className="rounded-xl p-4" style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-text-muted text-[11px] font-medium">{s.label}</p>
-                <s.icon className="w-3.5 h-3.5 opacity-50" style={{ color: s.color }} />
-              </div>
-              <p className="text-xl font-bold" style={{ color: s.color }}>{s.val}</p>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <KpiCard label="Revenue" value={peso(totalRevenue)} />
+          <KpiCard label="Orders" value={totalOrders} />
+          <KpiCard label="Average order" value={peso(avgOrderVal)} />
+          <KpiCard label="Guests" value={uniqueCustomers} />
+          <KpiCard label="Average serve" value={`${avgServeMin.toFixed(1)} min`} />
+          <KpiCard label="Peak hour" value={totalOrders > 0 ? hourLabel(busiestHour) : '—'} />
         </div>
 
         {completed.length === 0 ? (
-          <div className="rounded-xl p-16 text-center" style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}>
-            <BarChart2 className="w-12 h-12 text-text-faint mx-auto mb-3" />
-            <p className="text-text-muted font-semibold">No sales data yet</p>
-            <p className="text-text-faint text-sm mt-1">Complete orders to see analytics here.</p>
-          </div>
+          <Card>
+            <EmptyState icon={BarChart3} title="No sales yet" body="Served and paid orders show up here." />
+          </Card>
         ) : (
           <>
-            {/* ── Row 1: Revenue Trend + Peak Hours ──────────────────── */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
-              {/* Revenue Trend */}
-              <div className="rounded-xl p-5" style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}>
-                <h2 className="text-text-base font-bold text-sm mb-4 flex items-center gap-2">
-                  <Activity className="w-4 h-4" style={{ color: '#C8860A' }} />
-                  Revenue Trend (7 Days)
-                </h2>
-                <div className="flex items-end gap-2 h-36">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Panel title="Revenue, last 7 days">
+                {dailyTrend.every(d => d.revenue === 0) && (
+                  <p className="-mt-2 mb-2 text-sm text-ink-muted">No served or paid orders in the last 7 days.</p>
+                )}
+                <div className="flex h-44 items-end gap-2" role="img" aria-label="Revenue per day for the last 7 days">
                   {dailyTrend.map((d, i) => (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                      <span className="text-[10px] text-text-faint font-medium">
-                        {d.revenue > 0 ? `₱${d.revenue.toFixed(0)}` : ''}
-                      </span>
-                      <div className="w-full relative" style={{ height: '100px' }}>
-                        <div
-                          className="absolute bottom-0 w-full rounded-t-md transition-all duration-500"
-                          style={{
-                            height: `${Math.max((d.revenue / maxDailyRev) * 100, 2)}%`,
-                            backgroundColor: i === 6 ? '#C8860A' : 'rgba(200,134,10,0.3)',
-                          }}
-                        />
-                      </div>
-                      <span className="text-[10px] text-text-muted font-medium">{d.label}</span>
+                    <div key={i} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
+                      <span className="text-[11px] tabular-nums text-ink-muted">{d.revenue > 0 ? peso(d.revenue) : ''}</span>
+                      <div
+                        className={cn('w-full rounded-t-[6px]', i === 6 ? 'bg-accent' : 'bg-line-strong')}
+                        style={{ height: `${Math.max((d.revenue / maxDailyRev) * 100, 2)}px` }}
+                      />
+                      <span className={cn('text-xs', i === 6 ? 'font-medium text-ink' : 'text-ink-muted')}>{d.label}</span>
                     </div>
                   ))}
                 </div>
-              </div>
+              </Panel>
 
-              {/* Peak Hours Heatmap */}
-              <div className="rounded-xl p-5" style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}>
-                <h2 className="text-text-base font-bold text-sm mb-4 flex items-center gap-2">
-                  <Zap className="w-4 h-4" style={{ color: '#F87171' }} />
-                  Peak Hours
-                </h2>
-                <div className="grid grid-cols-8 gap-1">
+              <Panel title="Orders by hour">
+                <div className="grid grid-cols-8 gap-1.5">
                   {hourlyData.counts.slice(6, 22).map((count, idx) => {
                     const h = idx + 6
                     const intensity = count / hourlyData.max
                     return (
                       <div key={h} className="flex flex-col items-center gap-1">
                         <div
-                          className="w-full aspect-square rounded-md flex items-center justify-center text-[10px] font-bold transition-all"
-                          style={{
-                            backgroundColor: count === 0 ? '#211A15'
-                              : `rgba(200,134,10,${0.15 + intensity * 0.7})`,
-                            color: intensity > 0.5 ? '#0D0B0A' : '#9B8B7A',
-                            border: h === busiestHour ? '2px solid #C8860A' : '1px solid transparent',
-                          }}
+                          className={cn(
+                            'relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-[6px] text-xs font-medium',
+                            count === 0 ? 'bg-surface-2 text-ink-muted' : 'text-ink',
+                            h === busiestHour && count > 0 && 'ring-2 ring-ink ring-offset-1 ring-offset-surface',
+                          )}
                         >
-                          {count || '·'}
+                          {/* Accent tint capped at 50% so ink text stays readable (AA) in both modes */}
+                          {count > 0 && <span className="absolute inset-0 bg-accent" style={{ opacity: 0.12 + intensity * 0.38 }} aria-hidden />}
+                          <span className="relative">{count || '·'}</span>
                         </div>
-                        <span className="text-[9px] text-text-faint">{hourLabel(h)}</span>
+                        <span className="text-[10px] text-ink-muted">{hourLabel(h)}</span>
                       </div>
                     )
                   })}
                 </div>
-                <div className="flex items-center justify-between mt-3 text-[10px] text-text-faint">
-                  <span>🔥 Busiest: <strong className="text-text-muted">{hourLabel(busiestHour)}</strong></span>
-                  <span>💤 Quietest: <strong className="text-text-muted">{hourLabel(quietestHour)}</strong></span>
+                <div className="mt-4 flex justify-between text-sm text-ink-muted">
+                  <span>Busiest: <span className="font-medium text-ink">{hourLabel(busiestHour)}</span></span>
+                  <span>Quietest: <span className="font-medium text-ink">{hourLabel(quietestHour)}</span></span>
                 </div>
-              </div>
+              </Panel>
             </div>
 
-            {/* ── Row 2: Sales by Item + Category + Funnel ────────────── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
-              {/* Sales by Item */}
-              <div className="rounded-xl p-5 lg:col-span-2" style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}>
-                <h2 className="text-text-base font-bold text-sm mb-4 flex items-center gap-2">
-                  <BarChart2 className="w-4 h-4 text-primary" />
-                  Sales by Item
-                </h2>
-                <div className="space-y-2.5">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <Panel title="Sales by item" className="lg:col-span-2">
+                <ol className="space-y-3">
                   {itemStats.map((item, idx) => (
-                    <div key={item.id}>
-                      <div className="flex justify-between items-center mb-1">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-[10px] font-bold w-5 text-text-faint">{idx + 1}</span>
-                          <span className="text-text-base text-sm font-medium truncate">{item.name}</span>
-                        </div>
-                        <div className="flex items-center gap-3 flex-shrink-0">
-                          <span className="text-text-muted text-xs">{item.qty} sold</span>
-                          <span className="text-sm font-bold" style={{ color: '#C8860A' }}>₱{item.rev.toFixed(0)}</span>
-                        </div>
+                    <li key={item.id}>
+                      <div className="mb-1.5 flex items-baseline justify-between gap-3">
+                        <span className="min-w-0 truncate text-[15px] text-ink">
+                          <span className="mr-2 tabular-nums text-ink-muted">{idx + 1}</span>
+                          {item.name}
+                        </span>
+                        <span className="shrink-0 text-sm tabular-nums text-ink-muted">
+                          {item.qty} sold · <span className="font-medium text-ink">{peso(item.rev)}</span>
+                        </span>
                       </div>
-                      <div className="relative h-1.5 rounded-full" style={{ backgroundColor: '#2E2318' }}>
-                        <div
-                          className="h-1.5 rounded-full transition-all duration-700"
-                          style={{
-                            width: `${(item.qty / maxQty) * 100}%`,
-                            backgroundColor: idx === 0 ? '#C8860A' : idx === 1 ? '#E8C97A' : idx <= 3 ? '#9B8B7A' : '#4B3B2A',
-                          }}
-                        />
-                      </div>
-                    </div>
+                      <Bar value={item.qty} max={maxQty} />
+                    </li>
                   ))}
-                </div>
-              </div>
+                </ol>
+              </Panel>
 
-              {/* Right column: Category + Funnel */}
-              <div className="space-y-5">
-                {/* Category Breakdown */}
-                <div className="rounded-xl p-5" style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}>
-                  <h2 className="text-text-base font-bold text-sm mb-3 flex items-center gap-2">
-                    <PieChart className="w-4 h-4" style={{ color: '#F472B6' }} />
-                    Category Mix
-                  </h2>
-                  <div className="space-y-2.5">
+              <div className="space-y-4">
+                <Panel title="Category mix">
+                  <ul className="space-y-3">
                     {categoryData.map(([cat, data]) => (
-                      <div key={cat}>
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm font-medium" style={{ color: CAT_COLORS[cat] || '#9B8B7A' }}>{cat}</span>
-                          <span className="text-xs text-text-muted">₱{data.rev.toFixed(0)}</span>
+                      <li key={cat}>
+                        <div className="mb-1.5 flex justify-between text-[15px]">
+                          <span className="text-ink">{cat}</span>
+                          <span className="tabular-nums text-ink-muted">{peso(data.rev)}</span>
                         </div>
-                        <div className="h-1.5 rounded-full" style={{ backgroundColor: '#2E2318' }}>
-                          <div className="h-1.5 rounded-full" style={{ width: `${(data.rev / catMaxRev) * 100}%`, backgroundColor: CAT_COLORS[cat] || '#9B8B7A' }} />
-                        </div>
-                      </div>
+                        <Bar value={data.rev} max={catMaxRev} />
+                      </li>
                     ))}
-                  </div>
-                </div>
+                  </ul>
+                </Panel>
 
-                {/* Order Funnel */}
-                <div className="rounded-xl p-5" style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}>
-                  <h2 className="text-text-base font-bold text-sm mb-3 flex items-center gap-2">
-                    <Coffee className="w-4 h-4 text-primary" />
-                    Order Pipeline
-                  </h2>
-                  {(['pending', 'confirmed', 'preparing', 'ready', 'served', 'paid'] as const).map(status => {
-                    const count = funnel[status]
-                    const colors: Record<string, string> = {
-                      pending: '#FBBF24', confirmed: '#60A5FA', preparing: '#C8860A',
-                      ready: '#4ADE80', served: '#9B8B7A', paid: '#5C4F44',
-                    }
-                    return (
-                      <div key={status} className="flex items-center gap-2 mb-1.5">
-                        <span className="text-[11px] text-text-muted w-16 capitalize">{status}</span>
-                        <div className="flex-1 h-2 rounded-full" style={{ backgroundColor: '#2E2318' }}>
-                          <div className="h-2 rounded-full transition-all" style={{ width: `${(count / funnelMax) * 100}%`, backgroundColor: colors[status] }} />
+                <Panel title="Order pipeline">
+                  <ul className="space-y-2.5">
+                    {(['pending', 'confirmed', 'preparing', 'ready', 'served', 'paid'] as const).map(status => (
+                      <li key={status} className="flex items-center gap-3">
+                        <span className="w-[4.5rem] text-sm text-ink-muted">{STATUS_META[status].label}</span>
+                        <div className="flex-1">
+                          <Bar value={funnel[status]} max={funnelMax} fill={STATUS_GROUP_CLASSES[STATUS_META[status].group].fill} />
                         </div>
-                        <span className="text-xs font-bold w-6 text-right" style={{ color: colors[status] }}>{count}</span>
-                      </div>
-                    )
-                  })}
-                </div>
+                        <span className="w-6 text-right text-sm font-medium tabular-nums text-ink">{funnel[status]}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </Panel>
               </div>
             </div>
 
-            {/* ── Row 3: Top/Bottom + Insights ───────────────────────── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
-              {/* Top Sellers */}
-              <div className="rounded-xl p-5" style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}>
-                <h2 className="text-text-base font-bold text-sm mb-3 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4" style={{ color: '#4ADE80' }} />
-                  Top Sellers
-                </h2>
-                <div className="space-y-2">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <Panel title="Top sellers">
+                <ol className="space-y-2.5">
                   {topItems.map((item, idx) => (
-                    <div key={item.id} className="flex items-center gap-3">
-                      <span
-                        className="w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0"
-                        style={{
-                          backgroundColor: idx === 0 ? 'rgba(200,134,10,0.2)' : '#211A15',
-                          color: idx === 0 ? '#C8860A' : '#9B8B7A',
-                          border: idx === 0 ? '1px solid rgba(200,134,10,0.4)' : '1px solid #2E2318',
-                        }}
-                      >{idx + 1}</span>
-                      <span className="flex-1 text-sm text-text-base truncate">{item.name}</span>
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                        style={{ backgroundColor: 'rgba(74,222,128,0.1)', color: '#4ADE80' }}
-                      >{item.qty}×</span>
-                    </div>
+                    <li key={item.id} className="flex items-center gap-3 text-[15px]">
+                      <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium tabular-nums', idx === 0 ? 'bg-accent text-on-accent' : 'bg-surface-2 text-ink-muted')}>
+                        {idx + 1}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-ink">{item.name}</span>
+                      <span className="tabular-nums text-ink-muted">{item.qty}×</span>
+                    </li>
                   ))}
-                </div>
-              </div>
+                </ol>
+              </Panel>
 
-              {/* Least Sellers */}
-              <div className="rounded-xl p-5" style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}>
-                <h2 className="text-text-base font-bold text-sm mb-3 flex items-center gap-2">
-                  <TrendingDown className="w-4 h-4" style={{ color: '#F87171' }} />
-                  Least Ordered
-                </h2>
+              <Panel title="Least ordered">
                 {bottomItems.length > 0 ? (
-                  <div className="space-y-2">
+                  <ul className="space-y-2.5">
                     {bottomItems.map(item => (
-                      <div key={item.id} className="flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: '#F87171' }} />
-                        <span className="flex-1 text-sm text-text-muted truncate">{item.name}</span>
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                          style={{ backgroundColor: 'rgba(248,113,113,0.1)', color: '#F87171' }}
-                        >{item.qty}×</span>
-                      </div>
+                      <li key={item.id} className="flex items-center gap-3 text-[15px]">
+                        <span className="min-w-0 flex-1 truncate text-ink">{item.name}</span>
+                        <span className="tabular-nums text-ink-muted">{item.qty}×</span>
+                      </li>
                     ))}
-                    <p className="text-text-faint text-[11px] mt-2">💡 Consider promotions for these items</p>
-                  </div>
+                  </ul>
                 ) : (
-                  <p className="text-text-faint text-sm">Need more data</p>
+                  <p className="text-sm text-ink-muted">Needs more than five items sold to compare.</p>
                 )}
-              </div>
+              </Panel>
 
-              {/* Smart Insights */}
-              <div className="rounded-xl p-5" style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}>
-                <h2 className="text-text-base font-bold text-sm mb-3 flex items-center gap-2">
-                  <Zap className="w-4 h-4" style={{ color: '#FBBF24' }} />
-                  Smart Insights
-                </h2>
-                <div className="space-y-2">
-                  {insights.map((msg, i) => (
-                    <p key={i} className="text-xs text-text-muted leading-relaxed">{msg}</p>
-                  ))}
-                </div>
-              </div>
+              <Panel title="Insights">
+                <ul className="space-y-2 text-sm leading-relaxed text-ink-muted">
+                  {insights.map((msg, i) => <li key={i}>{msg}</li>)}
+                </ul>
+              </Panel>
             </div>
           </>
         )}

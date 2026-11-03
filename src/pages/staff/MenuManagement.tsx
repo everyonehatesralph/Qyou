@@ -1,270 +1,173 @@
-import { Settings, Plus, Edit, Trash, X, Check, ToggleLeft, ToggleRight } from 'lucide-react'
-import { useState, useCallback } from 'react'
+import { Pencil, Plus, Trash2, UtensilsCrossed } from 'lucide-react'
+import { useState, useCallback, useId, type FormEvent } from 'react'
 import { useMenuAvailability } from '../../context/MenuAvailabilityContext'
 import { useSidebar } from '../../context/SidebarContext'
-import { MENU_ITEMS } from '../../constants/menu'
+import { MENU_ITEMS, type MenuItem } from '../../constants/menu'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
+import {
+  BottomSheet, Button, EmptyState, IconButton, LetterTile, Switch, TextInput, cn, fieldClasses,
+} from '../../components/ui'
+import { peso } from '../../utils/formatters'
 
 type EditableItem = { name: string; price: string; category: string }
+const CATEGORIES = ['Coffee', 'Tea', 'Pastry', 'Food']
+const EMPTY_FORM: EditableItem = { name: '', price: '', category: 'Coffee' }
+
 export default function MenuManagement() {
   const { itemAvailability, toggleItemAvailability } = useMenuAvailability()
   const { expanded: sidebarExpanded, toggle: toggleSidebar } = useSidebar()
-  const [items, setItems]           = useState(MENU_ITEMS)
-  const [editingId, setEditingId]   = useState<number | null>(null)
-  const [editForm, setEditForm]     = useState<EditableItem>({ name: '', price: '', category: '' })
-  const [showAdd, setShowAdd]       = useState(false)
-  const [addForm, setAddForm]       = useState<EditableItem>({ name: '', price: '', category: 'Coffee' })
-  const startEdit = useCallback((item: (typeof MENU_ITEMS)[0]) => {
-    setEditingId(item.id)
-    setEditForm({ name: item.name, price: String(item.price), category: item.category })
+  // Name/price edits live in this page's state only (not saved, not shared)
+  const [items, setItems] = useState<MenuItem[]>(MENU_ITEMS)
+  // null = sheet closed, 'new' = adding, number = editing that item
+  const [editing, setEditing] = useState<number | 'new' | null>(null)
+  const [form, setForm] = useState<EditableItem>(EMPTY_FORM)
+  const categoryId = useId()
+
+  const openEdit = useCallback((item: MenuItem) => {
+    setForm({ name: item.name, price: String(item.price), category: item.category })
+    setEditing(item.id)
   }, [])
-  const saveEdit = useCallback(() => {
-    if (!editForm.name.trim() || !editForm.price) return
-    setItems(prev =>
-      prev.map(item =>
-        item.id === editingId
-          ? { ...item, name: editForm.name, price: Number(editForm.price), category: editForm.category }
-          : item
-      )
-    )
-    setEditingId(null)
-  }, [editingId, editForm])
-  const deleteItem = useCallback((id: number) => {
-    setItems(prev => prev.filter(item => item.id !== id))
+
+  const openAdd = useCallback(() => {
+    setForm(EMPTY_FORM)
+    setEditing('new')
   }, [])
-  const addItem = useCallback(() => {
-    if (!addForm.name.trim() || !addForm.price) return
-    const newId = Math.max(0, ...items.map(i => i.id)) + 1
-    setItems(prev => [...prev, {
-      id: newId, name: addForm.name,
-      price: Number(addForm.price), category: addForm.category,
-      description: '', available: true,
-    }])
-    setAddForm({ name: '', price: '', category: 'Coffee' })
-    setShowAdd(false)
-  }, [addForm, items])
-  const categories = ['Coffee', 'Tea', 'Pastry', 'Food']
+
+  const canSave = !!form.name.trim() && !!form.price
+
+  const save = (e: FormEvent) => {
+    e.preventDefault()
+    if (!canSave) return
+    if (editing === 'new') {
+      const newId = Math.max(0, ...items.map(i => i.id)) + 1
+      setItems(prev => [...prev, {
+        id: newId, name: form.name,
+        price: Number(form.price), category: form.category,
+        description: '', available: true,
+      }])
+    } else if (editing !== null) {
+      setItems(prev => prev.map(item =>
+        item.id === editing
+          ? { ...item, name: form.name, price: Number(form.price), category: form.category }
+          : item,
+      ))
+    }
+    setEditing(null)
+  }
+
+  const remove = () => {
+    if (typeof editing === 'number') setItems(prev => prev.filter(item => item.id !== editing))
+    setEditing(null)
+  }
+
+  const availableCount = items.filter(i => itemAvailability[i.id] !== false).length
+  const groups = CATEGORIES
+    .map(c => ({ title: c, items: items.filter(i => i.category === c) }))
+    .filter(g => g.items.length > 0)
+
   return (
     <StaffPageShell>
       <StaffHeader
-        icon={Settings}
-        title="Menu Management"
-        actions={
-          <button
-            onClick={() => setShowAdd(!showAdd)}
-            className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-sm font-medium transition-all"
-            style={showAdd
-              ? { backgroundColor: 'rgba(248,113,113,0.08)', color: '#F87171', border: '1px solid rgba(248,113,113,0.2)' }
-              : { color: '#9B8B7A', border: '1px solid #2E2318' }
-            }
-          >
-            {showAdd ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-            <span className="text-sm">{showAdd ? 'Cancel' : 'Add Item'}</span>
-          </button>
-        }
+        title="Menu"
+        subtitle={`${availableCount} of ${items.length} available today`}
+        actions={<Button variant="primary" leftIcon={<Plus />} onClick={openAdd}>Add item</Button>}
         sidebarExpanded={sidebarExpanded}
         onSidebarToggle={toggleSidebar}
       />
 
-      <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-6 pb-24 md:pb-8">
-        <p className="text-sm" style={{ color: '#9B8B7A' }}>
-          Toggle items on/off for today's service. Changes are visible to customers immediately.
+      <main className="mx-auto max-w-3xl space-y-6 px-4 py-5 sm:px-6 sm:py-6">
+        <p className="text-sm leading-relaxed text-ink-muted">
+          Switch an item off when it runs out; guests see it as “Sold out today”. Name, price and new items
+          are kept for this session only.
         </p>
-        {/* Add Item Form */}
-        {showAdd && (
-          <div
-            className="rounded-xl p-4 mb-6 flex flex-col sm:flex-row gap-3"
-            style={{ backgroundColor: 'rgba(200,134,10,0.08)', border: '1px solid rgba(200,134,10,0.3)' }}
-          >
-            <input
-              type="text"
-              placeholder="Item name"
-              value={addForm.name}
-              onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
-              className="flex-1"
-            />
-            <input
-              type="number"
-              placeholder="Price (₱)"
-              step="1"
-              value={addForm.price}
-              onChange={e => setAddForm(f => ({ ...f, price: e.target.value }))}
-              className="w-full sm:w-32"
-            />
-            <select
-              value={addForm.category}
-              onChange={e => setAddForm(f => ({ ...f, category: e.target.value }))}
-              className="w-full sm:w-36"
-            >
-              {categories.map(c => <option key={c}>{c}</option>)}
-            </select>
-            <button
-              onClick={addItem}
-              disabled={!addForm.name.trim() || !addForm.price}
-              className="btn-primary px-4 py-2.5 rounded-lg text-sm font-semibold text-background disabled:opacity-40 flex items-center justify-center gap-1 flex-shrink-0"
-            >
-              <Check className="w-4 h-4" /> Add
-            </button>
-          </div>
-        )}
-        {/* Table */}
-        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #2E2318' }}>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr style={{ borderBottom: '1px solid #2E2318' }}>
-                  {['Item', 'Category', 'Price', 'Available Today', 'Actions'].map((h, i) => (
-                    <th
-                      key={h}
-                      className={`py-3 px-4 text-xs font-semibold uppercase tracking-wide text-text-muted ${i >= 3 ? 'text-center' : 'text-left'}`}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {items.map(item => {
+
+        {items.length === 0 ? (
+          <EmptyState
+            icon={UtensilsCrossed}
+            title="No menu items"
+            body="Add your first item to start taking orders."
+            action={<Button variant="primary" leftIcon={<Plus />} onClick={openAdd}>Add item</Button>}
+          />
+        ) : (
+          groups.map(group => (
+            <section key={group.title} aria-label={group.title}>
+              <h2 className="mb-2 font-display text-xl text-ink">{group.title}</h2>
+              <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
+                {group.items.map(item => {
                   const isAvailable = itemAvailability[item.id] !== false
                   return (
-                    <tr
-                      key={item.id}
-                      className="transition-colors"
-                      style={{ borderBottom: '1px solid #2E2318' }}
-                    >
-                      {editingId === item.id ? (
-                        /* ── Edit row ── */
-                        <>
-                          <td className="py-2 px-4">
-                            <input
-                              type="text"
-                              value={editForm.name}
-                              onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                              className="py-1.5"
-                            />
-                          </td>
-                          <td className="py-2 px-4">
-                            <select
-                              value={editForm.category}
-                              onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}
-                              className="py-1.5"
-                            >
-                              {categories.map(c => <option key={c}>{c}</option>)}
-                            </select>
-                          </td>
-                          <td className="py-2 px-4">
-                            <input
-                              type="number"
-                              value={editForm.price}
-                              onChange={e => setEditForm(f => ({ ...f, price: e.target.value }))}
-                              className="w-24 py-1.5"
-                            />
-                          </td>
-                          <td className="py-2 px-4 text-center">—</td>
-                          <td className="py-2 px-4">
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={saveEdit}
-                                className="p-2 rounded-lg transition-colors"
-                                style={{ color: '#4ADE80' }}
-                              >
-                                <Check className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => setEditingId(null)}
-                                className="p-2 rounded-lg transition-colors text-text-muted hover:text-text-base"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </>
-                      ) : (
-                        /* ── Display row ── */
-                        <>
-                          <td className="py-3.5 px-4">
-                            <p className={`text-sm font-medium ${isAvailable ? 'text-text-base' : 'text-text-faint line-through'}`}>
-                              {item.name}
-                            </p>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span
-                              className="badge text-xs"
-                              style={{ backgroundColor: 'rgba(232,201,122,0.08)', color: '#9B8B7A', border: '1px solid rgba(232,201,122,0.15)' }}
-                            >
-                              {item.category}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 font-semibold text-sm text-primary">
-                            ₱{item.price}
-                          </td>
-                          {/* Availability toggle */}
-                          <td className="py-3.5 px-4 text-center">
-                            <button
-                              onClick={() => toggleItemAvailability(item.id)}
-                              className="flex items-center justify-center gap-1.5 mx-auto transition-all active:scale-95"
-                              title={isAvailable ? 'Click to mark as sold out' : 'Click to make available'}
-                            >
-                              {isAvailable ? (
-                                <>
-                                  <ToggleRight className="w-6 h-6" style={{ color: '#4ADE80' }} />
-                                  <span className="text-xs font-semibold" style={{ color: '#4ADE80' }}>Available</span>
-                                </>
-                              ) : (
-                                <>
-                                  <ToggleLeft className="w-6 h-6 text-text-faint" />
-                                  <span className="text-xs font-semibold text-text-faint">Sold Out</span>
-                                </>
-                              )}
-                            </button>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                onClick={() => startEdit(item)}
-                                className="p-2 rounded-lg transition-colors"
-                                style={{ color: '#60A5FA' }}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => deleteItem(item.id)}
-                                className="p-2 rounded-lg transition-colors"
-                                style={{ color: '#F87171' }}
-                              >
-                                <Trash className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </>
-                      )}
-                    </tr>
+                    <li key={item.id} className={cn('flex items-center gap-3 py-2 pl-4 pr-2', !isAvailable && 'bg-surface-2')}>
+                      <LetterTile text={item.name} size="sm" className={cn(!isAvailable && 'opacity-60')} />
+                      <div className="min-w-0 flex-1">
+                        <p className={cn('truncate text-[15px] font-medium', isAvailable ? 'text-ink' : 'text-ink-muted')}>{item.name}</p>
+                        <p className="text-[13px] tabular-nums text-ink-muted">
+                          {peso(item.price)}
+                          {!isAvailable && ' · Sold out'}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={isAvailable}
+                        onChange={() => toggleItemAvailability(item.id)}
+                        label={`${item.name} available today`}
+                      />
+                      <IconButton label={`Edit ${item.name}`} onClick={() => openEdit(item)}>
+                        <Pencil />
+                      </IconButton>
+                    </li>
                   )
                 })}
-                {items.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-12 text-center text-text-muted text-sm">
-                      No menu items. Click "Add Item" to create one.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        {/* Legend */}
-        <div className="flex items-center gap-6 mt-4">
-          <div className="flex items-center gap-2">
-            <ToggleRight className="w-5 h-5" style={{ color: '#4ADE80' }} />
-            <span className="text-text-muted text-xs">Item is available for ordering</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <ToggleLeft className="w-5 h-5 text-text-faint" />
-            <span className="text-text-muted text-xs">Item hidden from customer menu</span>
-          </div>
-        </div>
+              </ul>
+            </section>
+          ))
+        )}
       </main>
+
+      <BottomSheet
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title={editing === 'new' ? 'New item' : 'Edit item'}
+      >
+        <form onSubmit={save} className="space-y-4">
+          <TextInput
+            label="Name"
+            value={form.name}
+            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            placeholder="e.g. Iced Americano"
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <TextInput
+              label="Price (₱)"
+              inputMode="numeric"
+              type="number"
+              min={0}
+              step={1}
+              value={form.price}
+              onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
+              placeholder="0"
+            />
+            <div>
+              <label htmlFor={categoryId} className="mb-1.5 block text-sm font-medium text-ink">Category</label>
+              <select
+                id={categoryId}
+                value={form.category}
+                onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                className={cn(fieldClasses(), 'h-11 px-3')}
+              >
+                {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-3 pt-2">
+            {typeof editing === 'number' && (
+              <Button variant="danger" leftIcon={<Trash2 />} onClick={remove}>Delete</Button>
+            )}
+            <Button type="submit" variant="primary" disabled={!canSave} className="flex-1">
+              {editing === 'new' ? 'Add item' : 'Save'}
+            </Button>
+          </div>
+        </form>
+      </BottomSheet>
     </StaffPageShell>
   )
 }
