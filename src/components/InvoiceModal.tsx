@@ -1,241 +1,146 @@
-import { useRef } from 'react'
-import { X, Printer } from 'lucide-react'
+import { Printer } from 'lucide-react'
 import type { Order } from '../context/OrderContext'
 import { RESTAURANT } from '../config/restaurant'
+import { BottomSheet, Button } from './ui'
 
 interface InvoiceModalProps {
   order: Order
+  open: boolean
   onClose: () => void
 }
 
 const VAT_RATE = 0.12
 
-export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
-  const invoiceRef = useRef<HTMLDivElement>(null)
-  const subtotal = order.total / (1 + VAT_RATE)
-  const vat      = order.total - subtotal
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleString('en-PH', {
+    year: 'numeric', month: 'long', day: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  })
 
-  const formatDate = (iso: string) => {
-    const d = new Date(iso)
-    return d.toLocaleString('en-PH', {
-      year: 'numeric', month: 'long', day: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    })
-  }
+/** Escapes text going into the print window's HTML. */
+const esc = (s: string) =>
+  s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
+
+/** "Order summary" sheet with a printable version (black on white). */
+export default function InvoiceModal({ order, open, onClose }: InvoiceModalProps) {
+  const subtotal = order.total / (1 + VAT_RATE)
+  const vat = order.total - subtotal
+  const money = (n: number, digits = 0) => `${RESTAURANT.currency}${n.toFixed(digits)}`
+
+  const meta: [string, string][] = [
+    ['Order', order.id],
+    ['Date', formatDate(order.createdAt)],
+    ['Table', order.tableName],
+    ['Name', order.customerName],
+    ...(order.notes ? [['Notes', order.notes] as [string, string]] : []),
+  ]
 
   const handlePrint = () => {
-    const content = invoiceRef.current?.innerHTML
-    if (!content) return
     const printWin = window.open('', '_blank', 'width=400,height=650')
     if (!printWin) return
-    printWin.document.write(`
-      <!DOCTYPE html>
+    printWin.document.write(`<!DOCTYPE html>
       <html>
         <head>
-          <title>Receipt #${order.id} — ${RESTAURANT.name}</title>
-          <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+          <title>Order ${esc(order.id)} — ${esc(RESTAURANT.name)}</title>
           <style>
             * { box-sizing: border-box; margin: 0; padding: 0; }
-            body {
-              font-family: 'Outfit', sans-serif;
-              background: #fff; color: #222;
-              padding: 28px 24px;
-              max-width: 340px; margin: 0 auto;
-            }
-            .brand { text-align: center; margin-bottom: 16px; }
-            .brand h1 { font-size: 20px; font-weight: 700; color: #1a1a1a; letter-spacing: -0.5px; }
-            .brand p { font-size: 11px; color: #999; margin-top: 2px; }
-            .dash { border: none; border-top: 1px dashed #d0d0d0; margin: 14px 0; }
-            .meta { font-size: 11px; color: #666; line-height: 1.7; }
-            .meta strong { color: #333; }
-            .items { width: 100%; margin: 12px 0; border-collapse: collapse; }
-            .items th { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #999; border-bottom: 1px solid #eee; padding: 4px 0; text-align: left; }
-            .items th:last-child, .items td:last-child { text-align: right; }
-            .items td { font-size: 12px; padding: 7px 0; border-bottom: 1px solid #f5f5f5; color: #333; }
-            .totals { font-size: 12px; color: #666; }
-            .totals .row { display: flex; justify-content: space-between; padding: 3px 0; }
-            .totals .grand { font-size: 16px; font-weight: 700; color: #1a1a1a; border-top: 2px solid #222; margin-top: 8px; padding-top: 10px; }
-            .footer { text-align: center; font-size: 10px; color: #bbb; margin-top: 24px; line-height: 1.5; }
+            body { font-family: system-ui, sans-serif; background: white; color: black; padding: 28px 24px; max-width: 340px; margin: 0 auto; }
+            h1 { font-size: 20px; font-weight: 600; text-align: center; }
+            .sub { font-size: 11px; color: dimgray; text-align: center; margin-top: 2px; }
+            hr { border: none; border-top: 1px dashed gray; margin: 14px 0; }
+            .meta { font-size: 11px; line-height: 1.7; }
+            .meta b { font-weight: 600; }
+            table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+            th { font-size: 9px; text-transform: uppercase; letter-spacing: .5px; color: dimgray; text-align: left; padding: 4px 0; border-bottom: 1px solid silver; }
+            td { font-size: 12px; padding: 6px 0; border-bottom: 1px solid gainsboro; }
+            th:last-child, td:last-child { text-align: right; }
+            .row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; }
+            .grand { font-size: 16px; font-weight: 600; border-top: 2px solid black; margin-top: 8px; padding-top: 10px; }
+            .foot { text-align: center; font-size: 10px; color: dimgray; margin-top: 24px; }
             @media print { body { padding: 0; } }
           </style>
         </head>
         <body>
-          <div class="brand">
-            <h1>${RESTAURANT.name}</h1>
-            <p>Official Receipt</p>
-          </div>
-          <hr class="dash" />
-          <div class="meta">
-            <div><strong>Receipt #</strong> ${order.id}</div>
-            <div><strong>Date</strong> &nbsp; ${formatDate(order.createdAt)}</div>
-            <div><strong>Table</strong> &nbsp; ${order.tableName}</div>
-            <div><strong>Customer</strong> &nbsp; ${order.customerName}</div>
-            ${order.notes ? `<div><strong>Notes</strong> &nbsp; ${order.notes}</div>` : ''}
-          </div>
-          <hr class="dash" />
-          <table class="items">
-            <thead>
-              <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
-            </thead>
+          <h1>${esc(RESTAURANT.name)}</h1>
+          <p class="sub">Order summary</p>
+          <hr />
+          <div class="meta">${meta.map(([k, v]) => `<div><b>${esc(k)}</b> &nbsp; ${esc(v)}</div>`).join('')}</div>
+          <hr />
+          <table>
+            <thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
             <tbody>
               ${order.items.map(item => `
                 <tr>
-                  <td>${item.name}</td>
-                  <td style="text-align:center">${item.quantity}</td>
-                  <td style="text-align:right">₱${item.price.toFixed(0)}</td>
-                  <td>₱${(item.price * item.quantity).toFixed(0)}</td>
-                </tr>
-              `).join('')}
+                  <td>${esc(item.name)}</td>
+                  <td>${item.quantity}</td>
+                  <td>${money(item.price)}</td>
+                  <td>${money(item.price * item.quantity)}</td>
+                </tr>`).join('')}
             </tbody>
           </table>
-          <hr class="dash" />
-          <div class="totals">
-            <div class="row"><span>Subtotal</span><span>₱${subtotal.toFixed(2)}</span></div>
-            <div class="row"><span>VAT (12%)</span><span>₱${vat.toFixed(2)}</span></div>
-            <div class="row grand"><span>Total</span><span>₱${order.total.toFixed(0)}</span></div>
-          </div>
-          <div class="footer">
-            <p>Thank you for dining with us!</p>
-            <p>This serves as your official receipt.</p>
-          </div>
+          <div class="row"><span>Subtotal (excl. VAT)</span><span>${money(subtotal, 2)}</span></div>
+          <div class="row"><span>VAT (12%)</span><span>${money(vat, 2)}</span></div>
+          <div class="row grand"><span>Total</span><span>${money(order.total)}</span></div>
+          <p class="foot">Thank you for ordering at ${esc(RESTAURANT.name)}. Ordering by Qyou.</p>
         </body>
-      </html>
-    `)
+      </html>`)
     printWin.document.close()
-    setTimeout(() => printWin.print(), 500)
+    setTimeout(() => printWin.print(), 300)
   }
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      {/* Modal */}
-      <div
-        className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 rounded-2xl overflow-hidden max-w-md mx-auto"
-        style={{ backgroundColor: '#FFFFFF', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 60px rgba(0,0,0,0.5)' }}
-      >
-        {/* Header bar (dark accent strip) */}
-        <div
-          className="flex items-center justify-between px-5 py-3 sticky top-0"
-          style={{ backgroundColor: '#1a1a1a' }}
-        >
-          <h2 className="text-white font-bold text-sm">Your Receipt</h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-white/60 hover:text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title="Order summary"
+      description={RESTAURANT.name}
+      footer={<Button fullWidth size="lg" leftIcon={<Printer />} onClick={handlePrint}>Print</Button>}
+    >
+      <dl className="space-y-1.5 text-sm">
+        {meta.map(([label, value]) => (
+          <div key={label} className="flex items-start justify-between gap-4">
+            <dt className="text-ink-muted">{label}</dt>
+            <dd className="max-w-[65%] text-right text-ink">{value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <table className="mt-5 w-full text-[15px]">
+        <thead>
+          <tr className="border-b border-line text-left text-xs text-ink-muted">
+            <th className="pb-2 font-medium">Item</th>
+            <th className="pb-2 text-center font-medium">Qty</th>
+            <th className="pb-2 text-right font-medium">Total</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line">
+          {order.items.map(item => (
+            <tr key={item.id}>
+              <td className="py-2.5 pr-2 text-ink">
+                {item.name}
+                <span className="block text-[13px] text-ink-muted">{money(item.price)} each</span>
+              </td>
+              <td className="py-2.5 text-center tabular-nums text-ink">{item.quantity}</td>
+              <td className="py-2.5 text-right tabular-nums text-ink">{money(item.price * item.quantity)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <dl className="mt-3 space-y-1.5 border-t border-line pt-3 text-sm">
+        <div className="flex justify-between text-ink-muted">
+          <dt>Subtotal (excl. VAT)</dt>
+          <dd className="tabular-nums">{money(subtotal, 2)}</dd>
         </div>
-
-        {/* ── Paper white invoice content ── */}
-        <div ref={invoiceRef} className="px-6 py-6" style={{ color: '#222' }}>
-          {/* Brand */}
-          <div className="text-center mb-5">
-            <h1 className="text-xl font-bold tracking-tight" style={{ color: '#1a1a1a' }}>
-              {RESTAURANT.name}
-            </h1>
-            <p className="text-xs mt-0.5" style={{ color: '#999' }}>Official Receipt</p>
-          </div>
-
-          {/* Dashed divider */}
-          <div className="my-4" style={{ borderTop: '1px dashed #d0d0d0' }} />
-
-          {/* Order meta */}
-          <div className="space-y-1 mb-4" style={{ fontSize: '12px', color: '#666' }}>
-            {[
-              ['Receipt #', order.id],
-              ['Date', formatDate(order.createdAt)],
-              ['Table', order.tableName],
-              ['Customer', order.customerName],
-              ...(order.notes ? [['Notes', order.notes]] : []),
-            ].map(([label, value]) => (
-              <div key={label} className="flex items-start justify-between gap-2">
-                <span style={{ fontWeight: 600, color: '#444' }}>{label}</span>
-                <span className="text-right" style={{ maxWidth: '60%' }}>{value}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="my-4" style={{ borderTop: '1px dashed #d0d0d0' }} />
-
-          {/* Items table */}
-          <div className="mb-4">
-            <div className="grid grid-cols-12 gap-1 mb-2">
-              {['Item', 'Qty', 'Price', 'Total'].map((h, i) => (
-                <span key={h}
-                  className={`text-[9px] font-semibold uppercase tracking-wider ${
-                    i === 0 ? 'col-span-5' : i === 3 ? 'col-span-3 text-right' : 'col-span-2 text-center'
-                  }`}
-                  style={{ color: '#999' }}
-                >
-                  {h}
-                </span>
-              ))}
-            </div>
-            {order.items.map(item => (
-              <div
-                key={item.id}
-                className="grid grid-cols-12 gap-1 items-center py-1.5"
-                style={{ borderBottom: '1px solid #f0f0f0', fontSize: '13px' }}
-              >
-                <span className="col-span-5 font-medium" style={{ color: '#333' }}>{item.name}</span>
-                <span className="col-span-2 text-center" style={{ color: '#666' }}>{item.quantity}</span>
-                <span className="col-span-2 text-center" style={{ color: '#666' }}>₱{item.price}</span>
-                <span className="col-span-3 text-right font-semibold" style={{ color: '#222' }}>
-                  ₱{(item.price * item.quantity).toFixed(0)}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <div className="my-4" style={{ borderTop: '1px dashed #d0d0d0' }} />
-
-          {/* Totals */}
-          <div className="space-y-1" style={{ fontSize: '13px' }}>
-            <div className="flex justify-between" style={{ color: '#888' }}>
-              <span>Subtotal (excl. VAT)</span>
-              <span>₱{subtotal.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between" style={{ color: '#888' }}>
-              <span>VAT (12%)</span>
-              <span>₱{vat.toFixed(2)}</span>
-            </div>
-            <div
-              className="flex justify-between pt-3 mt-2"
-              style={{ borderTop: '2px solid #222', fontWeight: 700, fontSize: '16px', color: '#1a1a1a' }}
-            >
-              <span>Total</span>
-              <span>₱{order.total.toFixed(0)}</span>
-            </div>
-          </div>
-
-          <div className="my-5" style={{ borderTop: '1px dashed #d0d0d0' }} />
-
-          <p className="text-center text-[11px] leading-relaxed" style={{ color: '#bbb' }}>
-            Thank you for dining at {RESTAURANT.name}!<br />
-            We hope to see you again soon. ☕
-          </p>
+        <div className="flex justify-between text-ink-muted">
+          <dt>VAT (12%)</dt>
+          <dd className="tabular-nums">{money(vat, 2)}</dd>
         </div>
-
-        {/* Print button */}
-        <div
-          className="px-5 py-4 sticky bottom-0"
-          style={{ backgroundColor: '#fafafa', borderTop: '1px solid #eee' }}
-        >
-          <button
-            onClick={handlePrint}
-            className="w-full py-3.5 rounded-xl flex items-center justify-center gap-2 font-semibold text-sm transition-all active:scale-[0.98]"
-            style={{ backgroundColor: '#1a1a1a', color: '#fff' }}
-          >
-            <Printer className="w-5 h-5" />
-            Print Receipt
-          </button>
+        <div className="flex justify-between border-t border-line pt-2 text-base font-medium text-ink">
+          <dt>Total</dt>
+          <dd className="tabular-nums">{money(order.total)}</dd>
         </div>
-      </div>
-    </>
+      </dl>
+    </BottomSheet>
   )
 }

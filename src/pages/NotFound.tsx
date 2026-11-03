@@ -1,19 +1,17 @@
-import { AlertTriangle } from 'lucide-react'
+import { Compass } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { Button, EmptyState } from '../components/ui'
+
 export default function NotFound() {
   const navigate = useNavigate()
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="text-center max-w-sm">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-warning-bg border border-warning/30 mb-5">
-          <AlertTriangle className="w-8 h-8 text-warning" />
-        </div>
-        <h1 className="text-5xl font-bold text-text-base mb-2">404</h1>
-        <p className="text-text-muted mb-8">This page doesn't exist.</p>
-        <button onClick={() => navigate('/')} className="btn-primary py-3 px-8 rounded-xl text-background font-semibold">
-          Go Home
-        </button>
-      </div>
+    <div className="flex min-h-[100dvh] items-center justify-center bg-bg px-4">
+      <EmptyState
+        icon={Compass}
+        title="Page not found"
+        body="This page doesn't exist. Check the link, or go back to the start."
+        action={<Button onClick={() => navigate('/')}>Go home</Button>}
+      />
     </div>
   )
 }

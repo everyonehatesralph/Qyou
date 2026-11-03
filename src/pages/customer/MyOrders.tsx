@@ -1,125 +1,67 @@
-import { ClipboardList, ChefHat, Clock, CheckCircle, ArrowRight, Loader2, Coffee, X, Heart } from 'lucide-react'
+import { ChevronRight, ClipboardList } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import { useOrders, getMyOrderIds } from '../../context/OrderContext'
 import type { Order } from '../../context/OrderContext'
+import { useNow, timeAgo } from '../../hooks/useNow'
+import { ACTIVE_STATUSES, STATUS_GROUP_CLASSES, STATUS_META, STATUS_STEP } from '../../theme/status'
+import { RESTAURANT } from '../../config/restaurant'
+import { BottomSheet, Button, EmptyState, PageHeader, StatusPill, cn } from '../../components/ui'
 
-const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string; icon: typeof Clock }> = {
-  pending:   { color: '#FBBF24', bg: 'rgba(251,191,36,0.1)',  label: 'Awaiting Cashier',   icon: Clock },
-  confirmed: { color: '#60A5FA', bg: 'rgba(96,165,250,0.1)',  label: 'Cashier Confirmed',  icon: CheckCircle },
-  preparing: { color: '#C8860A', bg: 'rgba(200,134,10,0.1)',  label: 'Kitchen Preparing',  icon: ChefHat },
-  ready:     { color: '#4ADE80', bg: 'rgba(74,222,128,0.1)',  label: 'Ready for You! 🎉',  icon: CheckCircle },
-  served:    { color: '#4ADE80', bg: 'rgba(74,222,128,0.06)', label: 'Served ✓',           icon: CheckCircle },
-  cancelled: { color: '#EF4444', bg: 'rgba(239,68,68,0.1)',   label: 'Cancelled',         icon: X },
-}
+const peso = (n: number) => `${RESTAURANT.currency}${n.toFixed(0)}`
 
-function timeAgo(iso: string): string {
-  const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
-  if (secs < 60) return 'just now'
-  const mins = Math.floor(secs / 60)
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  return `${hours}h ago`
-}
-
-function OrderCard({ order, onTap, onCancel }: { order: Order; onTap: () => void; onCancel?: (id: string) => void }) {
-  const cfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending
-  const Icon = cfg.icon
-  const isActive = order.status !== 'served' && order.status !== 'cancelled'
+function OrderRow({ order, now, onOpen, onCancel }: { order: Order; now: number; onOpen: () => void; onCancel?: () => void }) {
+  const active = ACTIVE_STATUSES.includes(order.status)
+  const step = STATUS_STEP[order.status]
+  const fill = STATUS_GROUP_CLASSES[STATUS_META[order.status].group].fill
   const canCancel = order.status === 'pending' || order.status === 'confirmed'
 
   return (
-    <div
-      className="w-full card p-4 transition-all duration-200"
-      style={isActive ? { borderColor: cfg.color + '60' } : undefined}
-    >
+    <li className="rounded-card border border-line bg-surface">
       <button
-        onClick={onTap}
-        className="w-full text-left transition-all active:scale-[0.98]"
+        type="button"
+        onClick={onOpen}
+        className="flex w-full items-start gap-3 rounded-card p-4 text-left transition-colors duration-150 hover:bg-surface-2"
       >
-        <div className="flex items-start gap-3">
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: cfg.bg }}
-          >
-            {order.status === 'preparing'
-              ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: cfg.color }} />
-              : <Icon className="w-5 h-5" style={{ color: cfg.color }} />
-            }
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+            <span className="text-[15px] font-medium text-ink">Order {order.id}</span>
+            <StatusPill status={order.status} audience="customer" />
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-text-base font-semibold text-sm">Order #{order.id}</span>
-              {order.status !== 'cancelled' && (
-                <span
-                  className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                  style={{ backgroundColor: cfg.bg, color: cfg.color }}
-                >
-                  {order.status === 'ready' ? 'READY!' : 'ACTIVE'}
-                </span>
-              )}
-            </div>
-            <p className="text-text-muted text-xs truncate">
-              {order.items.map(i => `${i.name} ×${i.quantity}`).join(', ')}
-            </p>
-            <div className="flex items-center gap-2 mt-1.5">
-              <span className="text-xs font-semibold" style={{ color: cfg.color }}>
-                {cfg.label}
-              </span>
-              <span className="text-text-faint text-[10px]">·</span>
-              <span className="text-text-faint text-[10px]">{timeAgo(order.createdAt)}</span>
-            </div>
-          </div>
-          <div className="text-right flex-shrink-0">
-            <p className="text-primary font-bold text-sm">₱{order.total.toFixed(0)}</p>
-            <ArrowRight className="w-4 h-4 text-text-faint mt-1 ml-auto" />
-          </div>
+          <p className="mt-1.5 truncate text-sm text-ink-muted">
+            {order.items.map(i => `${i.quantity}× ${i.name}`).join(', ')}
+          </p>
+          <p className="mt-1 text-[13px] text-ink-muted">
+            {timeAgo(order.createdAt, now)} · <span className="tabular-nums">{peso(order.total)}</span>
+          </p>
         </div>
-
-        {/* Live progress bar for active orders */}
-        {isActive && (
-          <div className="flex gap-1 mt-3">
-            {['pending', 'confirmed', 'preparing', 'ready'].map((step, i) => {
-              const stepIdx = ['pending', 'confirmed', 'preparing', 'ready'].indexOf(order.status)
-              const isDone = i < stepIdx
-              const isCurrent = i === stepIdx
-              return (
-                <div
-                  key={step}
-                  className="flex-1 h-1 rounded-full transition-all duration-500"
-                  style={{
-                    backgroundColor: isDone ? '#4ADE80'
-                      : isCurrent ? cfg.color
-                      : 'rgba(255,255,255,0.07)',
-                  }}
-                />
-              )
-            })}
-          </div>
-        )}
+        <ChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-ink-muted" aria-hidden />
       </button>
 
-      {/* Cancel button for pending/confirmed orders */}
-      {canCancel && onCancel && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onCancel(order.id)
-          }}
-          className="mt-3 w-full py-2 rounded-lg text-xs font-semibold transition-all active:scale-95"
-          style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.3)' }}
-        >
-          Cancel Order
-        </button>
+      {active && (
+        <div className="flex gap-1 px-4 pb-4" aria-hidden>
+          {[0, 1, 2, 3].map(i => (
+            <span key={i} className={cn('h-1 flex-1 rounded-full', i <= step ? fill : 'bg-surface-3')} />
+          ))}
+        </div>
       )}
-    </div>
+
+      {canCancel && onCancel && (
+        <div className="border-t border-line px-4 py-2">
+          <Button variant="ghost" onClick={onCancel} className="-ml-3 text-status-cancelled-text hover:bg-status-cancelled-bg">
+            Cancel order
+          </Button>
+        </div>
+      )}
+    </li>
   )
 }
 
 export default function MyOrders() {
   const navigate = useNavigate()
   const { orders, cancelOrder } = useOrders()
-  const [showCelebration, setShowCelebration] = useState(false)
+  const now = useNow(30_000)
+  const [cancelId, setCancelId] = useState<string | null>(null)
   const myOrderIds = useMemo(() => getMyOrderIds(), [orders])
 
   const myOrders = useMemo(() => {
@@ -128,159 +70,74 @@ export default function MyOrders() {
       .filter((o): o is Order => !!o)
   }, [orders, myOrderIds])
 
-  const activeOrders = useMemo(() => myOrders.filter(o => o.status !== 'served' && o.status !== 'cancelled'), [myOrders])
-  const pastOrders   = useMemo(() => myOrders.filter(o => o.status === 'served' || o.status === 'cancelled'), [myOrders])
+  // Paid orders count as past, like served and cancelled ones
+  const activeOrders = myOrders.filter(o => ACTIVE_STATUSES.includes(o.status))
+  const pastOrders = myOrders.filter(o => !ACTIVE_STATUSES.includes(o.status))
 
-  const handleCancelOrder = (orderId: string) => {
-    cancelOrder(orderId)
+  const confirmCancel = () => {
+    if (cancelId) cancelOrder(cancelId)
+    setCancelId(null)
   }
 
-  const hasServedOrders = pastOrders.some(o => o.status === 'served')
-
-  // Show celebration only once when first served order appears
-  useEffect(() => {
-    if (hasServedOrders && !showCelebration) {
-      setShowCelebration(true)
-    }
-  }, [hasServedOrders])
-
   return (
-    <div className="min-h-screen bg-background pt-14 pb-28">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-      {/* ── Thank You Celebration Banner (Mobile) or Modal (Desktop) ────────────────────── */}
-        {hasServedOrders && showCelebration && (
-          <div
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center backdrop-blur-sm p-4"
-            style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
-            onClick={() => setShowCelebration(false)}
-          >
-            <div
-              className="rounded-2xl p-6 sm:p-8 text-center max-w-sm w-full animate-in fade-in scale-in-95"
-              style={{ backgroundColor: '#171210', border: '1px solid #2E2318' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Close button inside container */}
-              <div className="flex justify-end mb-2">
-                <button
-                  onClick={() => setShowCelebration(false)}
-                  className="p-1 rounded-lg transition-all hover:bg-white/10"
-                  style={{ color: '#9B8B7A' }}
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Animated hearts */}
-              <div className="flex justify-center gap-2 mb-4 sm:mb-6">
-                <Heart
-                  className="w-6 sm:w-8 h-6 sm:h-8 animate-bounce"
-                  style={{ color: '#C8860A', animationDelay: '0s' }}
-                />
-                <Heart
-                  className="w-6 sm:w-8 h-6 sm:h-8 animate-bounce"
-                  style={{ color: '#4ADE80', animationDelay: '0.1s' }}
-                />
-                <Heart
-                  className="w-6 sm:w-8 h-6 sm:h-8 animate-bounce"
-                  style={{ color: '#C8860A', animationDelay: '0.2s' }}
-                />
-              </div>
-
-              <h2 className="text-2xl sm:text-3xl font-bold mb-2 text-text-base">Thank You!</h2>
-              <p className="text-text-muted mb-4 sm:mb-6 text-sm sm:text-base">
-                We hope you enjoyed your order. Thank you for choosing us!
-              </p>
-
-              <div
-                className="rounded-xl p-3 sm:p-4 mb-4 sm:mb-6"
-                style={{ backgroundColor: 'rgba(200,134,10,0.08)', border: '1px solid rgba(200,134,10,0.2)' }}
-              >
-                <p className="text-xs sm:text-sm text-text-base font-medium">Ready for another round?</p>
-                <p className="text-[10px] sm:text-xs text-text-muted mt-1">Place a new order and enjoy more delicious items</p>
-              </div>
-
-              <div className="flex gap-2 sm:gap-3">
-                <button
-                  onClick={() => setShowCelebration(false)}
-                  className="flex-1 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all active:scale-95"
-                  style={{ backgroundColor: '#211A15', color: '#C8860A', border: '1px solid #2E2318' }}
-                >
-                  View Orders
-                </button>
-                <button
-                  onClick={() => {
-                    setShowCelebration(false)
-                    navigate('/menu')
-                  }}
-                  className="flex-1 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all active:scale-95"
-                  style={{ backgroundColor: '#C8860A', color: '#0D0B0A' }}
-                >
-                  Order Again
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-center gap-3 mb-6">
-          <ClipboardList className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-bold text-text-base">My Orders</h1>
-        </div>
+    <div className="min-h-screen bg-bg pb-28">
+      <div className="mx-auto max-w-3xl px-4 pt-5">
+        <PageHeader title="Your orders" subtitle={myOrders.length > 0 ? 'Orders placed from this phone.' : undefined} />
 
         {myOrders.length === 0 ? (
-          <div className="card p-12 text-center">
-            <Coffee className="w-14 h-14 text-text-faint mx-auto mb-4" />
-            <p className="text-text-muted font-medium mb-1">No orders yet</p>
-            <p className="text-text-faint text-sm mb-6">Place your first order from the menu!</p>
-            <button
-              onClick={() => navigate('/menu')}
-              className="btn-primary py-3 px-8 rounded-xl text-background font-semibold"
-            >
-              Browse Menu
-            </button>
-          </div>
+          <EmptyState
+            icon={ClipboardList}
+            title="No orders yet"
+            body="Orders you place from this phone show up here, with their status."
+            action={<Button variant="primary" onClick={() => navigate('/menu')}>Browse the menu</Button>}
+          />
         ) : (
-          <>
-            {/* Active Orders */}
+          <div className="mt-6 space-y-8">
             {activeOrders.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-text-muted text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-                  Active Orders ({activeOrders.length})
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <section aria-labelledby="active-orders">
+                <h2 id="active-orders" className="mb-3 font-display text-xl text-ink">Active</h2>
+                <ul className="grid gap-3 md:grid-cols-2">
                   {activeOrders.map(order => (
-                    <OrderCard
+                    <OrderRow
                       key={order.id}
                       order={order}
-                      onTap={() => navigate(`/order/${order.id}`)}
-                      onCancel={handleCancelOrder}
+                      now={now}
+                      onOpen={() => navigate(`/order/${order.id}`)}
+                      onCancel={() => setCancelId(order.id)}
                     />
                   ))}
-                </div>
-              </div>
+                </ul>
+              </section>
             )}
 
-            {/* Past Orders */}
             {pastOrders.length > 0 && (
-              <div>
-                <h2 className="text-text-muted text-xs font-semibold uppercase tracking-wider mb-3">
-                  Past Orders ({pastOrders.length})
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {pastOrders.map(order => (
-                    <OrderCard
-                      key={order.id}
-                      order={order}
-                      onTap={() => navigate(`/order/${order.id}`)}
-                    />
-                  ))}
+              <section aria-labelledby="past-orders">
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 id="past-orders" className="font-display text-xl text-ink">Past</h2>
+                  <Button variant="ghost" onClick={() => navigate('/menu')} className="-mr-3">Order again</Button>
                 </div>
-              </div>
+                <ul className="grid gap-3 md:grid-cols-2">
+                  {pastOrders.map(order => (
+                    <OrderRow key={order.id} order={order} now={now} onOpen={() => navigate(`/order/${order.id}`)} />
+                  ))}
+                </ul>
+              </section>
             )}
-          </>
+          </div>
         )}
       </div>
+
+      <BottomSheet
+        open={cancelId !== null}
+        onClose={() => setCancelId(null)}
+        title="Cancel this order?"
+        description={cancelId ? `Order ${cancelId} will be cancelled and the kitchen won't make it.` : undefined}
+      >
+        <div className="grid grid-cols-2 gap-3 pt-2">
+          <Button onClick={() => setCancelId(null)}>Keep order</Button>
+          <Button variant="danger" onClick={confirmCancel}>Cancel order</Button>
+        </div>
+      </BottomSheet>
     </div>
   )
 }
