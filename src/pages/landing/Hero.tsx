@@ -1,134 +1,193 @@
+import { useRef, type PointerEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, BellRing, Minus, Plus, Search } from 'lucide-react'
-import { buttonClasses, LetterTile } from '../../components/ui'
+import { motion, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform, type MotionValue } from 'framer-motion'
+import { QRCodeSVG } from 'qrcode.react'
+import { ArrowRight, BellRing } from 'lucide-react'
+import { Ticket, buttonClasses } from '../../components/ui'
 import { PRODUCT } from '../../config/product'
 import { RESTAURANT } from '../../config/restaurant'
-import { MENU_ITEMS } from '../../constants/menu'
+import { MenuScreen, PhoneFrame } from './PhoneScreens'
+import { Marquee } from './motion'
 
-// Items shown in the phone preview, taken from the real demo menu
-const PREVIEW = [
-  { id: 2, qty: 1 },
-  { id: 3, qty: 0 },
-  { id: 7, qty: 1 },
-  { id: 8, qty: 0, soldOut: true },
-].map(p => ({ ...p, item: MENU_ITEMS.find(i => i.id === p.id)! }))
+const EASE = [0.22, 1, 0.36, 1] as const
+const SPRING = { stiffness: 120, damping: 20, mass: 0.8 }
 
-const previewCount = PREVIEW.reduce((s, p) => s + p.qty, 0)
-const previewTotal = PREVIEW.reduce((s, p) => s + p.qty * p.item.price, 0)
-
-function PhonePreview() {
+/** A headline line that slides up from behind a mask. */
+function Line({ children, delay }: { children: ReactNode; delay: number }) {
   return (
-    <div className="relative mx-auto w-full max-w-[330px] lg:mr-0">
-      <p className="sr-only">Preview of the guest menu screen on a phone.</p>
-      <div aria-hidden className="rounded-[2.6rem] border border-line-strong bg-surface p-2.5 shadow-pop">
-        <div className="overflow-hidden rounded-[2.05rem] border border-line bg-bg">
-          <div className="flex justify-center pt-2.5">
-            <span className="h-[18px] w-24 rounded-full bg-surface-3" />
-          </div>
-
-          <div className="px-4 pb-3 pt-3">
-            <div className="flex items-center gap-2.5">
-              <LetterTile text={RESTAURANT.logoText} tone="accent" size="sm" className="h-9 w-9 text-base" />
-              <div className="min-w-0">
-                <p className="truncate font-display text-[17px] leading-tight text-ink">{RESTAURANT.name}</p>
-                <p className="text-xs text-ink-muted">Hi Ana · Table 4</p>
-              </div>
-            </div>
-            <div className="mt-3 flex h-10 items-center gap-2 rounded-control border border-line-strong bg-surface px-3 text-sm text-ink-faint">
-              <Search className="h-4 w-4" />
-              Search the menu
-            </div>
-            <div className="mt-3 flex gap-1.5 overflow-hidden">
-              {['All', 'Coffee', 'Tea', 'Pastry'].map((c, i) => (
-                <span
-                  key={c}
-                  className={
-                    i === 0
-                      ? 'rounded-full border border-ink bg-ink px-3 py-1.5 text-xs font-medium text-bg'
-                      : 'rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-muted'
-                  }
-                >
-                  {c}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <ul className="divide-y divide-line border-y border-line bg-surface">
-            {PREVIEW.map(({ item, qty, soldOut }) => (
-              <li key={item.id} className={`flex items-center gap-3 px-4 py-3 ${soldOut ? 'opacity-55' : ''}`}>
-                <LetterTile text={item.name} size="sm" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-ink">{item.name}</p>
-                  <p className="text-[13px] text-ink-muted">{soldOut ? 'Sold out today' : `${RESTAURANT.currency}${item.price}`}</p>
-                </div>
-                {soldOut ? null : qty > 0 ? (
-                  <span className="flex h-8 items-center gap-2 rounded-full border border-line-strong px-2 text-sm font-medium text-ink">
-                    <Minus className="h-3.5 w-3.5" />
-                    {qty}
-                    <Plus className="h-3.5 w-3.5" />
-                  </span>
-                ) : (
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-line-strong text-ink">
-                    <Plus className="h-3.5 w-3.5" />
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-
-          <div className="px-3 pb-5 pt-10">
-            <div className="flex h-12 items-center justify-between rounded-control bg-accent px-4 text-sm font-medium text-on-accent">
-              <span>View cart · {previewCount} items</span>
-              <span className="tabular-nums">{RESTAURANT.currency}{previewTotal}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* "Ready" notification, desktop only so it never overflows a phone screen */}
-      <div
-        aria-hidden
-        className="absolute -left-40 top-[47%] hidden w-60 items-center gap-3 rounded-card border border-line bg-surface p-3 shadow-pop lg:flex"
+    <span className="block overflow-hidden pb-[0.06em]">
+      <motion.span
+        className="block"
+        initial={{ y: '105%' }}
+        animate={{ y: 0 }}
+        transition={{ duration: 0.9, delay, ease: EASE }}
       >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-status-ready-bg text-status-ready-text">
-          <BellRing className="h-5 w-5" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-ink">Your order is ready</p>
-          <p className="text-[13px] text-ink-muted">Table 4 · {previewCount} items</p>
-        </div>
-      </div>
+        {children}
+      </motion.span>
+    </span>
+  )
+}
+
+/** Phone, "now serving" ticket, table card and ready notice, layered in 3D. */
+function Scene({ px, py, scroll }: { px: MotionValue<number>; py: MotionValue<number>; scroll: MotionValue<number> }) {
+  const reduce = useReducedMotion()
+  const tiltY = useSpring(useTransform(px, [-0.5, 0.5], [-10, 10]), SPRING)
+  const tiltX = useSpring(useTransform(py, [-0.5, 0.5], [8, -8]), SPRING)
+  // Scrolling away turns the phone to face you and lifts the scene
+  const turn = useTransform(scroll, [0, 1], [-18, 6])
+  const lift = useTransform(scroll, [0, 1], [0, -90])
+  const rotateY = useTransform([tiltY, turn], ([a, b]: number[]) => (reduce ? -12 : a + b))
+  const rotateX = useTransform([tiltX, scroll], ([a, s]: number[]) => (reduce ? 6 : 6 + a + s * 8))
+
+  return (
+    <div className="relative mx-auto h-[540px] w-full max-w-[460px] [perspective:1600px] sm:h-[600px]">
+      <motion.div style={{ rotateY, rotateX, y: reduce ? 0 : lift }} className="preserve-3d absolute inset-0">
+        {/* Back: now-serving ticket */}
+        <motion.div
+          initial={{ opacity: 0, rotate: 14, y: 40 }}
+          animate={{ opacity: 1, rotate: 9, y: 0 }}
+          transition={{ duration: 1, delay: 0.5, ease: EASE }}
+          className="absolute right-0 top-6 w-[176px] drop-shadow-xl sm:-right-6 sm:w-[200px]"
+          style={{ z: -140 }}
+        >
+          <Ticket
+            tone="accent"
+            bodyClassName="px-4 pb-4 pt-3.5"
+            stubClassName="px-4 py-3"
+            stub={<p className="font-mono text-[10px] uppercase tracking-widest">Table 4 · {RESTAURANT.shortName}</p>}
+          >
+            <p className="font-mono text-[10px] uppercase tracking-widest">Now serving</p>
+            <p className="font-display text-[64px] leading-[0.9] tracking-[-0.04em]">042</p>
+          </Ticket>
+        </motion.div>
+
+        {/* Middle: the phone */}
+        <motion.div
+          initial={{ opacity: 0, y: 60 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1.1, delay: 0.25, ease: EASE }}
+          className="absolute left-1/2 top-0 w-[250px] sm:w-[272px]"
+          style={{ x: '-50%' }}
+        >
+          <PhoneFrame>
+            <MenuScreen />
+          </PhoneFrame>
+        </motion.div>
+
+        {/* Front: table tent card */}
+        <motion.div
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.9, delay: 0.9, ease: EASE }}
+          className="absolute bottom-6 left-0 w-[132px] sm:-left-4"
+          style={{ z: 90, rotate: -6 }}
+        >
+          <div data-theme="light" className="rounded-[14px] bg-surface p-3 text-center text-ink shadow-lift">
+            <p className="font-display text-[11px] leading-tight">{RESTAURANT.shortName}</p>
+            <div className="mx-auto mt-2 w-fit">
+              <QRCodeSVG value="https://qyou.app/t/4" size={84} fgColor="black" bgColor="white" level="M" />
+            </div>
+            <p className="mt-2 text-[10px] font-semibold">Scan to order · Table 4</p>
+          </div>
+        </motion.div>
+
+        {/* Front: ready notification */}
+        <motion.div
+          initial={{ opacity: 0, y: 20, scale: 0.9 }}
+          animate={{ opacity: 1, y: [0, -8, 0], scale: 1 }}
+          transition={{ opacity: { delay: 1.4, duration: 0.5 }, scale: { delay: 1.4, duration: 0.5 }, y: { delay: 1.9, duration: 4, repeat: Infinity, ease: 'easeInOut' } }}
+          className="absolute right-0 top-[52%] sm:-right-8"
+          style={{ z: 140 }}
+        >
+          <div data-theme="light" className="flex w-[214px] items-center gap-3 rounded-[16px] bg-surface p-3 text-ink shadow-lift">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-status-ready-bg text-status-ready-text">
+              <BellRing className="h-5 w-5 animate-ring" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[13px] font-semibold">Your order is ready</span>
+              <span className="block text-[12px] text-ink-muted">Table 4 · Order Nº 0427</span>
+            </span>
+          </div>
+        </motion.div>
+      </motion.div>
     </div>
   )
 }
 
 export default function Hero() {
+  const ref = useRef<HTMLElement>(null)
+  const px = useMotionValue(0)
+  const py = useMotionValue(0)
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] })
+
+  const onMove = (e: PointerEvent<HTMLElement>) => {
+    if (e.pointerType !== 'mouse' || !ref.current) return
+    const r = ref.current.getBoundingClientRect()
+    px.set((e.clientX - r.left) / r.width - 0.5)
+    py.set((e.clientY - r.top) / r.height - 0.5)
+  }
+
   return (
-    <section className="mx-auto grid max-w-6xl gap-12 px-4 pb-16 pt-10 sm:px-6 md:pt-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-10 lg:pb-24 lg:pt-20">
-      <div>
-        <p className="text-sm font-medium text-ink-muted">QR table ordering for cafés and restaurants</p>
-        <h1 className="mt-4 font-display text-[46px] leading-[1.02] tracking-[-0.03em] text-ink sm:text-[64px] lg:text-[76px]">
-          Don't queue.
-          <br />
-          Just Qyou.
-        </h1>
-        <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-muted">
-          Guests scan the code on their table, order from their own phone and get notified when it's ready.
-          Your team sees every order the moment it's placed. No app to download, no line at the counter.
-        </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link to={PRODUCT.demoTablePath} className={buttonClasses({ variant: 'primary', size: 'lg' })}>
-            Try the live demo
-            <ArrowRight />
-          </Link>
-          <a href="#contact" className={buttonClasses({ variant: 'secondary', size: 'lg' })}>
-            Book a demo
-          </a>
+    <section ref={ref} onPointerMove={onMove} className="relative overflow-x-clip">
+      <div className="mx-auto grid max-w-6xl items-center gap-6 px-4 pb-14 pt-10 sm:px-6 md:pt-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-4 lg:pb-20">
+        <div>
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: EASE }}
+            className="inline-flex items-center gap-2 rounded-full border border-line-strong bg-surface px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest text-ink-muted"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
+            QR table ordering
+          </motion.p>
+
+          <h1 className="mt-6 font-display text-[clamp(3.1rem,11vw,5.6rem)] leading-[0.92] tracking-[-0.045em] text-ink">
+            <Line delay={0.1}>Don't queue.</Line>
+            <Line delay={0.22}>
+              Just{' '}
+              <span className="ticket relative inline-block -rotate-2 rounded-[0.12em] bg-accent px-[0.16em] text-on-accent [--notch:0.1em]">
+                Qyou.
+              </span>
+            </Line>
+          </h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.45, ease: EASE }}
+            className="mt-7 max-w-[34rem] text-lg leading-relaxed text-ink-muted"
+          >
+            Guests scan the code on their table, order from their own phone and get notified when it's ready.
+            Your team sees every order the moment it's placed. No app to download, no line at the counter.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.55, ease: EASE }}
+            className="mt-8 flex flex-wrap gap-3"
+          >
+            <Link to={PRODUCT.demoTablePath} className={buttonClasses({ variant: 'primary', size: 'lg' }, 'group')}>
+              Try the live demo
+              <ArrowRight className="transition-transform duration-200 group-hover:translate-x-0.5" />
+            </Link>
+            <a href="#contact" className={buttonClasses({ variant: 'secondary', size: 'lg' })}>
+              Book a demo
+            </a>
+          </motion.div>
+          <p className="mt-4 text-sm text-ink-muted">The demo opens Table 1 at {RESTAURANT.name}.</p>
         </div>
-        <p className="mt-4 text-sm text-ink-muted">The demo opens Table 1 at {RESTAURANT.name}.</p>
+
+        <Scene px={px} py={py} scroll={scrollYProgress} />
       </div>
-      <PhonePreview />
+
+      {/* Ticket tape */}
+      <div className="relative -mx-4 -rotate-[1.5deg] py-2">
+        <Marquee
+          className="bg-ink py-3.5 font-mono text-[13px] uppercase tracking-[0.14em] text-bg"
+          items={['No queue at the counter', 'No app to download', 'Order from the table', 'Get notified when it’s ready', 'Kitchen screen included', 'Printable table QR codes']}
+        />
+      </div>
     </section>
   )
 }

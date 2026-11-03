@@ -1,5 +1,8 @@
-import { ChevronDown } from 'lucide-react'
+import { useId, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Plus } from 'lucide-react'
 import SectionHeading from './SectionHeading'
+import { Reveal } from './motion'
 
 const FAQS = [
   {
@@ -24,22 +27,58 @@ const FAQS = [
   },
 ]
 
+function Item({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false)
+  const id = useId()
+  return (
+    <div className="border-b border-line">
+      <h3>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={id}
+          onClick={() => setOpen(o => !o)}
+          className="flex min-h-[64px] w-full items-center justify-between gap-4 py-4 text-left text-[17px] font-semibold text-ink"
+        >
+          {q}
+          <motion.span
+            animate={{ rotate: open ? 45 : 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line-strong"
+            aria-hidden
+          >
+            <Plus className="h-4 w-4" />
+          </motion.span>
+        </button>
+      </h3>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            id={id}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <p className="pb-5 pr-12 text-[15px] leading-relaxed text-ink-muted">{a}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
 export default function Faq() {
   return (
-    <section id="faq" className="scroll-mt-16 border-t border-line">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16 lg:py-24">
-        <SectionHeading eyebrow="FAQ" title="Questions owners ask us" />
-        <div className="divide-y divide-line border-y border-line">
-          {FAQS.map(item => (
-            <details key={item.q} className="group">
-              <summary className="flex min-h-[56px] cursor-pointer list-none items-center justify-between gap-4 py-4 text-left text-[17px] font-medium text-ink [&::-webkit-details-marker]:hidden">
-                {item.q}
-                <ChevronDown className="h-5 w-5 shrink-0 text-ink-muted transition-transform duration-200 group-open:rotate-180" aria-hidden />
-              </summary>
-              <p className="pb-5 pr-9 text-[15px] leading-relaxed text-ink-muted">{item.a}</p>
-            </details>
-          ))}
-        </div>
+    <section id="faq" className="scroll-mt-16">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-20 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16 lg:py-28">
+        <Reveal>
+          <SectionHeading eyebrow="FAQ" title="Questions owners ask us." />
+        </Reveal>
+        <Reveal delay={0.1} className="border-t border-line">
+          {FAQS.map(item => <Item key={item.q} {...item} />)}
+        </Reveal>
       </div>
     </section>
   )
