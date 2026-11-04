@@ -9,14 +9,17 @@
  *
  * Staff devices follow every order. Guest devices follow the public order board and
  * load their own orders by id, so a guest never receives another guest's items or name.
+ *
+ * Paying online goes through /api/payments (server/payments) on either backend: Vercel
+ * Functions with Supabase, or the order server.
  */
 import type { MenuItem, OptionGroup } from '../constants/menu'
 import { SUPABASE_CONFIGURED } from './supabaseClient'
 import { supabaseTransport } from './supabaseTransport'
 import { serverTransport } from './serverTransport'
 import {
-  guestView, isOrderId, sortOrders, withStatus,
-  type BoardRow, type DiningTable, type Order, type OrderStatus, type PlaceOrderInput,
+  applyStatus, guestView, isOrderId, sortOrders, withStatus,
+  type BoardRow, type CheckoutStarted, type CheckoutState, type DiningTable, type Order, type OrderStatus, type PlaceOrderInput,
 } from './orderModel'
 
 export type StaffSignIn = 'ok' | 'wrong_pin' | 'not_staff' | 'too_many_attempts' | 'offline'
@@ -113,6 +116,45 @@ function rememberMyOrder(orderId: string) {
     }
   } catch { /* noop */ }
 }
+
+// ─── Paying online ───────────────────────────────────────────────────────────
+/** Orders this phone started paying for online that haven't shown up as orders yet. */
+const LS_CHECKOUTS = 'qyou_checkouts'
+
+function pendingCheckouts(): string[] {
+  try {
+    const raw = localStorage.getItem(LS_CHECKOUTS)
+    if (raw) return JSON.parse(raw)
+  } catch { /* noop */ }
+  return []
+}
+
+function setPendingCheckouts(ids: string[]) {
+  try { localStorage.setItem(LS_CHECKOUTS, JSON.stringify(ids.slice(0, 20))) } catch { /* noop */ }
+}
+
+/** True while this phone waits for a pay-now order's payment to come through. */
+export const isAwaitingPayment = (orderId: string) => pendingCheckouts().includes(orderId)
+
+/** The order showed up (or the guest gave up on it): stop waiting for it. */
+export function forgetCheckout(orderId: string) {
+  setPendingCheckouts(pendingCheckouts().filter(id => id !== orderId))
+}
+
+async function paymentsCall<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`/api/payments/${path}`, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    credentials: 'same-origin',
+  })
+  // Without a payment server (a plain static host) this is the app's own HTML, not JSON
+  const data = (res.headers.get('content-type') ?? '').includes('application/json') ? await res.json().catch(() => ({})) : {}
+  if (!res.ok) throw new Error(data.error || `payment_failed (HTTP ${res.status})`)
+  return data as T
+}
+
+let paymentsEnabled: Promise<boolean> | null = null
 
 // ─── Client ──────────────────────────────────────────────────────────────────
 type Listener = (orders: Order[], connected: boolean) => void
@@ -240,6 +282,44 @@ class OrderSyncClient {
     })
   }
 
+  /** Guests: loads this phone's orders again, e.g. once a pay-now order has been paid. */
+  async refreshOwn(): Promise<void> {
+    if (this.role !== 'guest') return
+    const gen = this.generation
+    const ids = getMyOrderIds().filter(isOrderId)
+    if (ids.length === 0) return
+    const rows = await this.transport.getOrders(ids)
+    if (gen !== this.generation) return
+    for (const o of rows) this.orders.set(o.id, o)
+    this.emit()
+  }
+
+  // ── Paying online ──
+
+  /** Whether guests can pay online here (asked once per page load; off if the payment server can't be reached). */
+  paymentsEnabled(): Promise<boolean> {
+    paymentsEnabled ??= paymentsCall<{ enabled?: boolean }>('config').then(c => c.enabled === true, () => false)
+    return paymentsEnabled
+  }
+
+  /**
+   * Prices a pay-now order and opens its payment. The order itself only exists once it is
+   * paid; this phone keeps its id so it can follow it from then on.
+   */
+  async startCheckout(input: PlaceOrderInput): Promise<CheckoutStarted> {
+    const started = await paymentsCall<CheckoutStarted>('checkout', input)
+    rememberMyOrder(input.id)
+    if (!isAwaitingPayment(input.id)) setPendingCheckouts([input.id, ...pendingCheckouts()])
+    return started
+  }
+
+  /** Asks the payment server whether a pay-now order is paid (it checks with PayMongo); loads it once it is. */
+  async checkPayment(orderId: string): Promise<CheckoutState> {
+    const { state } = await paymentsCall<{ state: CheckoutState }>('confirm', { id: orderId })
+    if (state === 'paid') await this.refreshOwn()
+    return state
+  }
+
   // ── Writes ──
 
   async placeOrder(input: PlaceOrderInput): Promise<Order> {
@@ -253,7 +333,7 @@ class OrderSyncClient {
   /** Staff only; the server refuses anyone else. Shows the change at once and undoes it if refused. */
   async updateStatus(id: string, status: OrderStatus): Promise<void> {
     const before = this.orders.get(id)
-    if (before) { this.orders.set(id, withStatus(before, status)); this.emit() }
+    if (before) { this.orders.set(id, applyStatus(before, status)); this.emit() }
     try {
       const saved = await this.transport.setStatus(id, status)
       this.orders.set(id, saved)

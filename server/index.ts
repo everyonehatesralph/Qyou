@@ -3,6 +3,7 @@ import cors from 'cors'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { createOrderSyncMiddleware } from './orderSyncPlugin.ts'
+import { settingsFromEnv } from './payments/service.ts'
 
 // package.json has "type": "module", so __dirname must be derived
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -13,7 +14,8 @@ const PORT = process.env.VITE_SERVER_PORT || 3000
 app.use(cors())
 // Order API (same as the dev server). Mounted before express.json() because it reads the request body itself.
 // Staff sign in with QYOU_STAFF_PIN; without it nobody can change orders.
-app.use(createOrderSyncMiddleware({ staffPin: process.env.QYOU_STAFF_PIN }))
+// Guests can pay online with PAYMONGO_SECRET_KEY (and PAYMONGO_WEBHOOK_SECRET) set; see SUPABASE_SETUP.md.
+app.use(createOrderSyncMiddleware({ staffPin: process.env.QYOU_STAFF_PIN, payments: settingsFromEnv(process.env) }))
 app.use(express.json())
 app.use(express.static(path.join(__dirname, '../dist')))
 

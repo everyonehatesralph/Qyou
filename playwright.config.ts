@@ -17,7 +17,7 @@ export default defineConfig({
   projects: [
     { name: 'seed', testMatch: /seed\.setup\.ts/ },
     { name: 'screens', testMatch: /screens\.spec\.ts/, dependencies: ['seed'] },
-    { name: 'flow', testMatch: /shared-orders\.spec\.ts/, dependencies: ['seed'] },
+    { name: 'flow', testMatch: /(shared-orders|payments)\.spec\.ts/, dependencies: ['seed'] },
     { name: 'devices', testMatch: /devices\.spec\.ts/, dependencies: ['seed'] },
     { name: 'flows', testMatch: /photos\.spec\.ts/ },
   ],
@@ -34,6 +34,7 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 60_000,
     // Always the local order server (server/orderSyncPlugin.ts), even when .env.local points at Supabase
-    env: { VITE_ORDER_BACKEND: 'server', QYOU_STAFF_PIN: '123456' },
+    // Paying online goes to the dev server's PayMongo stand-in, whatever keys a developer has set
+    env: { VITE_ORDER_BACKEND: 'server', QYOU_STAFF_PIN: '123456', PAYMONGO_SECRET_KEY: '' },
   },
 })

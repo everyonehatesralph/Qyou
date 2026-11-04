@@ -1,16 +1,9 @@
-import { test, expect, type Page } from '@playwright/test'
-import { STAFF_PIN } from './fixtures'
+import { test, expect } from '@playwright/test'
+import { signInStaff } from './fixtures'
 
 // Two devices (separate browser contexts, so nothing is shared but the server):
 // a guest orders at table 5, staff confirm and cook it, and the guest's tracker follows.
 // Table 5 is not used by the seed or the screen checks; table 8 has a seeded open order.
-
-async function signInStaff(page: Page) {
-  await page.goto('/staff/login')
-  for (const digit of STAFF_PIN) await page.getByRole('button', { name: digit, exact: true }).click()
-  await page.getByRole('button', { name: 'Sign in' }).click()
-  await page.waitForURL('**/staff/dashboard')
-}
 
 test('an order placed on one phone reaches staff, and status flows back', async ({ browser }) => {
   const guestDevice = await browser.newContext()
@@ -36,6 +29,7 @@ test('an order placed on one phone reaches staff, and status flows back', async 
   await guest.getByRole('button', { name: /Checkout/ }).click()
   await guest.getByRole('radio', { name: /Dine in/ }).click()
   await guest.getByRole('checkbox', { name: /Oat Milk Upgrade/ }).click()
+  await guest.getByRole('radio', { name: /At the counter/ }).click()
   await expect(guest.getByRole('button', { name: /Place order/ })).toContainText('₱435')
   await guest.getByRole('button', { name: /Place order/ }).click()
   await guest.waitForURL(/\/order\/[0-9a-f-]{36}$/)
@@ -105,6 +99,7 @@ test('a second phone joins a table, and staff menu changes reach it at once', as
   await guest.getByRole('button', { name: /View cart/ }).click()
   await guest.getByRole('button', { name: /Checkout/ }).click()
   await guest.getByRole('radio', { name: /Take away/ }).click()
+  await guest.getByRole('radio', { name: /At the counter/ }).click()
   await guest.getByRole('button', { name: /Place order/ }).click()
   await guest.waitForURL(/\/order\/[0-9a-f-]{36}$/)
   await expect(guest.getByText('₱160', { exact: true }).first()).toBeVisible()

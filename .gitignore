@@ -24,3 +24,4 @@ playwright-report/
 server/menu.json
 server/tables.json
 server/options.json
+server/checkouts.json

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, ShoppingBag, UtensilsCrossed } from 'lucide-react'
+import { Check, ShoppingBag, Smartphone, Store, UtensilsCrossed } from 'lucide-react'
 import type { CartItemType } from '../context/CartContext'
 import { useMenuState } from '../context/MenuContext'
 import type { MenuItem } from '../constants/menu'
@@ -12,6 +12,8 @@ interface Props {
   cartTotal: number
   tableName: string
   placing?: boolean
+  /** Guests can pay online here (GCash, Maya, QR Ph, card); otherwise they pay at the counter. */
+  canPayOnline?: boolean
   /** Why the last try didn't go through, in words for the guest. */
   error?: string
   onConfirm: (opts: CheckoutOptions) => void
@@ -23,16 +25,22 @@ export interface CheckoutOptions {
   /** Add-ons from the live menu; they go on the order as their own priced lines. */
   addOns: MenuItem[]
   notes: string
+  /** Pay online now; the order goes to the kitchen once it is paid. */
+  payNow: boolean
 }
 
 const peso = (n: number) => `${RESTAURANT.currency}${n.toFixed(0)}`
 
 type OrderType = 'dineIn' | 'takeaway'
+type Payment = 'now' | 'counter'
 
-/** Checkout sheet: order type, add-ons, notes, total, Place order. */
-export default function OrderCheckoutModal({ open, cartItems, cartTotal, tableName, placing, error, onConfirm, onClose }: Props) {
+/** Checkout sheet: order type, add-ons, notes, how to pay, total, Place order. */
+export default function OrderCheckoutModal({ open, cartItems, cartTotal, tableName, placing, canPayOnline = false, error, onConfirm, onClose }: Props) {
   const { addOns: menuAddOns } = useMenuState()
   const [orderType, setOrderType] = useState<OrderType | null>(null)
+  const [payment, setPayment] = useState<Payment | null>(null)
+  // Without online payment everything is paid at the counter, as before
+  const pay: Payment | null = canPayOnline ? payment : 'counter'
   const [picked, setPicked] = useState<MenuItem[]>([])
   const [notes, setNotes] = useState('')
 
@@ -53,9 +61,12 @@ export default function OrderCheckoutModal({ open, cartItems, cartTotal, tableNa
   }
 
   const submit = () => {
-    if (!orderType) return
-    onConfirm({ dineIn: orderType === 'dineIn', addOns, notes })
+    if (!orderType || !pay) return
+    onConfirm({ dineIn: orderType === 'dineIn', addOns, notes, payNow: pay === 'now' })
   }
+
+  const busyLabel = pay === 'now' ? 'Opening payment…' : 'Placing order…'
+  const label = pay === 'now' ? 'Pay now' : 'Place order'
 
   return (
     <BottomSheet
@@ -66,9 +77,10 @@ export default function OrderCheckoutModal({ open, cartItems, cartTotal, tableNa
       footer={
         <>
           {!orderType && <p className="mb-3 text-center text-sm text-ink-muted">Choose dine in or take away to continue.</p>}
+          {orderType && !pay && <p className="mb-3 text-center text-sm text-ink-muted">Choose how you'll pay to continue.</p>}
           {error && !placing && <p role="alert" className="mb-3 text-center text-sm text-status-cancelled-text">{error}</p>}
-          <Button variant="primary" size="lg" fullWidth disabled={!orderType || placing} onClick={submit} className="justify-between">
-            <span>{placing ? 'Placing order…' : 'Place order'}</span>
+          <Button variant="primary" size="lg" fullWidth disabled={!orderType || !pay || placing} onClick={submit} className="justify-between">
+            <span>{placing ? busyLabel : label}</span>
             <span className="tabular-nums">{peso(grandTotal)}</span>
           </Button>
         </>
@@ -122,6 +134,25 @@ export default function OrderCheckoutModal({ open, cartItems, cartTotal, tableNa
           onChange={e => setNotes(e.target.value)}
           rows={2}
         />
+
+        {canPayOnline && (
+          <div>
+            <Segmented<Payment>
+              label="Payment"
+              value={payment}
+              onChange={setPayment}
+              options={[
+                { value: 'now', label: 'Pay now', icon: <Smartphone />, hint: 'GCash, Maya, QR Ph or card' },
+                { value: 'counter', label: 'At the counter', icon: <Store />, hint: 'Cash or e-wallet' },
+              ]}
+            />
+            {payment === 'now' && (
+              <p className="mt-2 text-[13px] leading-relaxed text-ink-muted">
+                You'll pay on PayMongo's secure page. Your order goes to the kitchen as soon as it's paid.
+              </p>
+            )}
+          </div>
+        )}
 
         <dl className="space-y-1.5 text-[15px]">
           <div className="flex justify-between text-ink-muted">

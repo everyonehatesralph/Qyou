@@ -143,3 +143,30 @@ test('CSV fields are quoted and formulas are defused', () => {
   // An order saved before queue numbers had a day: the day comes from the caller
   assert.match(older, /^"2026-11-03","007",/)
 })
+
+test('paid online counts when the payment came in, and not once cancelled', () => {
+  const orders = [
+    // Paid online this morning, still in the kitchen: the money is in
+    order({ status: 'preparing', total: 300, paidOnlineAt: at(4, 9) }),
+    // Paid online last night, served and closed today: it counted yesterday
+    order({ status: 'paid', total: 150, paidOnlineAt: at(3, 22), paidAt: at(4, 8) }),
+    // Paid online, then cancelled by staff: refunded
+    order({ status: 'cancelled', total: 90, paidOnlineAt: at(4, 10) }),
+    // Paid at the counter today
+    order({ status: 'paid', total: 80, paidAt: at(4, 11) }),
+  ]
+  assert.equal(paidToday(orders, NOW), 380)
+})
+
+test('the CSV says how each sale was paid', () => {
+  const csv = salesCsv(
+    [order({ number: 1, paidOnlineAt: at(4, 9), paymentMethod: 'gcash', paymentRef: 'pay_123', paidAt: at(4, 12) }), order({ number: 2, paidAt: at(4, 13) }), order({ number: 3, status: 'served' })],
+    o => String(o.number).padStart(3, '0'),
+    () => '2026-11-04',
+  )
+  const [header, online, counter, open] = csv.split('\r\n').map(line => line.split(',').slice(-3))
+  assert.deepEqual(header, ['"Paid"', '"Paid with"', '"Payment ref"'])
+  assert.deepEqual(online, [`"${at(4, 9)}"`, '"GCash"', '"pay_123"'])
+  assert.deepEqual(counter, [`"${at(4, 13)}"`, '"Counter"', '""'])
+  assert.deepEqual(open, ['""', '""', '""'])
+})

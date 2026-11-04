@@ -3,13 +3,44 @@ import {
   useEffect, useRef, type ReactNode,
 } from 'react'
 import { orderSync } from '../services/orderSync'
-import { newOrderId, orderErrorText, type Order, type OrderStatus, type OrderType, type PlaceOrderInput } from '../services/orderModel'
+import {
+  newOrderId, orderErrorText, type CheckoutState, type Order, type OrderStatus, type OrderType, type PlaceOrderInput,
+} from '../services/orderModel'
 import { metricsCollector } from '../services/metricsCollector'
 import { useAuth } from './AuthContext'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type { Order, OrderItem, OrderStatus, OrderType } from '../services/orderModel'
-export { getMyOrderIds } from '../services/orderSync'
+export { getMyOrderIds, isAwaitingPayment, forgetCheckout } from '../services/orderSync'
+
+type CartLine = { id: number; name: string; price: number; quantity: number; choices?: number[] }
+
+/** Only ids, quantities and option choices go up: the server prices the order from its menu. */
+function orderRequest(
+  cartItems: CartLine[], tableId: number | null, tableName: string, customerName: string, orderType: OrderType, notes?: string,
+): Omit<PlaceOrderInput, 'id'> {
+  return {
+    tableId:      tableId ?? 0,
+    tableName:    tableName || `Table ${tableId}`,
+    customerName,
+    orderType,
+    items:        cartItems.map(ci => ({ id: ci.id, quantity: ci.quantity, ...(ci.choices?.length ? { choices: ci.choices } : {}) })),
+    notes,
+  }
+}
+
+// The last pay-now try in this tab: paying again for the same cart (back from the payment page,
+// even after a reload) reuses its id, so the server hands back the same checkout, never a second one.
+const SS_PAY_ATTEMPT = 'qyou_pay_attempt'
+function readAttempt(): { key: string; id: string } | null {
+  try { return JSON.parse(sessionStorage.getItem(SS_PAY_ATTEMPT) ?? 'null') } catch { return null }
+}
+function saveAttempt(attempt: { key: string; id: string } | null) {
+  try {
+    if (attempt) sessionStorage.setItem(SS_PAY_ATTEMPT, JSON.stringify(attempt))
+    else sessionStorage.removeItem(SS_PAY_ATTEMPT)
+  } catch { /* noop */ }
+}
 
 // Orders used to live in this browser only; drop that stale copy
 try { localStorage.removeItem('qyou_orders') } catch { /* noop */ }
@@ -27,6 +58,20 @@ interface OrderContextType {
     orderType: OrderType,
     notes?: string,
   ) => Promise<string>
+  /**
+   * Pay now: prices the order and opens its payment. Resolves with where to pay, or with no
+   * checkoutUrl when this cart is already paid (go to the order). Rejects with words to show.
+   */
+  startCheckout: (
+    cartItems: CartLine[],
+    tableId: number | null,
+    tableName: string,
+    customerName: string,
+    orderType: OrderType,
+    notes?: string,
+  ) => Promise<{ orderId: string; checkoutUrl?: string }>
+  /** Whether a pay-now order has been paid; loads it once it has. */
+  checkPayment: (orderId: string) => Promise<CheckoutState>
   updateOrderStatus: (orderId: string, status: OrderStatus) => void
   cancelOrder: (orderId: string) => void
   getOrder: (orderId: string) => Order | undefined
@@ -42,8 +87,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const [isConnected, setIsConnected] = useState(false)
   /** The last order that failed to send; retrying the same cart reuses its id, so it can't land twice. */
   const lastFailed = useRef<{ key: string; id: string } | null>(null)
+  const isStaffRef = useRef(isStaff)
 
   useEffect(() => {
+    isStaffRef.current = isStaff
     orderSync.setRole(isStaff ? 'staff' : 'guest')
   }, [isStaff])
 
@@ -71,15 +118,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const startTime = performance.now()
     metricsCollector.recordOrderInFlight(true)
 
-    // Only ids, quantities and option choices go up: the server prices the order from its menu
-    const request: Omit<PlaceOrderInput, 'id'> = {
-      tableId:      tableId ?? 0,
-      tableName:    tableName || `Table ${tableId}`,
-      customerName,
-      orderType,
-      items:        cartItems.map(ci => ({ id: ci.id, quantity: ci.quantity, ...(ci.choices?.length ? { choices: ci.choices } : {}) })),
-      notes,
-    }
+    const request = orderRequest(cartItems, tableId, tableName, customerName, orderType, notes)
     const key = JSON.stringify(request)
     const id = lastFailed.current?.key === key ? lastFailed.current.id : newOrderId()
 
@@ -98,6 +137,47 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // ── Pay now ──
+  const startCheckout = useCallback(async (
+    cartItems: CartLine[],
+    tableId: number | null,
+    tableName: string,
+    customerName: string,
+    orderType: OrderType,
+    notes?: string,
+  ): Promise<{ orderId: string; checkoutUrl?: string }> => {
+    const request = orderRequest(cartItems, tableId, tableName, customerName, orderType, notes)
+    const key = JSON.stringify(request)
+    const last = readAttempt()
+    let id = last?.key === key ? last.id : newOrderId()
+    for (let tries = 0; ; tries++) {
+      saveAttempt({ key, id })
+      try {
+        const started = await orderSync.startCheckout({ id, ...request })
+        if ('paid' in started) return { orderId: id }
+        return { orderId: id, checkoutUrl: started.checkoutUrl }
+      } catch (err) {
+        const code = err instanceof Error ? err.message : String(err)
+        // This very cart was already paid for from this tab: that is the order
+        if (code.includes('already_placed') && last?.id === id) return { orderId: id }
+        // The id went with another cart: once more with a new one
+        if (tries === 0 && (code.includes('checkout_changed') || code.includes('already_placed'))) {
+          id = newOrderId()
+          continue
+        }
+        throw new Error(orderErrorText(err))
+      }
+    }
+  }, [])
+
+  const checkPayment = useCallback((orderId: string) => orderSync.checkPayment(orderId), [])
+
+  // Once the paid order is here, the next pay-now cart is a new order, even if it looks the same
+  useEffect(() => {
+    const attempt = readAttempt()
+    if (attempt && orders.some(o => o.id === attempt.id)) saveAttempt(null)
+  }, [orders])
+
   // ── Update status (staff) ──
   const updateOrderStatus = useCallback((orderId: string, status: OrderStatus) => {
     const startTime = performance.now()
@@ -109,9 +189,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   // ── Cancel order ──
   const cancelOrder = useCallback((orderId: string) => {
-    // Can only cancel pending or confirmed orders
+    // Can only cancel pending or confirmed orders, and guests can't cancel what they paid online
     const order = orders.find(o => o.id === orderId)
-    if (!order || !['pending', 'confirmed'].includes(order.status)) {
+    if (!order || !['pending', 'confirmed'].includes(order.status) || (!isStaffRef.current && order.paidOnlineAt)) {
       return
     }
     orderSync.cancelOrder(orderId).catch(err => console.warn(`[orders] could not cancel ${orderId}:`, orderErrorText(err)))
@@ -123,10 +203,21 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   )
 
   const value = useMemo(() => ({
-    orders, placeOrder, updateOrderStatus, cancelOrder, getOrder, isConnected, syncMode: orderSync.mode,
-  }), [orders, placeOrder, updateOrderStatus, cancelOrder, getOrder, isConnected])
+    orders, placeOrder, startCheckout, checkPayment, updateOrderStatus, cancelOrder, getOrder, isConnected, syncMode: orderSync.mode,
+  }), [orders, placeOrder, startCheckout, checkPayment, updateOrderStatus, cancelOrder, getOrder, isConnected])
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>
+}
+
+/** Whether guests can pay online here; null until known. */
+export function usePaymentsEnabled(): boolean | null {
+  const [enabled, setEnabled] = useState<boolean | null>(null)
+  useEffect(() => {
+    let live = true
+    orderSync.paymentsEnabled().then(on => { if (live) setEnabled(on) })
+    return () => { live = false }
+  }, [])
+  return enabled
 }
 
 export function useOrders() {

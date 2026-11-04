@@ -119,8 +119,15 @@ create table if not exists public.orders (
   ready_at      timestamptz,
   served_at     timestamptz,
   paid_at       timestamptz,
-  cancelled_at  timestamptz
+  cancelled_at  timestamptz,
+  paid_online_at timestamptz,                           -- paid online before it reached the kitchen
+  payment_method text,                                  -- gcash, paymaya, qrph, card… (paid online only)
+  payment_ref    text                                   -- the payment provider's id for that payment
 );
+-- Earlier versions had no online payment
+alter table public.orders add column if not exists paid_online_at timestamptz;
+alter table public.orders add column if not exists payment_method text;
+alter table public.orders add column if not exists payment_ref text;
 -- Earlier versions numbered orders with one ever-growing identity; numbers are per day now
 alter table public.orders add column if not exists order_day date;
 alter table public.orders alter column number drop identity if exists;
@@ -143,6 +150,29 @@ create table if not exists public.order_counters (
 insert into public.order_counters as c (day, last_number)
 select order_day, max(number) from public.orders group by order_day
 on conflict (day) do update set last_number = greatest(c.last_number, excluded.last_number);
+
+-- ─── Online payment: an order waiting for its payment ───────────────────────
+-- A guest who pays now gets a checkout, priced here like any order. The order itself is only made
+-- once the payment provider says the money is in, so the kitchen never sees an unpaid pay-now
+-- order and an abandoned payment never uses up a queue number. Only the payment server
+-- (api/payments, with the service role key) reads or writes these.
+create table if not exists public.checkouts (
+  order_id      uuid primary key,                       -- the order's id once it is paid
+  request       jsonb not null,                         -- what the phone sent: a retry is told from a changed cart
+  table_id      integer not null,
+  table_name    text not null,
+  customer_name text not null default '',
+  order_type    text not null check (order_type in ('dineIn', 'takeaway')),
+  items         jsonb not null,                         -- priced here, like an order's
+  total         numeric(10, 2) not null check (total > 0),
+  notes         text,
+  session_id    text unique,                            -- the provider's checkout session (PayMongo cs_…)
+  checkout_url  text,
+  status        text not null default 'open' check (status in ('open', 'paid')),
+  created_at    timestamptz not null default now(),
+  paid_at       timestamptz
+);
+create index if not exists checkouts_table_recent_idx on public.checkouts (table_id, created_at desc);
 
 -- The restaurant's calendar day. Its timezone lives here and in RESTAURANT.timeZone.
 create or replace function public.restaurant_day() returns date
@@ -202,41 +232,20 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 -- Errors are raised with a short code as the message; the app turns them into words.
-create or replace function public.place_order(
-  p_id            uuid,
-  p_table_id      integer,
-  p_table_name    text,
-  p_customer_name text,
-  p_order_type    text,
-  p_items         jsonb,
-  p_notes         text default null
-) returns public.orders
-language plpgsql security definer set search_path = '' as $$
-declare
-  v_order       public.orders;
-  v_items       jsonb := '[]';
-  v_total       numeric(10, 2) := 0;
-  v_line        record;
-  v_item        public.menu_items;
-  v_options     jsonb;
-  v_extra       numeric(10, 2);
-  v_found       integer;
-  v_code        text := '';
-  v_tries       integer := 0;
-  v_day         date;
-  v_number      integer;
-  v_table_name  text;
-begin
-  -- The same id again is a retry of a request that already went through: hand back that order
-  select * into v_order from public.orders where id = p_id;
-  if found then return v_order; end if;
 
-  if p_id is null then raise exception 'invalid_order_id'; end if;
-  if p_order_type is null or p_order_type not in ('dineIn', 'takeaway') then raise exception 'invalid_order_type'; end if;
-  -- Every order comes from a table's QR code; take-away orders keep the table they were placed at.
-  -- The table must exist now, and its name comes from here, not from the phone.
-  select label into v_table_name from public.restaurant_tables where id = p_table_id and active;
-  if not found then raise exception 'invalid_table'; end if;
+-- Prices a list of order lines from the menu and option groups only; whatever the phone thinks
+-- things cost is never read. Shared by orders paid at the counter and orders paid online.
+create or replace function public.price_items(p_items jsonb, out o_items jsonb, out o_total numeric)
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_line    record;
+  v_item    public.menu_items;
+  v_options jsonb;
+  v_extra   numeric(10, 2);
+  v_found   integer;
+begin
+  o_items := '[]';
+  o_total := 0;
   if jsonb_typeof(p_items) is distinct from 'array' or jsonb_array_length(p_items) = 0 then
     raise exception 'empty_order';
   end if;
@@ -273,15 +282,8 @@ begin
     raise exception 'invalid_options';
   end if;
 
-  -- Spam brake: one table (or the shared no-table slot) can't flood the kitchen
-  if (select count(*) from public.orders
-      where table_id = p_table_id and created_at > now() - interval '10 minutes') >= 30
-  or (select count(*) from public.orders where created_at > now() - interval '10 minutes') >= 300 then
-    raise exception 'too_many_orders';
-  end if;
-
   -- One line per item and set of choices: the same drink twice with the same options is one
-  -- line; with different options it stays two. Priced from the menu and option groups only.
+  -- line; with different options it stays two.
   for v_line in
     with lines as (
       select (e ->> 'id')::integer as id, (e ->> 'quantity')::integer as quantity, pos,
@@ -320,15 +322,64 @@ begin
         and not exists (select 1 from jsonb_array_elements(g.choices) c where (c ->> 'id')::integer = any (v_line.choices))
     ) then raise exception 'missing_option'; end if;
 
-    v_items := v_items || jsonb_build_array(
+    o_items := o_items || jsonb_build_array(
       jsonb_build_object(
         'id', v_item.id, 'name', v_item.name, 'price', v_item.price + v_extra, 'quantity', v_line.quantity,
         'category', v_item.category, 'addon', v_item.addon
       ) || case when jsonb_array_length(v_options) > 0 then jsonb_build_object('options', v_options) else '{}' end
     );
-    v_total := v_total + (v_item.price + v_extra) * v_line.quantity;
+    o_total := o_total + (v_item.price + v_extra) * v_line.quantity;
   end loop;
+end $$;
 
+-- The checks every new order or checkout passes before it is priced: a known order type, a table
+-- that exists now (its name comes from here, not from the phone) and the spam brake. Returns the
+-- table's name.
+create or replace function public.check_new_order(p_id uuid, p_table_id integer, p_order_type text) returns text
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_table_name text;
+begin
+  if p_id is null then raise exception 'invalid_order_id'; end if;
+  if p_order_type is null or p_order_type not in ('dineIn', 'takeaway') then raise exception 'invalid_order_type'; end if;
+  -- Every order comes from a table's QR code; take-away orders keep the table they were placed at
+  select label into v_table_name from public.restaurant_tables where id = p_table_id and active;
+  if not found then raise exception 'invalid_table'; end if;
+  -- Spam brake: one table can't flood the kitchen (or the payment provider)
+  if (select count(*) from public.orders
+      where table_id = p_table_id and created_at > now() - interval '10 minutes') >= 30
+  or (select count(*) from public.orders where created_at > now() - interval '10 minutes') >= 300
+  or (select count(*) from public.checkouts
+      where table_id = p_table_id and status = 'open' and created_at > now() - interval '10 minutes') >= 30 then
+    raise exception 'too_many_orders';
+  end if;
+  return v_table_name;
+end $$;
+
+-- Writes a priced order with today's next queue number. Called last, after every check, so a
+-- refused order never uses a number up (and if anything fails after this, the transaction rolls
+-- the counter back too).
+create or replace function public.insert_order(
+  p_id             uuid,
+  p_table_id       integer,
+  p_table_name     text,
+  p_customer_name  text,
+  p_order_type     text,
+  p_items          jsonb,
+  p_total          numeric,
+  p_notes          text,
+  p_paid_online_at timestamptz default null,
+  p_payment_method text default null,
+  p_payment_ref    text default null
+) returns public.orders
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_order  public.orders;
+  v_code   text := '';
+  v_tries  integer := 0;
+  v_day    date;
+  v_number integer;
+begin
   if p_order_type = 'takeaway' then
     loop
       -- No 0/O or 1/I, so the code reads cleanly off a screen
@@ -342,32 +393,62 @@ begin
     end loop;
   end if;
 
-  -- Today's next queue number. Last, after every check, so a refused order never uses one up
-  -- (and if anything fails after this, the transaction rolls the counter back too).
   v_day := public.restaurant_day();
   insert into public.order_counters as c (day, last_number) values (v_day, 1)
   on conflict (day) do update set last_number = c.last_number + 1
   returning c.last_number into v_number;
 
-  insert into public.orders (id, number, order_day, table_id, table_name, customer_name, items, total, order_type, takeaway_code, notes)
-  values (
+  insert into public.orders (
+    id, number, order_day, table_id, table_name, customer_name, items, total, order_type, takeaway_code, notes,
+    paid_online_at, payment_method, payment_ref
+  ) values (
     p_id,
     v_number,
     v_day,
     p_table_id,
-    v_table_name,
+    p_table_name,
     left(btrim(coalesce(p_customer_name, '')), 60),
-    v_items,
-    v_total,
+    p_items,
+    p_total,
     p_order_type,
     v_code,
-    nullif(left(btrim(coalesce(p_notes, '')), 500), '')
+    nullif(left(btrim(coalesce(p_notes, '')), 500), ''),
+    p_paid_online_at,
+    nullif(left(btrim(coalesce(p_payment_method, '')), 30), ''),
+    nullif(left(btrim(coalesce(p_payment_ref, '')), 100), '')
   )
   on conflict (id) do nothing
   returning * into v_order;
 
   if not found then select * into v_order from public.orders where id = p_id; end if;
   return v_order;
+end $$;
+
+-- An order paid at the counter: it goes to the kitchen at once.
+create or replace function public.place_order(
+  p_id            uuid,
+  p_table_id      integer,
+  p_table_name    text,
+  p_customer_name text,
+  p_order_type    text,
+  p_items         jsonb,
+  p_notes         text default null
+) returns public.orders
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_order      public.orders;
+  v_table_name text;
+  v_priced     record;
+begin
+  -- The same id again is a retry of a request that already went through: hand back that order
+  select * into v_order from public.orders where id = p_id;
+  if found then return v_order; end if;
+  -- An order being paid online is placed by its payment, not by this
+  if exists (select 1 from public.checkouts where order_id = p_id) then raise exception 'checkout_open'; end if;
+
+  v_table_name := public.check_new_order(p_id, p_table_id, p_order_type);
+  select * into v_priced from public.price_items(p_items);
+  return public.insert_order(p_id, p_table_id, v_table_name, p_customer_name, p_order_type, v_priced.o_items, v_priced.o_total, p_notes);
 end $$;
 
 -- A guest's phone keeps the ids of the orders it placed; the id is the key to the order.
@@ -382,34 +463,143 @@ declare
   v_order public.orders;
 begin
   update public.orders set status = 'cancelled', cancelled_at = now()
-  where id = p_id and status in ('pending', 'confirmed')
+  where id = p_id and status in ('pending', 'confirmed') and paid_online_at is null
   returning * into v_order;
-  if not found then raise exception 'not_cancellable'; end if;
+  if not found then
+    -- Money came in for it: only staff can call it off, and they refund it
+    if exists (select 1 from public.orders where id = p_id and paid_online_at is not null) then
+      raise exception 'paid_online';
+    end if;
+    raise exception 'not_cancellable';
+  end if;
   return v_order;
 end $$;
 
 create or replace function public.set_order_status(p_id uuid, p_status text) returns public.orders
 language plpgsql security definer set search_path = '' as $$
 declare
-  v_order public.orders;
+  v_order  public.orders;
+  v_status text := p_status;
 begin
   if not public.is_staff() then raise exception 'staff_only' using errcode = '42501'; end if;
   if p_status is null or p_status not in ('pending', 'confirmed', 'preparing', 'ready', 'served', 'paid', 'cancelled') then
     raise exception 'invalid_status';
   end if;
+  -- An order paid online has nothing left to collect: serving it settles it
+  if p_status = 'served' and exists (select 1 from public.orders where id = p_id and paid_online_at is not null) then
+    v_status := 'paid';
+  end if;
 
   update public.orders set
-    status       = p_status,
+    status       = v_status,
     confirmed_at = case when p_status = 'confirmed' then now() else confirmed_at end,
     preparing_at = case when p_status = 'preparing' then now() else preparing_at end,
     ready_at     = case when p_status = 'ready'     then now() else ready_at end,
     served_at    = case when p_status = 'served'    then now() else served_at end,
-    paid_at      = case when p_status = 'paid'      then now() else paid_at end,
+    paid_at      = case when v_status = 'paid'      then now() else paid_at end,
     cancelled_at = case when p_status = 'cancelled' then now() else cancelled_at end
   where id = p_id
   returning * into v_order;
 
   if not found then raise exception 'order_not_found'; end if;
+  return v_order;
+end $$;
+
+-- ─── Online payment (the payment server only) ───────────────────────────────
+-- api/payments (server/payments) calls these with the service role key; guests and staff can't.
+-- A guest who pays now gets a checkout, priced like any order. The order is only made once the
+-- payment provider says the money is in.
+
+-- Prices a pay-now order and keeps it until it is paid. The same id with the same cart again is a
+-- retry and gets the same checkout back; a changed cart needs a new id.
+create or replace function public.start_checkout(
+  p_id            uuid,
+  p_table_id      integer,
+  p_customer_name text,
+  p_order_type    text,
+  p_items         jsonb,
+  p_notes         text default null
+) returns public.checkouts
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_checkout   public.checkouts;
+  v_request    jsonb;
+  v_table_name text;
+  v_priced     record;
+begin
+  if exists (select 1 from public.orders where id = p_id) then raise exception 'already_placed'; end if;
+  v_request := jsonb_build_object(
+    'table_id', p_table_id, 'customer_name', coalesce(p_customer_name, ''), 'order_type', p_order_type,
+    'items', p_items, 'notes', coalesce(p_notes, '')
+  );
+  select * into v_checkout from public.checkouts where order_id = p_id;
+  if found then
+    if v_checkout.status = 'paid' then raise exception 'already_placed'; end if;
+    if v_checkout.request is distinct from v_request then raise exception 'checkout_changed'; end if;
+    return v_checkout;
+  end if;
+
+  v_table_name := public.check_new_order(p_id, p_table_id, p_order_type);
+  select * into v_priced from public.price_items(p_items);
+  if v_priced.o_total <= 0 then raise exception 'nothing_to_pay'; end if;
+
+  insert into public.checkouts (order_id, request, table_id, table_name, customer_name, order_type, items, total, notes)
+  values (
+    p_id, v_request, p_table_id, v_table_name, left(btrim(coalesce(p_customer_name, '')), 60), p_order_type,
+    v_priced.o_items, v_priced.o_total, nullif(left(btrim(coalesce(p_notes, '')), 500), '')
+  )
+  on conflict (order_id) do nothing
+  returning * into v_checkout;
+  if not found then select * into v_checkout from public.checkouts where order_id = p_id; end if;
+  return v_checkout;
+end $$;
+
+-- Records the provider's checkout session. The first one wins: a second, racing request gets
+-- the first session back and uses that.
+create or replace function public.attach_checkout(p_id uuid, p_session_id text, p_checkout_url text) returns public.checkouts
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_checkout public.checkouts;
+begin
+  update public.checkouts set session_id = p_session_id, checkout_url = p_checkout_url
+  where order_id = p_id and session_id is null
+  returning * into v_checkout;
+  if not found then
+    select * into v_checkout from public.checkouts where order_id = p_id;
+    if not found then raise exception 'unknown_checkout'; end if;
+  end if;
+  return v_checkout;
+end $$;
+
+-- The money is in: the order goes to the kitchen, with today's next queue number. Safe to call
+-- again (the provider retries notifications, and the guest's phone asks too): it hands back the
+-- order already made. Honoured however old the checkout is, since the guest has paid.
+create or replace function public.confirm_checkout(
+  p_id               uuid,
+  p_session_id       text,
+  p_payment_ref      text,
+  p_amount_centavos  bigint,
+  p_method           text
+) returns public.orders
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_checkout public.checkouts;
+  v_order    public.orders;
+begin
+  select * into v_checkout from public.checkouts where order_id = p_id for update;
+  if not found then raise exception 'unknown_checkout'; end if;
+  if v_checkout.session_id is null or v_checkout.session_id is distinct from p_session_id then
+    raise exception 'checkout_mismatch';
+  end if;
+  select * into v_order from public.orders where id = p_id;
+  if found then return v_order; end if;
+  if p_amount_centavos is distinct from round(v_checkout.total * 100)::bigint then raise exception 'amount_mismatch'; end if;
+
+  v_order := public.insert_order(
+    p_id, v_checkout.table_id, v_checkout.table_name, v_checkout.customer_name, v_checkout.order_type,
+    v_checkout.items, v_checkout.total, v_checkout.notes, now(), p_method, p_payment_ref
+  );
+  update public.checkouts set status = 'paid', paid_at = now() where order_id = p_id;
   return v_order;
 end $$;
 
@@ -611,6 +801,7 @@ alter table public.order_board   enable row level security;
 alter table public.order_counters enable row level security;
 alter table public.restaurant_tables enable row level security;
 alter table public.option_groups enable row level security;
+alter table public.checkouts     enable row level security;
 
 drop policy if exists "options are public" on public.option_groups;
 create policy "options are public" on public.option_groups
@@ -638,7 +829,7 @@ create policy "order board is public" on public.order_board
 
 -- Reads only, filtered by the policies above; direct writes are off for everyone.
 -- Granted explicitly so this works on projects that don't expose new tables by default.
-grant usage on schema public to anon, authenticated;
+grant usage on schema public to anon, authenticated, service_role;
 grant select on public.menu_items, public.order_board, public.restaurant_tables, public.option_groups to anon, authenticated;
 grant select on public.orders, public.staff_members to authenticated;
 revoke insert, update, delete, truncate on
@@ -647,11 +838,20 @@ revoke insert, update, delete, truncate on
   from anon, authenticated;
 revoke all on sequence public.option_choice_id_seq from anon, authenticated;
 revoke all on public.order_counters from anon, authenticated;
+-- Checkouts: the payment server only (service_role skips row level security)
+revoke all on public.checkouts from anon, authenticated;
+grant select on public.checkouts to service_role;
 
 revoke execute on function public.sync_order_board() from public, anon, authenticated;
 revoke execute on function public.restaurant_day() from public, anon, authenticated;
 revoke execute on function public.is_staff() from public;
 revoke execute on function public.place_order(uuid, integer, text, text, text, jsonb, text) from public;
+revoke execute on function public.price_items(jsonb) from public, anon, authenticated;
+revoke execute on function public.check_new_order(uuid, integer, text) from public, anon, authenticated;
+revoke execute on function public.insert_order(uuid, integer, text, text, text, jsonb, numeric, text, timestamptz, text, text) from public, anon, authenticated;
+revoke execute on function public.start_checkout(uuid, integer, text, text, jsonb, text) from public, anon, authenticated;
+revoke execute on function public.attach_checkout(uuid, text, text) from public, anon, authenticated;
+revoke execute on function public.confirm_checkout(uuid, text, text, bigint, text) from public, anon, authenticated;
 revoke execute on function public.get_orders(uuid[]) from public;
 revoke execute on function public.cancel_order(uuid) from public;
 revoke execute on function public.set_order_status(uuid, text) from public, anon;
@@ -673,6 +873,9 @@ grant execute on function public.remove_option_group(integer) to authenticated;
 grant execute on function public.set_menu_item_available(integer, boolean) to authenticated;
 grant execute on function public.remove_menu_item(integer) to authenticated;
 grant execute on function public.set_table_count(integer) to authenticated;
+grant execute on function public.start_checkout(uuid, integer, text, text, jsonb, text) to service_role;
+grant execute on function public.attach_checkout(uuid, text, text) to service_role;
+grant execute on function public.confirm_checkout(uuid, text, text, bigint, text) to service_role;
 
 -- ─── Live updates ────────────────────────────────────────────────────────────
 -- Staff screens follow public.orders, guests follow public.order_board, everyone follows the menu,

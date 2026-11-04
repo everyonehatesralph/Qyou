@@ -2,9 +2,9 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 // The suite seeds orders and edits the menu, options and tables through the order API, which
-// writes server/orders.json, menu.json, tables.json and options.json. Put them back afterwards so
-// test runs never change a developer's data.
-const FILES = ['../server/orders.json', '../server/menu.json', '../server/tables.json', '../server/options.json']
+// writes server/orders.json, menu.json, tables.json, options.json and checkouts.json (paying online).
+// Put them back afterwards so test runs never change a developer's data.
+const FILES = ['../server/orders.json', '../server/menu.json', '../server/tables.json', '../server/options.json', '../server/checkouts.json']
   .map(f => fileURLToPath(new URL(f, import.meta.url)))
 
 export default function globalSetup() {

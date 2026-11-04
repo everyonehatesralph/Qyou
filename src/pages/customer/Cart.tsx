@@ -1,12 +1,12 @@
 import { ShoppingCart } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCart } from '../../context/CartContext'
 import { useMenu } from '../../context/MenuContext'
 import { optionsText } from '../../services/orderModel'
 import { useAuth } from '../../context/AuthContext'
-import { useOrders } from '../../context/OrderContext'
+import { useOrders, usePaymentsEnabled } from '../../context/OrderContext'
 import { RESTAURANT } from '../../config/restaurant'
 import OrderCheckoutModal, { type CheckoutOptions } from '../../components/OrderCheckoutModal'
 import ItemPhoto from '../../components/ItemPhoto'
@@ -20,10 +20,22 @@ export default function Cart() {
   // Keeps names, prices and sold-out up to date while the guest looks at the cart
   useMenu()
   const { customerName, tableId, tableName } = useAuth()
-  const { placeOrder: placeOrderRaw } = useOrders()
+  const { placeOrder: placeOrderRaw, startCheckout } = useOrders()
+  const canPayOnline = usePaymentsEnabled() === true
+  const [params] = useSearchParams()
+  // Back from the payment page without paying (PayMongo's cancel link)
+  const paymentCancelled = params.get('payment') === 'cancelled'
   const [showCheckout, setShowCheckout] = useState(false)
   const [placing, setPlacing] = useState(false)
   const [placeError, setPlaceError] = useState('')
+
+  // Back from the payment page with the browser's back button: the page may come back as it was
+  // left, still "Opening payment…"
+  useEffect(() => {
+    const restored = (e: PageTransitionEvent) => { if (e.persisted) { setPlacing(false); setShowCheckout(false) } }
+    window.addEventListener('pageshow', restored)
+    return () => window.removeEventListener('pageshow', restored)
+  }, [])
 
   const itemsText = (n: number) => n === 0 ? 'Your cart is empty' : `${n} ${n === 1 ? 'item' : 'items'} in your cart`
 
@@ -59,6 +71,16 @@ export default function Cart() {
     ]
 
     try {
+      if (opts.payNow) {
+        const started = await startCheckout(lines, tableId, tableName, customerName, opts.dineIn ? 'dineIn' : 'takeaway', opts.notes.trim() || undefined)
+        // Off to PayMongo; the cart stays until the payment comes through
+        if (started.checkoutUrl) { window.location.assign(started.checkoutUrl); return }
+        // This cart was already paid for
+        clearCart()
+        setShowCheckout(false)
+        navigate(`/order/${started.orderId}`, { replace: true })
+        return
+      }
       // A short minimum so "Placing order…" never just flickers
       const [orderId] = await Promise.all([
         placeOrderRaw(lines, tableId, tableName, customerName, opts.dineIn ? 'dineIn' : 'takeaway', opts.notes.trim() || undefined),
@@ -84,6 +106,12 @@ export default function Cart() {
             <Button variant="ghost" onClick={clearAll} className="-mr-3 text-ink-muted" aria-label="Clear the cart">Clear</Button>
           ) : undefined}
         />
+
+        {paymentCancelled && cartItems.length > 0 && (
+          <p role="status" className="mt-4 rounded-card border border-line bg-surface px-4 py-3 text-sm text-ink">
+            The payment wasn't finished, so nothing was ordered or charged. Your cart is still here.
+          </p>
+        )}
 
         {cartItems.length === 0 ? (
           <EmptyState
@@ -186,6 +214,7 @@ export default function Cart() {
         cartTotal={cartTotal}
         tableName={tableName}
         placing={placing}
+        canPayOnline={canPayOnline}
         error={placeError}
         onConfirm={handleConfirm}
         onClose={() => { if (!placing) setShowCheckout(false) }}

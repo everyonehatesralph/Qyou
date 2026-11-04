@@ -5,7 +5,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { OPTION_GROUPS, SEED_MENU } from '../src/constants/menu.ts'
 
 // Runs the Supabase migration on an in-process Postgres with the few Supabase pieces it
-// relies on (auth.users, auth.uid(), the anon/authenticated roles, the realtime publication)
+// relies on (auth.users, auth.uid(), the anon/authenticated/service_role roles, the realtime publication)
 // stubbed, then checks pricing and who may do what.
 const MIGRATION = readFileSync(new URL('./migrations/20261104000000_shared_orders.sql', import.meta.url), 'utf8')
 
@@ -21,6 +21,7 @@ async function supabaseLikeDb({ defaultGrants, before = '' }: { defaultGrants: b
   await pg.exec(`
     create role anon nologin;
     create role authenticated nologin;
+    create role service_role nologin bypassrls;
     create schema auth;
     create table auth.users (id uuid primary key, email text);
     create function auth.uid() returns uuid language sql stable as
@@ -47,10 +48,10 @@ before(async () => {
   await db.exec(MIGRATION)
 })
 
-/** Runs SQL as a Supabase API caller: a guest (anon key) or a signed-in user. */
-async function as<T = Record<string, unknown>>(who: 'anon' | string, sql: string, params: unknown[] = [], on: PGlite = db) {
-  const role = who === 'anon' ? 'anon' : 'authenticated'
-  const sub = who === 'anon' ? '' : who
+/** Runs SQL as a Supabase API caller: a guest (anon key), a signed-in user, or the payment server (service role key). */
+async function as<T = Record<string, unknown>>(who: 'anon' | 'service' | string, sql: string, params: unknown[] = [], on: PGlite = db) {
+  const role = who === 'anon' ? 'anon' : who === 'service' ? 'service_role' : 'authenticated'
+  const sub = who === 'anon' || who === 'service' ? '' : who
   return on.transaction(async tx => {
     await tx.query(`select set_config('request.jwt.claim.sub', $1, true)`, [sub])
     await tx.exec(`set local role ${role}`)
@@ -422,4 +423,114 @@ test('upgrading from numbers that never reset keeps old numbers and carries on a
     `select number from public.place_order($1, 2, 'Table 2', 'Ana', 'dineIn', '[{"id": 1, "quantity": 1}]'::jsonb)`, [uuid(602)], old)
   assert.equal(Number(next.number), 3)
   await old.close()
+})
+
+// ─── Online payment ──────────────────────────────────────────────────────────
+type CheckoutRow = { order_id: string; total: string; items: { id: number; price: number; quantity: number }[]; session_id: string | null; status: string; table_name: string }
+const startCheckout = (who: string, id: string, items: unknown, opts: { table?: number; type?: string; name?: string; notes?: string } = {}, on: PGlite = db) =>
+  as<CheckoutRow>(who, `select * from public.start_checkout($1, $2, $3, $4, $5::jsonb, $6)`,
+    [id, opts.table ?? 5, opts.name ?? 'Bea', opts.type ?? 'dineIn', JSON.stringify(items), opts.notes ?? null], on).then(rows => rows[0])
+const attach = (id: string, session: string, on: PGlite = db) =>
+  as<CheckoutRow>('service', `select * from public.attach_checkout($1, $2, $3)`, [id, session, `https://checkout.example/${session}`], on).then(rows => rows[0])
+const confirm = (id: string, session: string, centavos: number, on: PGlite = db) =>
+  as<{ id: string; number: number; status: string; total: string; paid_online_at: Date | null; payment_method: string; payment_ref: string; board_id: string }>(
+    'service', `select * from public.confirm_checkout($1, $2, $3, $4, $5)`, [id, session, `pay_${session}`, centavos, 'gcash'], on).then(rows => rows[0])
+
+test('only the payment server starts and confirms online payments', async () => {
+  const items = JSON.stringify([{ id: 7, quantity: 1 }])
+  for (const who of ['anon', STAFF]) {
+    await rejects(as(who, `select public.start_checkout($1, 5, 'Bea', 'dineIn', $2::jsonb)`, [uuid(69), items]), 'permission denied')
+    await rejects(as(who, `select public.attach_checkout($1, 'cs_x', 'https://x')`, [uuid(69)]), 'permission denied')
+    await rejects(as(who, `select public.confirm_checkout($1, 'cs_x', 'pay_x', 9500, 'gcash')`, [uuid(69)]), 'permission denied')
+    await rejects(as(who, 'select * from public.checkouts'), 'permission denied')
+    // The pieces of placing an order can't be called on their own either
+    await rejects(as(who, `select public.price_items($1::jsonb)`, [items]), 'permission denied')
+    await rejects(as(who, `select public.check_new_order($1, 5, 'dineIn')`, [uuid(69)]), 'permission denied')
+    await rejects(as(who, `select public.insert_order($1, 5, 'Table 5', 'Bea', 'dineIn', '[]', 0, null, now(), 'gcash', 'pay_x')`, [uuid(69)]), 'permission denied')
+  }
+})
+
+test('a pay-now order is priced like any order and only reaches the kitchen once paid', async () => {
+  // Large (2) macchiato: 165 + 30, twice; a croissant 95. The phone's prices are ignored.
+  const cart = [{ id: 2, quantity: 2, choices: [2, 3, 5], price: 1 }, { id: 7, quantity: 1, price: 0 }]
+  const checkout = await startCheckout('service', uuid(70), cart)
+  assert.equal(Number(checkout.total), (165 + 30) * 2 + 95)
+  assert.deepEqual(checkout.items.map(i => [i.id, Number(i.price), i.quantity]), [[2, 195, 2], [7, 95, 1]])
+  assert.equal(checkout.table_name, 'Table 5')
+  // Not an order yet: not in the kitchen, not on the board, not even for its own phone
+  assert.equal((await as(STAFF, 'select * from public.orders where id = $1', [uuid(70)])).length, 0)
+  assert.equal((await as('anon', 'select * from public.get_orders($1::uuid[])', [[uuid(70)]])).length, 0)
+
+  // The same cart again is a retry: same checkout. A changed cart needs a new id.
+  assert.equal((await startCheckout('service', uuid(70), cart)).order_id, uuid(70))
+  await rejects(startCheckout('service', uuid(70), [{ id: 7, quantity: 3 }]), 'checkout_changed')
+  // Nor can the same id be placed at the counter while it is being paid
+  await rejects(place('anon', uuid(70), [{ id: 7, quantity: 1 }]), 'checkout_open')
+
+  // The first session attached wins
+  await rejects(confirm(uuid(70), 'cs_70', 48500), 'checkout_mismatch')
+  assert.equal((await attach(uuid(70), 'cs_70')).session_id, 'cs_70')
+  assert.equal((await attach(uuid(70), 'cs_other')).session_id, 'cs_70')
+
+  // A payment for another session, or for another amount, makes no order
+  await rejects(confirm(uuid(70), 'cs_other', 48500), 'checkout_mismatch')
+  await rejects(confirm(uuid(70), 'cs_70', 48499), 'amount_mismatch')
+  assert.equal((await as(STAFF, 'select * from public.orders where id = $1', [uuid(70)])).length, 0)
+
+  // Someone pays at the counter in the meantime: the queue number is taken when the money is in
+  const counter = await place('anon', uuid(71), [{ id: 7, quantity: 1 }])
+  const order = await confirm(uuid(70), 'cs_70', 48500)
+  assert.equal(order.number, counter.number + 1)
+  assert.equal(order.status, 'pending')
+  assert.equal(Number(order.total), 485)
+  assert.equal(order.payment_method, 'gcash')
+  assert.equal(order.payment_ref, 'pay_cs_70')
+  assert.ok(order.paid_online_at)
+  // Now the kitchen, the board and the guest's phone all have it
+  assert.equal((await as(STAFF, 'select * from public.orders where id = $1', [uuid(70)])).length, 1)
+  assert.equal((await as('anon', 'select * from public.get_orders($1::uuid[])', [[uuid(70)]])).length, 1)
+  assert.equal((await as('anon', 'select * from public.order_board where board_id = $1', [order.board_id])).length, 1)
+
+  // The provider retries, the phone asks too: still one order, same number
+  const twice = await confirm(uuid(70), 'cs_70', 48500)
+  assert.equal(twice.number, order.number)
+  assert.equal((await db.query('select * from public.orders where id = $1', [uuid(70)])).rows.length, 1)
+  await rejects(startCheckout('service', uuid(70), [{ id: 7, quantity: 1 }]), 'already_placed')
+})
+
+test('a paid order: guests cannot cancel it, and serving it settles it', async () => {
+  await rejects(as('anon', 'select public.cancel_order($1)', [uuid(70)]), 'paid_online')
+  await as(STAFF, `select public.set_order_status($1, 'ready')`, [uuid(70)])
+  const [served] = await as<{ status: string; served_at: Date | null; paid_at: Date | null }>(STAFF,
+    `select * from public.set_order_status($1, 'served')`, [uuid(70)])
+  assert.equal(served.status, 'paid')
+  assert.ok(served.served_at && served.paid_at)
+  // An order paid at the counter still waits for its bill after serving
+  const [counter] = await as<{ status: string }>(STAFF, `select * from public.set_order_status($1, 'served')`, [uuid(71)])
+  assert.equal(counter.status, 'served')
+})
+
+test('bad pay-now carts are refused like any order', async () => {
+  await rejects(startCheckout('service', uuid(72), []), 'empty_order')
+  await rejects(startCheckout('service', uuid(72), [{ id: 999, quantity: 1 }]), 'unknown_item')
+  await rejects(startCheckout('service', uuid(72), [{ id: 2, quantity: 1 }]), 'missing_option')
+  await rejects(startCheckout('service', uuid(72), [{ id: 7, quantity: 1 }], { table: 99 }), 'invalid_table')
+  await rejects(startCheckout('service', uuid(72), [{ id: 7, quantity: 1 }], { type: 'delivery' }), 'invalid_order_type')
+  // Free things only: nothing to pay online
+  await rejects(startCheckout('service', uuid(72), [{ id: 103, quantity: 1 }]), 'nothing_to_pay')
+  // An order already placed at the counter can't be paid for again
+  await rejects(startCheckout('service', uuid(71), [{ id: 7, quantity: 1 }]), 'already_placed')
+  assert.equal((await db.query('select * from public.checkouts where order_id = $1', [uuid(72)])).rows.length, 0)
+})
+
+test('online payment works on a project that does not expose new tables by default', async () => {
+  const bare = await supabaseLikeDb({ defaultGrants: false })
+  const checkout = await startCheckout('service', uuid(700), [{ id: 7, quantity: 2 }], {}, bare)
+  assert.equal(Number(checkout.total), 190)
+  await attach(uuid(700), 'cs_700', bare)
+  assert.equal((await as('service', 'select * from public.checkouts', [], bare)).length, 1)
+  const order = await confirm(uuid(700), 'cs_700', 19000, bare)
+  assert.equal(order.number, 1)
+  await rejects(as('anon', 'select * from public.checkouts', [], bare), 'permission denied')
+  await bare.close()
 })

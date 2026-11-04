@@ -14,6 +14,7 @@ import KpiCard from '../../components/KpiCard'
 import DashboardAnalytics from '../../components/DashboardAnalytics'
 import TableCard, { settleSummary } from '../../components/TableCard'
 import ConfirmDialog from '../../components/ConfirmDialog'
+import PaidOnlineBadge from '../../components/PaidOnlineBadge'
 import { Button, Card, EmptyState, StatusPill, cn } from '../../components/ui'
 import { useTables } from '../../context/TablesContext'
 import { RESTAURANT } from '../../config/restaurant'
@@ -71,6 +72,7 @@ const IncomingCard = memo(function IncomingCard({ order, now, onConfirm }: { ord
           Take away · <span className="font-mono">{order.takeawayCode}</span>
         </p>
       )}
+      <PaidOnlineBadge order={order} className="mx-4 mb-2" />
       <ul className="mx-4 space-y-1 border-t border-line pt-3 text-[15px] text-ink">
         {order.items.map((item, i) => (
           <li key={`${item.id}-${i}`}>

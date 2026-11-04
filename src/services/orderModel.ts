@@ -48,6 +48,12 @@ export interface Order {
   servedAt?: string
   paidAt?: string
   cancelledAt?: string
+  /** Paid online before it reached the kitchen (only such orders have it). */
+  paidOnlineAt?: string
+  /** How it was paid online: gcash, paymaya, qrph, card… */
+  paymentMethod?: string
+  /** The payment provider's id for that payment, for refunds and disputes. */
+  paymentRef?: string
 }
 
 /** What anyone may see about an order: enough for table check-in and the pickup screen. */
@@ -100,6 +106,15 @@ const ON_BOARD: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'ready', '
 export function withStatus<T extends Order | BoardRow>(o: T, status: OrderStatus, at = new Date().toISOString()): T {
   const key = STAGE_TIMESTAMP[status]
   return { ...o, status, ...(key ? { [key]: at } : {}) } as T
+}
+
+/**
+ * Staff move an order to `status`. An order paid online has nothing left to collect, so serving
+ * it settles it (the order server; Supabase does the same in set_order_status).
+ */
+export function applyStatus(o: Order, status: OrderStatus, at = new Date().toISOString()): Order {
+  const next = withStatus(o, status, at)
+  return status === 'served' && o.paidOnlineAt ? withStatus(next, 'paid', at) : next
 }
 
 export function toBoardRow(o: Order & { boardId: string }): BoardRow {
@@ -188,14 +203,47 @@ export function openOrdersByTable(orders: Order[]): Map<number, Order[]> {
 }
 
 /**
- * Freeing a table: what the guests got (ready or served) is paid, what the kitchen
- * hasn't finished is cancelled, so it never counts as a sale.
+ * Freeing a table: what the guests got (ready or served) is paid, what the kitchen hasn't
+ * finished is cancelled, so it never counts as a sale. Orders already paid online are never
+ * cancelled here (that would need a refund): unfinished ones stay with the kitchen (`keep`).
+ * `payTotal` is the money still to collect, so it leaves out what was paid online.
  */
-export function settleTable(open: Order[]): { pay: Order[]; cancel: Order[]; payTotal: number } {
+export function settleTable(open: Order[]): { pay: Order[]; cancel: Order[]; keep: Order[]; payTotal: number } {
+  const unfinished = (o: Order) => o.status === 'pending' || o.status === 'confirmed' || o.status === 'preparing'
   const pay = open.filter(o => o.status === 'ready' || o.status === 'served')
-  const cancel = open.filter(o => o.status === 'pending' || o.status === 'confirmed' || o.status === 'preparing')
-  return { pay, cancel, payTotal: pay.reduce((s, o) => s + o.total, 0) }
+  const cancel = open.filter(o => unfinished(o) && !o.paidOnlineAt)
+  const keep = open.filter(o => unfinished(o) && !!o.paidOnlineAt)
+  return { pay, cancel, keep, payTotal: pay.filter(o => !o.paidOnlineAt).reduce((s, o) => s + o.total, 0) }
 }
+
+// ─── Payment ─────────────────────────────────────────────────────────────────
+/**
+ * When the restaurant got the money for an order: paid online, when the payment came in (unless
+ * staff cancelled it, which means a refund); paid at the counter, when staff marked it paid.
+ */
+export function moneyInAt(o: Pick<Order, 'status' | 'paidAt' | 'paidOnlineAt' | 'createdAt'>): string | undefined {
+  if (o.paidOnlineAt) return o.status === 'cancelled' ? undefined : o.paidOnlineAt
+  return o.status === 'paid' ? o.paidAt ?? o.createdAt : undefined
+}
+
+/** A cancelled order the guest paid for online: the money has to go back. */
+export const refundDue = (o: Pick<Order, 'status' | 'paidOnlineAt'>) => !!o.paidOnlineAt && o.status === 'cancelled'
+
+const PAYMENT_METHODS: Record<string, string> = {
+  gcash: 'GCash', paymaya: 'Maya', qrph: 'QR Ph', card: 'Card', grab_pay: 'GrabPay', shopee_pay: 'ShopeePay',
+  billease: 'BillEase', dob: 'Online banking', dob_ubp: 'UnionBank', brankas_bdo: 'BDO', brankas_landbank: 'Landbank',
+  brankas_metrobank: 'Metrobank',
+}
+
+/** "GCash", "Maya"…, for a payment method as the payment provider names it. */
+export function paymentLabel(method: string | undefined): string {
+  return (method && PAYMENT_METHODS[method]) || 'Online'
+}
+
+/** What the payment API answers when a guest starts paying: where to pay, or that it is already paid. */
+export type CheckoutStarted = { checkoutUrl: string } | { paid: true }
+/** Whether a pay-now order has been paid: 'paid' (the order exists), 'waiting', or 'unknown' (no such checkout). */
+export type CheckoutState = 'paid' | 'waiting' | 'unknown'
 
 // ─── Pricing (the Node order server; Supabase does the same in SQL) ──────────
 export interface MenuPrice {
@@ -416,6 +464,12 @@ const ERROR_TEXT: Record<string, string> = {
   unknown_option_group: 'That option group was removed. Reload and try again.',
   not_cancellable:  'The kitchen has started on this order, so it can no longer be cancelled.',
   staff_only:       'Sign in as staff to change orders.',
+  paid_online:      'This order is paid. Ask the staff if you need to cancel it.',
+  nothing_to_pay:   'There is nothing to pay for in this order. Choose Pay at the counter instead.',
+  already_placed:   'This order is already in. Check your orders.',
+  checkout_open:    'This order is being paid for online. Finish paying, or start again from your cart.',
+  payments_off:     'Paying online is not available right now. Choose Pay at the counter instead.',
+  payment_failed:   'We could not open the payment page. Try again, or choose Pay at the counter.',
 }
 
 /** Words for a guest or staff member, from an error code (or any thrown value). */

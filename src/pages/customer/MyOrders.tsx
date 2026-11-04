@@ -16,7 +16,8 @@ function OrderRow({ order, now, onOpen, onCancel }: { order: Order; now: number;
   const active = ACTIVE_STATUSES.includes(order.status)
   const step = STATUS_STEP[order.status]
   const fill = STATUS_GROUP_CLASSES[STATUS_META[order.status].group].fill
-  const canCancel = order.status === 'pending' || order.status === 'confirmed'
+  // Paid online: only staff can call it off (and refund it)
+  const canCancel = (order.status === 'pending' || order.status === 'confirmed') && !order.paidOnlineAt
 
   return (
     <motion.li
@@ -56,7 +57,7 @@ function OrderRow({ order, now, onOpen, onCancel }: { order: Order; now: number;
 
       {canCancel && onCancel && (
         <div className="border-t border-line px-4 py-2">
-          <Button variant="ghost" onClick={onCancel} aria-label={`Cancel order ${order.id}`} className="-ml-3 text-status-cancelled-text hover:bg-status-cancelled-bg">
+          <Button variant="ghost" onClick={onCancel} aria-label={`Cancel order ${orderRef(order)}`} className="-ml-3 text-status-cancelled-text hover:bg-status-cancelled-bg">
             Cancel order
           </Button>
         </div>

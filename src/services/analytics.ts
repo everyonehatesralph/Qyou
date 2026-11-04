@@ -1,13 +1,13 @@
 // The numbers on the dashboard and the Analytics page, in one place so both screens agree.
-// No imports beyond types, so node --test runs it as-is.
+// Imports only orderModel.ts (itself import-free), so node --test runs it as-is.
 //
 // Definitions:
 //   order received  any order that wasn't cancelled
 //   sale            an order the guest got: served (bill still open) or paid
 //   revenue         the total of sales, add-ons included (the server prices both)
-//   paid            money taken: paid orders, dated by when they were paid
+//   paid            money taken: dated by when it came in (moneyInAt: paid online, or marked paid at the counter)
 // Days are calendar days on this device's clock, counted by when the order was placed.
-import type { Order, OrderItem, OrderStatus } from './orderModel'
+import { moneyInAt, paymentLabel, type Order, type OrderItem, type OrderStatus } from './orderModel.ts'
 
 export const isSale = (o: Pick<Order, 'status'>) => o.status === 'served' || o.status === 'paid'
 export const isReceived = (o: Pick<Order, 'status'>) => o.status !== 'cancelled'
@@ -166,9 +166,12 @@ export function today(orders: Order[], menu: Map<number, { category: string; add
   }
 }
 
-/** Money taken today: paid orders by when they were paid. */
+/**
+ * Money taken today: orders paid at the counter by when staff marked them paid, orders paid
+ * online by when the payment came in (and not once cancelled, since that money goes back).
+ */
 export function paidToday(orders: Order[], now = new Date()): number {
-  return sum(orders.filter(o => o.status === 'paid' && sameDay(o.paidAt ?? o.createdAt, now)).map(o => o.total))
+  return sum(orders.filter(o => { const at = moneyInAt(o); return !!at && sameDay(at, now) }).map(o => o.total))
 }
 
 // ─── CSV ─────────────────────────────────────────────────────────────────────
@@ -182,11 +185,12 @@ export function csvField(value: string | number): string {
 /** `day`: the restaurant's day of an order (orders from before queue numbers have no orderDay). */
 export function salesCsv(sales: Order[], ref: (o: Order) => string, day: (o: Order) => string): string {
   // A queue number repeats daily, so it comes with its day; the order id is the unique key
-  const header = ['Day', 'Queue no.', 'Order ID', 'Customer', 'Table', 'Type', 'Items', 'Total', 'Status', 'Placed', 'Served', 'Paid']
+  const header = ['Day', 'Queue no.', 'Order ID', 'Customer', 'Table', 'Type', 'Items', 'Total', 'Status', 'Placed', 'Served', 'Paid', 'Paid with', 'Payment ref']
   const rows = sales.map(o => [
     o.orderDay ?? day(o), ref(o), o.id, o.customerName, o.tableName, o.orderType === 'takeaway' ? 'Take away' : 'Dine in',
     o.items.map(i => `${i.quantity}x ${i.name}`).join('; '), o.total, o.status,
-    o.createdAt, o.servedAt ?? '', o.paidAt ?? '',
+    o.createdAt, o.servedAt ?? '', moneyInAt(o) ?? '',
+    o.paidOnlineAt ? paymentLabel(o.paymentMethod) : moneyInAt(o) ? 'Counter' : '', o.paymentRef ?? '',
   ].map(csvField).join(','))
   return [header.map(csvField).join(','), ...rows].join('\r\n')
 }

@@ -60,6 +60,40 @@ VITE_SUPABASE_ANON_KEY=<anon or publishable key>
 
 On Vercel, add the same two variables for **Production** and **Preview**, then redeploy.
 
+## 5. Paying online (PayMongo, optional)
+
+Guests can pay with GCash, Maya, QR Ph or a card before their order goes to the kitchen, or keep
+paying at the counter. It runs as a Vercel Function (`api/payments`), next to the app. Without
+these settings the checkout simply has no "Pay now" choice.
+
+1. Sign the café up at [paymongo.com](https://paymongo.com). Test keys work at once; live keys
+   come after PayMongo verifies the business.
+2. **Developers** → **API keys**: copy the **secret key** (`sk_test_…` while testing).
+3. Supabase **Project Settings** → **API Keys**: copy the **service_role** key (or a **secret**
+   key). It is what lets the payment function record a payment; it must never be a `VITE_`
+   variable, which would put it in the web app.
+4. On Vercel (**Settings** → **Environment Variables**, for Production and Preview):
+
+   ```
+   PAYMONGO_SECRET_KEY=sk_test_…
+   SUPABASE_SERVICE_ROLE_KEY=<service_role or secret key>
+   ```
+
+   (`SUPABASE_URL` is optional; `VITE_SUPABASE_URL` is used otherwise. `PAYMONGO_METHODS`
+   picks the methods shown, default `gcash,paymaya,qrph,card`; leave out any your PayMongo
+   account hasn't switched on.)
+5. Redeploy, then add the webhook so payments are recorded even if a guest closes the page
+   right after paying. PayMongo **Developers** → **Webhooks** → add
+   `https://<your site>/api/payments/webhook` with the event `checkout_session.payment.paid`,
+   and put its signing secret on Vercel as `PAYMONGO_WEBHOOK_SECRET=whsk_…`. Redeploy once more.
+
+Without the webhook it still works: the guest's phone asks when it comes back from the payment
+page, and the server checks with PayMongo itself. Preview deployments behind Vercel's login
+can't receive webhooks, so they rely on that alone.
+
+Going live: switch both PayMongo values to the live key and the live webhook's secret. A test
+key only accepts test webhooks and a live key only live ones.
+
 ## What the database enforces
 
 - Guests (anon key, no sign-in) can only call `place_order`, `get_orders` (their own orders,
@@ -80,6 +114,13 @@ On Vercel, add the same two variables for **Production** and **Preview**, then r
 - Each order gets the day's next queue number from `order_counters`, taken under a row lock so
   two orders at the same moment never share one; numbers restart at 1 at midnight Manila time
   (`restaurant_day()`). A number is unique only with its day.
+- Paying online: `start_checkout` prices a pay-now order exactly like `place_order` and keeps it
+  in `checkouts`; the order only exists once `confirm_checkout` records the payment, after the
+  server has checked it with PayMongo (same session, exact amount). Then it gets the day's next
+  queue number and goes to the kitchen. Only the service role (the payment function) can call
+  these or read `checkouts`. Confirming twice returns the same order.
+- Guests can't cancel an order paid online (`cancel_order` refuses it); staff marking it served
+  settles it (status paid), since there is nothing left to collect.
 - Only users in `staff_members` can read `orders` or call `set_order_status`.
 - Nobody can insert, update or delete table rows directly.
 - `orders`, `order_board`, `menu_items`, `option_groups` and `restaurant_tables` are in the

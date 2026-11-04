@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { MENU_ITEMS, OPTION_GROUPS, SEED_MENU } from '../constants/menu.ts'
 import {
-  applyOptionGroupSave, applyTableCount, checkOptions, groupsFor, guestView, isOpenOrder, isOrderId, lineKey, optionsText, newOrderId, openOrdersByTable, orderErrorText, orderRef, priceOrder,
+  applyOptionGroupSave, applyStatus, applyTableCount, checkOptions, moneyInAt, paymentLabel, refundDue, groupsFor, guestView, isOpenOrder, isOrderId, lineKey, optionsText, newOrderId, openOrdersByTable, orderErrorText, orderRef, priceOrder,
   restaurantDay, settleTable, toBoardRow, withStatus, OrderError, type BoardRow, type Order,
 } from './orderModel.ts'
 
@@ -259,4 +259,42 @@ test('staff edit option groups; choice ids stay unique', () => {
   assert.equal(code({ name: 'X', choices: [{ name: 'A', price: 1.005 }] }), 'invalid_choices')
   assert.equal(code({ name: 'X', choices: [{ id: 2, name: 'Large', price: 0 }] }), 'invalid_choices') // another group's choice
   assert.equal(code({ id: 99, name: 'X', choices: [{ name: 'A', price: 0 }] }), 'unknown_option_group')
+})
+
+test('serving an order paid online settles it; one paid at the counter waits for its bill', () => {
+  const at = '2026-11-04T02:00:00.000Z'
+  const prepaid = applyStatus(order({ status: 'ready', paidOnlineAt: '2026-11-04T01:00:00.000Z' }), 'served', at)
+  assert.deepEqual([prepaid.status, prepaid.servedAt, prepaid.paidAt], ['paid', at, at])
+  const counter = applyStatus(order({ status: 'ready' }), 'served', at)
+  assert.deepEqual([counter.status, counter.servedAt, counter.paidAt], ['served', at, undefined])
+  // Other moves are as usual
+  assert.equal(applyStatus(order({ paidOnlineAt: at }), 'confirmed').status, 'confirmed')
+})
+
+test('freeing a table never cancels an order paid online, and only asks for unpaid money', () => {
+  const paidAt = '2026-11-04T01:00:00.000Z'
+  const open = [
+    order({ status: 'served', total: 100 }),
+    order({ status: 'served', total: 300, paidOnlineAt: paidAt }),
+    order({ status: 'preparing', total: 50, paidOnlineAt: paidAt }),
+    order({ status: 'pending', total: 70 }),
+  ]
+  const { pay, cancel, keep, payTotal } = settleTable(open)
+  assert.deepEqual(pay.map(o => o.total), [100, 300])
+  assert.deepEqual(cancel.map(o => o.total), [70])
+  assert.deepEqual(keep.map(o => o.total), [50])
+  assert.equal(payTotal, 100)
+})
+
+test('money comes in when paid online, or when marked paid at the counter', () => {
+  const online = order({ status: 'pending', paidOnlineAt: '2026-11-04T01:05:00.000Z' })
+  assert.equal(moneyInAt(online), '2026-11-04T01:05:00.000Z')
+  assert.equal(moneyInAt({ ...online, status: 'paid', paidAt: '2026-11-04T03:00:00.000Z' }), '2026-11-04T01:05:00.000Z')
+  // Cancelled after paying online: that money goes back
+  assert.equal(moneyInAt({ ...online, status: 'cancelled' }), undefined)
+  assert.equal(refundDue({ ...online, status: 'cancelled' }), true)
+  assert.equal(refundDue({ ...order(), status: 'cancelled' }), false)
+  assert.equal(moneyInAt(order({ status: 'served' })), undefined)
+  assert.equal(moneyInAt(order({ status: 'paid', paidAt: '2026-11-04T04:00:00.000Z' })), '2026-11-04T04:00:00.000Z')
+  assert.deepEqual(['gcash', 'paymaya', 'qrph', 'card', 'something_new', undefined].map(paymentLabel), ['GCash', 'Maya', 'QR Ph', 'Card', 'Online', 'Online'])
 })

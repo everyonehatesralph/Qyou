@@ -26,7 +26,12 @@ client (`src/services/orderSync.ts`):
 
 Either way the server prices every order from its own menu (the browser only sends item ids
 and quantities), order ids are random UUIDs made on the phone (a retry can't create a second
-order), and only signed-in staff can change an order's status or the menu. Guests' phones
+order), and only signed-in staff can change an order's status or the menu.
+
+Paying online (`server/payments/`, PayMongo) is the same on both: a Vercel Function
+(`api/payments`) next to the Supabase site, or the order server itself. In `npm run dev` and the
+e2e suite a stand-in for PayMongo (`/fake-paymongo`) takes the payment, so no keys are needed and
+no money moves; set `PAYMONGO_SECRET_KEY` in the shell to use PayMongo's test mode instead. Guests' phones
 receive their own orders plus a public board (table, pickup code, status), never other guests'
 items or dine-in names.
 
@@ -41,6 +46,12 @@ items or dine-in names.
   preselected; the server prices them and refuses a missing or wrong choice. The same drink
   with different options is its own line in the cart and on the kitchen ticket.
 - **Add-ons** are menu items of their own (category "Add-ons"), charged and listed on the order.
+- **Paying**: at checkout guests choose **Pay now** (GCash, Maya, QR Ph or card on PayMongo's
+  page) or **At the counter**. A pay-now order reaches the kitchen only once the payment is
+  confirmed (and only then takes a queue number); an abandoned payment orders nothing and keeps
+  the cart. Staff see "Paid · GCash" on the order, the guest
+  can't cancel it, and serving it settles it. Free table never cancels a paid order. Paying again
+  for the same cart reuses the same checkout, so nobody pays twice.
 - **Tables**: staff set how many tables there are on the Tables screen (**Edit tables**); the
   starting count comes from `src/config/restaurant.ts`. A table with open orders can't be
   removed. New tables appear on the QR codes screen at once. An order needs a check-in at an
@@ -59,7 +70,8 @@ items or dine-in names.
   say when the browser still blocks sound.
 - **Analytics** (dashboard and Analytics page, from `src/services/analytics.ts`): a sale is a
   served or paid order; revenue is the total of sales, add-ons included; "Paid today" counts
-  paid orders by when they were paid. Staff screens hold 90 days of orders.
+  money by when it came in: paid online when the payment cleared, at the counter when staff
+  marked it paid. The CSV says how each sale was paid. Staff screens hold 90 days of orders.
 
 ## Screens
 
@@ -114,6 +126,8 @@ This is a working prototype, not yet production-ready:
 - A phone only rings while Qyou is open in its browser; a locked phone or a closed tab
   can't ring (that needs push notifications).
 - Days in analytics follow the clock of the device showing them.
+- Refunds aren't in Qyou yet: if staff cancel an order paid online, refund it from the PayMongo
+  dashboard.
 
 ## License
 

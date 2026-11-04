@@ -6,15 +6,22 @@ import { Button, StatusPill, cn } from './ui'
 import { orderRef, settleTable } from '../services/orderModel'
 
 /** What "Free table" will do, in words, for the confirm dialog. */
-export function settleSummary({ pay, cancel, payTotal }: ReturnType<typeof settleTable>): string {
+export function settleSummary({ pay, cancel, keep, payTotal }: ReturnType<typeof settleTable>): string {
   const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
+  const prepaid = pay.filter(o => o.paidOnlineAt).length
+  const collect = pay.length - prepaid
   const parts = [
-    pay.length > 0 && `marks ${n(pay.length, 'served order', 'served orders')} paid (${peso(payTotal)})`,
+    collect > 0 && `marks ${n(collect, 'served order', 'served orders')} paid (${peso(payTotal)})`,
+    prepaid > 0 && `closes ${n(prepaid, 'order', 'orders')} already paid online`,
     cancel.length > 0 && `cancels ${n(cancel.length, 'order', 'orders')} the kitchen hasn't finished`,
   ].filter(Boolean)
-  return parts.length > 0
-    ? `This ${parts.join(' and ')}, so new guests can check in.`
-    : 'This table has no open orders.'
+  const kept = keep.length > 0
+    ? ` ${n(keep.length, 'order', 'orders')} paid online ${keep.length === 1 ? 'stays' : 'stay'} with the kitchen until served.`
+    : ''
+  if (parts.length === 0) return kept ? kept.trim() : 'This table has no open orders.'
+  const last = parts.pop()
+  const said = parts.length > 0 ? `${parts.join(', ')} and ${last}` : last
+  return `This ${said}, so new guests can check in.${kept}`
 }
 
 /** What a table needs next, from its open orders: new orders first, then ready, kitchen, served. */
@@ -24,7 +31,7 @@ export function tableState(orders: Order[]): { group: StatusGroup | null; label:
   if (has('pending')) return { group: 'waiting', label: 'New order' }
   if (has('ready')) return { group: 'ready', label: 'Ready to serve' }
   if (has('confirmed', 'preparing')) return { group: 'progress', label: 'In the kitchen' }
-  if (has('served')) return { group: 'done', label: 'Served, not paid' }
+  if (orders.some(o => o.status === 'served' && !o.paidOnlineAt)) return { group: 'done', label: 'Served, not paid' }
   return { group: 'cancelled', label: 'Cancelled order' }
 }
 

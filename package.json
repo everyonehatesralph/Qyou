@@ -4,10 +4,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && tsc -p api --noEmit && vite build",
     "preview": "vite preview",
     "server": "node server/index.ts",
-    "test": "node --test \"src/**/*.test.ts\" \"supabase/*.test.ts\"",
+    "test": "node --test \"src/**/*.test.ts\" \"supabase/*.test.ts\" \"server/**/*.test.ts\"",
     "check:contrast": "node scripts/check-contrast.mjs",
     "check:colors": "node scripts/check-colors.mjs",
     "icons": "node scripts/build-icons.mjs",

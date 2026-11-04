@@ -2,7 +2,7 @@ import { Printer } from 'lucide-react'
 import type { Order } from '../context/OrderContext'
 import { RESTAURANT } from '../config/restaurant'
 import { BottomSheet, Button, cn } from './ui'
-import { optionsText, orderRef } from '../services/orderModel'
+import { optionsText, orderRef, paymentLabel } from '../services/orderModel'
 
 interface InvoiceModalProps {
   order: Order
@@ -88,6 +88,7 @@ export default function InvoiceModal({ order, open, onClose }: InvoiceModalProps
           <div class="row"><span>Subtotal (excl. VAT)</span><span>${money(subtotal, 2)}</span></div>
           <div class="row"><span>VAT (12%)</span><span>${money(vat, 2)}</span></div>
           <div class="row grand"><span>Total</span><span>${money(order.total)}</span></div>
+          ${order.paidOnlineAt ? `<div class="row"><span>Paid with ${esc(paymentLabel(order.paymentMethod))}</span><span>${esc(order.paymentRef ?? '')}</span></div>` : ''}
           <p class="foot">Thank you for ordering at ${esc(RESTAURANT.name)}. Ordering by Qyou.</p>
         </body>
       </html>`)
@@ -153,6 +154,12 @@ export default function InvoiceModal({ order, open, onClose }: InvoiceModalProps
           <dt>Total</dt>
           <dd className="tabular-nums">{money(order.total)}</dd>
         </div>
+        {order.paidOnlineAt && (
+          <div className="flex justify-between gap-3 text-ink-muted">
+            <dt>Paid with {paymentLabel(order.paymentMethod)}</dt>
+            <dd className="truncate font-mono text-xs leading-5">{order.paymentRef}</dd>
+          </div>
+        )}
       </dl>
     </BottomSheet>
   )

@@ -32,6 +32,9 @@ interface OrderDbRow extends BoardDbRow {
   items: OrderItem[]
   total: number | string
   notes: string | null
+  paid_online_at: string | null
+  payment_method: string | null
+  payment_ref: string | null
 }
 interface MenuDbRow {
   id: number
@@ -109,6 +112,9 @@ function orderFromRow(r: OrderDbRow): Order {
     createdAt: r.created_at,
     ...(r.notes ? { notes: r.notes } : {}),
     ...stages(r),
+    ...(r.paid_online_at ? { paidOnlineAt: r.paid_online_at } : {}),
+    ...(r.payment_method ? { paymentMethod: r.payment_method } : {}),
+    ...(r.payment_ref ? { paymentRef: r.payment_ref } : {}),
   }
 }
 

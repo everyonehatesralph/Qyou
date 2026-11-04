@@ -7,6 +7,7 @@ import { useNow, minutesSince } from '../../hooks/useNow'
 import { useSidebar } from '../../context/SidebarContext'
 import { useMemo, useState, useCallback, memo } from 'react'
 import { LayoutGroup, motion } from 'framer-motion'
+import PaidOnlineBadge from '../../components/PaidOnlineBadge'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 import { Button, EmptyState, IconButton, cn } from '../../components/ui'
@@ -93,6 +94,7 @@ const KitchenCard = memo(function KitchenCard({ order, status, action, now, onAd
           Take away · <span className="font-mono">{order.takeawayCode}</span>
         </p>
       )}
+      <PaidOnlineBadge order={order} className="mx-4 mb-2 text-sm" />
 
       <ul className="mx-4 space-y-1.5 border-t border-line pt-3">
         {order.items.map((item, i) => (

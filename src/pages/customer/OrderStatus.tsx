@@ -1,15 +1,16 @@
-import { ArrowLeft, BellRing, Check, ClipboardList, Loader2, Receipt, ShoppingBag, UtensilsCrossed } from 'lucide-react'
+import { ArrowLeft, BadgeCheck, BellRing, Check, ClipboardList, Loader2, Receipt, ShoppingBag, UtensilsCrossed } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useOrders } from '../../context/OrderContext'
+import { forgetCheckout, isAwaitingPayment, useOrders } from '../../context/OrderContext'
+import { useCart } from '../../context/CartContext'
 import type { Order, OrderStatus as Status } from '../../context/OrderContext'
 import { clockTime } from '../../hooks/useNow'
 import { STATUS_STEP } from '../../theme/status'
 import { RESTAURANT } from '../../config/restaurant'
 import InvoiceModal from '../../components/InvoiceModal'
 import { Button, Card, EmptyState, IconButton, StatusPill, Ticket, announce, cn } from '../../components/ui'
-import { optionsText, orderRef } from '../../services/orderModel'
+import { optionsText, orderRef, paymentLabel } from '../../services/orderModel'
 
 const peso = (n: number) => `${RESTAURANT.currency}${n.toFixed(0)}`
 
@@ -95,10 +96,43 @@ function Timeline({ order }: { order: Order }) {
 export default function OrderStatus() {
   const navigate = useNavigate()
   const { orderId } = useParams()
-  const { orders, isConnected } = useOrders()
+  const { orders, isConnected, checkPayment } = useOrders()
+  const { clearCart } = useCart()
   const [showSummary, setShowSummary] = useState(false)
 
   const order = useMemo(() => orders.find(o => o.id === orderId), [orders, orderId])
+
+  // A pay-now order exists once it is paid. Until then, keep asking (the server checks with
+  // PayMongo), whether or not PayMongo's webhook got through.
+  const awaiting = !!orderId && isAwaitingPayment(orderId)
+  const [unknownCheckout, setUnknownCheckout] = useState(false)
+  const [waitedLong, setWaitedLong] = useState(false)
+  useEffect(() => {
+    if (!orderId || order || !awaiting) return
+    let live = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const since = Date.now()
+    const ask = async () => {
+      try {
+        const state = await checkPayment(orderId)
+        if (!live) return
+        if (state === 'unknown') { setUnknownCheckout(true); return }
+      } catch { /* offline for a moment: ask again */ }
+      if (!live) return
+      if (Date.now() - since > 45_000) setWaitedLong(true)
+      timer = setTimeout(ask, 3000)
+    }
+    ask()
+    return () => { live = false; clearTimeout(timer) }
+  }, [orderId, order, awaiting, checkPayment])
+
+  // The paid order is in: the cart it came from is done
+  useEffect(() => {
+    if (!order || !orderId || !isAwaitingPayment(orderId)) return
+    forgetCheckout(orderId)
+    clearCart()
+    announce('Payment received. Your order is in.')
+  }, [order, orderId, clearCart])
 
   // Status changes arrive live; read them out (not the status the page opened with)
   const lastStatus = useRef(order?.status)
@@ -110,6 +144,28 @@ export default function OrderStatus() {
     }
     lastStatus.current = order.status
   }, [order])
+
+  if (!order && awaiting && !unknownCheckout) {
+    return (
+      <main className="min-h-screen bg-bg px-4 pb-28 pt-8">
+        <div className="mx-auto flex max-w-sm flex-col items-center gap-3 py-16 text-center" role="status">
+          <Loader2 className="h-6 w-6 animate-spin text-ink-muted" aria-hidden />
+          <h1 className="font-display text-2xl text-ink">Confirming your payment…</h1>
+          <p className="text-sm leading-relaxed text-ink-muted">
+            Your order goes to the kitchen as soon as the payment is confirmed. This usually takes a few seconds.
+          </p>
+          {waitedLong && (
+            <>
+              <p className="text-sm leading-relaxed text-ink-muted">
+                Still waiting. If you paid, keep this page open or show it to the staff. If you didn't finish paying, go back to your cart.
+              </p>
+              <Button onClick={() => navigate('/cart')}>Back to your cart</Button>
+            </>
+          )}
+        </div>
+      </main>
+    )
+  }
 
   if (!order) {
     return (
@@ -244,6 +300,12 @@ export default function OrderStatus() {
             <span>Total</span>
             <span className="tabular-nums">{peso(order.total)}</span>
           </div>
+          {order.paidOnlineAt && (
+            <p className="flex items-center gap-2 border-t border-line px-4 py-3 text-sm font-medium text-status-ready-text sm:px-5">
+              <BadgeCheck className="h-4 w-4" aria-hidden />
+              Paid with {paymentLabel(order.paymentMethod)} · {clockTime(order.paidOnlineAt)}
+            </p>
+          )}
         </Card>
 
         {/* Side by side from 640px; stacked full width on phones so neither label is squeezed */}
