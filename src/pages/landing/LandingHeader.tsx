@@ -4,8 +4,8 @@ import { Wordmark, buttonClasses, cn } from '../../components/ui'
 
 const SECTIONS = [
   { label: 'How it works', href: '#how-it-works' },
-  { label: 'Features', href: '#features' },
-  { label: 'FAQ', href: '#faq' },
+  { label: 'For staff', href: '#features' },
+  { label: 'Questions', href: '#faq' },
 ]
 
 // Always shown above this; scroll steps smaller than JITTER are ignored
@@ -50,7 +50,7 @@ export default function LandingHeader() {
     // own duration, so the class change is the only trigger. Keyboard focus inside keeps it in view.
     <header
       className={cn(
-        'sticky top-0 z-40 bg-glass backdrop-blur-md transition-[transform,opacity] ease-[cubic-bezier(0.22,1,0.36,1)]',
+        'sticky top-0 z-40 border-b border-line bg-bg transition-[transform,opacity] ease-[cubic-bezier(0.22,1,0.36,1)]',
         'focus-within:translate-y-0 focus-within:opacity-100',
         hidden ? '-translate-y-full opacity-0 duration-200' : 'translate-y-0 opacity-100 duration-300',
       )}
@@ -64,7 +64,7 @@ export default function LandingHeader() {
             <a
               key={s.href}
               href={s.href}
-              className="inline-flex h-11 items-center rounded-full px-3 text-[15px] font-medium text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink"
+              className="inline-flex h-11 items-center px-3 text-[15px] text-ink-muted transition-colors hover:text-ink"
             >
               {s.label}
             </a>
@@ -72,10 +72,11 @@ export default function LandingHeader() {
         </nav>
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
           <Link to="/staff/login" className={buttonClasses({ variant: 'ghost' }, 'px-3 sm:px-4')}>
-            Sign in
+            <span className="sm:hidden">Sign in</span>
+            <span className="hidden sm:inline">Staff sign in</span>
           </Link>
           <a href="#contact" className={buttonClasses({ variant: 'primary' }, 'px-4 sm:px-5')}>
-            Book a demo
+            Talk to us
           </a>
         </div>
       </div>

@@ -9,7 +9,7 @@ import LandingFooter from './landing/LandingFooter'
 /** Qyou's product page for restaurant and café owners. */
 export default function Landing() {
   return (
-    <div id="top" className="min-h-screen bg-bg text-ink">
+    <div id="top" className="min-h-screen bg-bg font-brand text-ink">
       <LandingHeader />
       <main>
         <Hero />
