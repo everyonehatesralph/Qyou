@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
-import { BellRing, Check, Flame, Minus, Plus, Search } from 'lucide-react'
+import { BellRing, Check, Download, Flame, Minus, Plus, Search } from 'lucide-react'
 import { LetterTile, cn } from '../../components/ui'
 import ItemPhoto from '../../components/ItemPhoto'
 import { RESTAURANT } from '../../config/restaurant'
@@ -316,7 +316,83 @@ export function OrderScreen() {
   )
 }
 
-/** Step 3: order sent, waiting on the kitchen. */
+const RECEIPT_LINES = [{ id: 2, qty: 2 }, { id: 7, qty: 1 }].map(l => ({ ...l, item: item(l.id) }))
+
+// The receipt prints like a ticket from a thermal printer: paper feeds out in eight short,
+// eased bursts, then settles with a small swing
+const FEED_STEPS = 8
+const feed = (t: number) => {
+  const i = Math.min(FEED_STEPS - 1, Math.floor(t * FEED_STEPS))
+  const f = t * FEED_STEPS - i
+  return (i + f * f * (3 - 2 * f)) / FEED_STEPS
+}
+const FEED_DELAY = 0.35
+const FEED_DURATION = 1.6
+const PRINTED = FEED_DELAY + FEED_DURATION
+
+/** Step 3: the receipt prints onto the guest's phone as soon as they order; then Download receipt. */
+export function ReceiptScreen() {
+  const total = RECEIPT_LINES.reduce((s, l) => s + l.item.price * l.qty, 0)
+  return (
+    <div className="absolute inset-0 px-3.5">
+      <AppHeader />
+      <p className="mt-1 font-display text-[19px] leading-tight">Your receipt</p>
+      <p className="text-[11px] text-ink-muted">Ready the moment you order.</p>
+      <div className="relative mt-3">
+        {/* The slot the paper comes out of */}
+        <span className="absolute inset-x-0 top-0 z-10 h-1.5 rounded-full bg-ink" />
+        {/* Clip only the top, so paper appears from the slot and its shadow stays whole */}
+        <div className="mx-1.5 mt-[3px] [clip-path:inset(0_-1rem_-2rem_-1rem)]">
+          <motion.div initial={{ y: '-100%' }} animate={{ y: 0 }} transition={{ delay: FEED_DELAY, duration: FEED_DURATION, ease: feed }}>
+            <motion.div
+              className="paper-shadow origin-top"
+              animate={{ rotate: [0, 1.4, -0.8, 0.3, 0] }}
+              transition={{ delay: PRINTED, duration: 0.9, ease: 'easeOut' }}
+            >
+              <div className="receipt-edge bg-surface px-3 pb-5 pt-3">
+                <p className="text-center font-display text-[13px] leading-tight">{RESTAURANT.name}</p>
+                <p className="mt-0.5 text-center font-mono text-[8px] uppercase tracking-widest text-ink-muted">Order receipt</p>
+                <div className="perforation my-2" />
+                <div className="space-y-0.5 text-[9px]">
+                  <p className="flex justify-between"><span className="text-ink-muted">Order Nº</span><span>0427</span></p>
+                  <p className="flex justify-between"><span className="text-ink-muted">Table</span><span>Table 4</span></p>
+                  <p className="flex justify-between"><span className="text-ink-muted">Name</span><span>Ana</span></p>
+                </div>
+                <div className="perforation my-2" />
+                <ul className="space-y-1 text-[10px]">
+                  {RECEIPT_LINES.map(l => (
+                    <li key={l.id} className="flex justify-between gap-2">
+                      <span><span className="text-ink-muted">{l.qty}×</span> {l.item.name}</span>
+                      <span className="tabular-nums">{peso(l.item.price * l.qty)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="perforation my-2" />
+                <p className="flex justify-between font-display text-[12px]">
+                  <span>Total</span>
+                  <span className="tabular-nums">{peso(total)}</span>
+                </p>
+                <p className="mt-2 text-center text-[8px] text-ink-muted">Order receipt — not an official receipt</p>
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      </div>
+      {/* Once it has printed, Download receipt appears and is tapped */}
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0, scale: [1, 1, 0.94, 1] }}
+        transition={{ opacity: { delay: PRINTED, duration: 0.3 }, y: { delay: PRINTED, duration: 0.3 }, scale: { delay: PRINTED + 0.8, duration: 0.45, times: [0, 0.01, 0.4, 1] } }}
+        className="mt-3 flex h-9 items-center justify-center gap-1.5 rounded-full bg-accent text-[12px] font-semibold text-on-accent"
+      >
+        <Download className="h-3.5 w-3.5" strokeWidth={2.5} />
+        Download receipt
+      </motion.div>
+    </div>
+  )
+}
+
+/** Step 4: order sent, waiting on the kitchen. */
 export function SentScreen() {
   return (
     <div className="absolute inset-0 px-3.5">
@@ -346,7 +422,7 @@ export function SentScreen() {
   )
 }
 
-/** Step 4: ready, ringing. */
+/** Step 5: ready, ringing. */
 export function ReadyScreen() {
   return (
     <div className="absolute inset-0">

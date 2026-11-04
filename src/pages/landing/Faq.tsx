@@ -31,7 +31,11 @@ const FAQS = [
   },
   {
     q: 'How do guests pay?',
-    a: 'The way they do today, at the counter or the table. Staff see what is waiting to be paid on the dashboard and mark orders paid there, and guests can see and print an order summary on their phone. Online payment isn’t part of Qyou yet.',
+    a: 'The way they do today, at the counter or the table. Staff see what is waiting to be paid on the dashboard and mark orders paid there, and guests keep a receipt of their order on their phone. Online payment isn’t part of Qyou yet.',
+  },
+  {
+    q: 'Do guests get a receipt?',
+    a: 'Yes, on their phone, as soon as they order: each item and its price, the total, the table and the time. Download receipt saves it to the phone as an image, and on phones that allow it, Share sends it to another app. It is an order receipt, not an official BIR receipt.',
   },
   {
     q: 'What if the internet goes down?',
