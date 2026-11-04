@@ -151,7 +151,6 @@ export default function Dashboard() {
     <StaffPageShell>
       <StaffHeader
         title="Dashboard"
-        subtitle={`${greeting()} · ${RESTAURANT.name}`}
         actions={
           <span
             className={cn(
@@ -169,11 +168,18 @@ export default function Dashboard() {
       />
 
       <StaffMain className="space-y-8">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <KpiCard label="New orders" value={pendingOrders.length} group="waiting" />
-          <KpiCard label="In the kitchen" value={inKitchenCount} group="progress" />
-          <KpiCard label="Ready to serve" value={readyCount} group="ready" />
-          <KpiCard label="Paid today" value={peso(todayRevenue)} />
+        {/* The greeting opens the panel; the sticky bar above keeps just the page name */}
+        <div className="space-y-4">
+          <div>
+            <p className="text-balance font-display text-2xl leading-tight text-ink">{greeting()}</p>
+            <p className="mt-1 text-sm text-ink-muted">{RESTAURANT.name}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <KpiCard label="New orders" value={pendingOrders.length} group="waiting" />
+            <KpiCard label="In the kitchen" value={inKitchenCount} group="progress" />
+            <KpiCard label="Ready to serve" value={readyCount} group="ready" />
+            <KpiCard label="Paid today" value={peso(todayRevenue)} />
+          </div>
         </div>
 
         <section>
