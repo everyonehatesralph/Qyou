@@ -1,6 +1,8 @@
 import { useId, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Plus } from 'lucide-react'
+import SectionHeading from './SectionHeading'
+import { Reveal } from './motion'
 
 const FAQS = [
   {
@@ -60,16 +62,16 @@ function Item({ q, a }: { q: string; a: string }) {
           aria-expanded={open}
           aria-controls={id}
           onClick={() => setOpen(o => !o)}
-          className="flex min-h-[64px] w-full items-center justify-between gap-4 py-4 text-left text-[17px] font-medium text-ink"
+          className="flex min-h-[64px] w-full items-center justify-between gap-4 py-4 text-left text-[17px] font-semibold text-ink"
         >
           {q}
           <motion.span
             animate={{ rotate: open ? 45 : 0 }}
-            transition={{ duration: 0.2 }}
-            className="flex h-9 w-9 shrink-0 items-center justify-center text-ink-muted"
+            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line-strong"
             aria-hidden
           >
-            <Plus className="h-5 w-5" />
+            <Plus className="h-4 w-4" />
           </motion.span>
         </button>
       </h3>
@@ -93,12 +95,14 @@ function Item({ q, a }: { q: string; a: string }) {
 
 export default function Faq() {
   return (
-    <section id="faq" className="border-t border-line">
-      <div className="mx-auto max-w-3xl px-5 py-20 sm:px-8 lg:py-28">
-        <h2 className="text-[clamp(1.75rem,3vw,2.25rem)] font-bold leading-tight tracking-[-0.015em]">Questions owners ask</h2>
-        <div className="mt-8 border-t border-line">
+    <section id="faq">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-20 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16 lg:py-28">
+        <Reveal>
+          <SectionHeading eyebrow="FAQ" title="Questions owners ask us." />
+        </Reveal>
+        <Reveal delay={0.1} className="border-t border-line">
           {FAQS.map(item => <Item key={item.q} {...item} />)}
-        </div>
+        </Reveal>
       </div>
     </section>
   )
