@@ -2,7 +2,7 @@ import {
   createContext, useContext, useState, useCallback, useMemo, useEffect, useRef,
   type ReactNode,
 } from 'react'
-import { SEED_MENU, type MenuItem } from '../constants/menu'
+import { BUILT_IN_PHOTOS, SEED_MENU, type MenuItem } from '../constants/menu'
 import { orderSync, type LiveMenuItem, type MenuItemInput } from '../services/orderSync'
 import { orderErrorText } from '../services/orderModel'
 
@@ -23,7 +23,8 @@ interface MenuContextType {
   menuLive: boolean
   /** Staff: sold out / back on. Rejects with words to show if the server refuses. */
   toggleItemAvailability: (id: number) => Promise<void>
-  saveItem: (item: MenuItemInput) => Promise<void>
+  /** Resolves with the item as saved (a new item gets its id from the server). */
+  saveItem: (item: MenuItemInput) => Promise<LiveMenuItem>
   removeItem: (id: number) => Promise<void>
   /** Starts following the live menu (useMenu does this). */
   start: () => void
@@ -34,6 +35,10 @@ const MenuContext = createContext<MenuContextType | null>(null)
 const seed = (): Map<number, LiveMenuItem> =>
   new Map(SEED_MENU.map(m => [m.id, { ...m, addon: !!m.addon, active: true }]))
 
+// The backend keeps no photos yet: the built-in ones come back by item id
+const withPhoto = (row: LiveMenuItem): LiveMenuItem =>
+  row.image || !BUILT_IN_PHOTOS.has(row.id) ? row : { ...row, image: BUILT_IN_PHOTOS.get(row.id) }
+
 export function MenuProvider({ children }: { children: ReactNode }) {
   const [byId, setById] = useState<Map<number, LiveMenuItem>>(seed)
   const [menuLive, setMenuLive] = useState(false)
@@ -41,7 +46,7 @@ export function MenuProvider({ children }: { children: ReactNode }) {
   const stop = useRef<(() => void) | null>(null)
 
   const upsert = useCallback((row: LiveMenuItem) => {
-    setById(prev => new Map(prev).set(row.id, row))
+    setById(prev => new Map(prev).set(row.id, withPhoto(row)))
   }, [])
 
   const start = useCallback(() => {
@@ -49,7 +54,7 @@ export function MenuProvider({ children }: { children: ReactNode }) {
     started.current = true
     stop.current = orderSync.menu.subscribe({
       snapshot: rows => {
-        setById(new Map(rows.map(r => [r.id, r])))
+        setById(new Map(rows.map(r => [r.id, withPhoto(r)])))
         setMenuLive(true)
       },
       change: upsert,
@@ -61,7 +66,9 @@ export function MenuProvider({ children }: { children: ReactNode }) {
 
   const call = useCallback(async (write: () => Promise<LiveMenuItem>) => {
     try {
-      upsert(await write())
+      const saved = await write()
+      upsert(saved)
+      return withPhoto(saved)
     } catch (err) {
       throw new Error(orderErrorText(err))
     }
@@ -81,7 +88,7 @@ export function MenuProvider({ children }: { children: ReactNode }) {
   }, [byId, call, upsert])
 
   const saveItem = useCallback((item: MenuItemInput) => call(() => orderSync.menu.save(item)), [call])
-  const removeItem = useCallback((id: number) => call(() => orderSync.menu.remove(id)), [call])
+  const removeItem = useCallback(async (id: number) => { await call(() => orderSync.menu.remove(id)) }, [call])
 
   const value = useMemo(() => {
     const active = [...byId.values()].filter(m => m.active).sort((a, b) => a.id - b.id)

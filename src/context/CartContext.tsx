@@ -14,6 +14,8 @@ export interface CartItemType {
   quantity: number
   /** False when the item sold out or left the menu after it was added. */
   available: boolean
+  /** Built-in photo, for the cart thumbnail. */
+  image?: string
 }
 
 interface CartLine { id: number; quantity: number }
@@ -79,7 +81,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (!item || item.addon) return []
     return [{
       id: item.id, name: item.name, price: item.price, category: item.category, description: item.description,
-      quantity: l.quantity, available: item.active && item.available,
+      quantity: l.quantity, available: item.active && item.available, image: item.image,
     }]
   }), [lines, byId])
 

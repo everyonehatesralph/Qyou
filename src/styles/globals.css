@@ -97,6 +97,32 @@
   html {
     overflow-x: hidden;
     scroll-behavior: smooth;
+    /* Focus and anchor jumps stop clear of the sticky header (sections need no scroll-margin) */
+    scroll-padding-top: 4.5rem;
+  }
+  /* Guest screens: menu section tabs on top (and the header where it is pinned), cart bar and tabs below */
+  html:has(nav[aria-label='Main']) {
+    scroll-padding-top: 4rem;
+    scroll-padding-bottom: calc(9rem + env(safe-area-inset-bottom));
+  }
+  /* Where the header stays pinned too (the roomy: variant) */
+  @media (min-width: 768px) and (min-height: 800px) {
+    html:has(nav[aria-label='Main']) {
+      scroll-padding-top: 7.5rem;
+    }
+  }
+  /* Short screens: the header scrolls away; only the cart bar and tabs stay */
+  @media (max-height: 600px) {
+    html:has(nav[aria-label='Main']) {
+      scroll-padding-top: 1rem;
+      scroll-padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+    }
+  }
+  /* Staff phones: the tab bar below */
+  @media (max-width: 767px) {
+    html:has(nav[aria-label='Staff']) {
+      scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+    }
   }
 
   html, body {
@@ -167,6 +193,21 @@
   :focus-visible {
     outline: 2px solid var(--text);
     outline-offset: 2px;
+  }
+
+  /* Windows High Contrast drops background colors, which is how selected states show.
+     Mark them with the system highlight instead. */
+  @media (forced-colors: active) {
+    [aria-pressed='true'],
+    [role='radio'][aria-checked='true'],
+    [role='checkbox'][aria-checked='true'],
+    [aria-current='page'] {
+      outline: 2px solid Highlight;
+      outline-offset: -2px;
+    }
+    [role='switch'][aria-checked='true'] > span {
+      background-color: Highlight;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {

@@ -44,7 +44,8 @@ function Scene({ px, py, scroll }: { px: MotionValue<number>; py: MotionValue<nu
   const rotateX = useTransform([tiltX, scroll], ([a, s]: number[]) => (reduce ? 6 : 6 + a + s * 8))
 
   return (
-    <div className="relative mx-auto h-[540px] w-full max-w-[460px] [perspective:1600px] sm:h-[600px]">
+    // A picture of the product; the headline and copy beside it say the same in words
+    <div className="relative mx-auto h-[540px] w-full max-w-[460px] [perspective:1600px] sm:h-[600px]" aria-hidden>
       <motion.div style={{ rotateY, rotateX, y: reduce ? 0 : lift }} className="preserve-3d absolute inset-0">
         {/* Back: now-serving ticket */}
         <motion.div
@@ -139,7 +140,7 @@ export default function Hero() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: EASE }}
-            className="inline-flex items-center gap-2 rounded-full border border-line-strong bg-surface px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest text-ink-muted"
+            className="inline-flex items-center gap-2 rounded-full border border-line-strong bg-surface px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-ink-muted"
           >
             <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
             QR table ordering

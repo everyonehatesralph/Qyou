@@ -56,7 +56,7 @@ function OrderRow({ order, now, onOpen, onCancel }: { order: Order; now: number;
 
       {canCancel && onCancel && (
         <div className="border-t border-line px-4 py-2">
-          <Button variant="ghost" onClick={onCancel} className="-ml-3 text-status-cancelled-text hover:bg-status-cancelled-bg">
+          <Button variant="ghost" onClick={onCancel} aria-label={`Cancel order ${order.id}`} className="-ml-3 text-status-cancelled-text hover:bg-status-cancelled-bg">
             Cancel order
           </Button>
         </div>
@@ -89,7 +89,7 @@ export default function MyOrders() {
 
   return (
     <div className="min-h-screen bg-bg pb-28">
-      <div className="mx-auto max-w-3xl animate-enter px-4 pt-5">
+      <main className="mx-auto max-w-3xl animate-enter px-4 pt-5">
         <PageHeader title="Your orders" subtitle={myOrders.length > 0 ? 'Orders placed from this phone.' : undefined} />
 
         {myOrders.length === 0 ? (
@@ -133,7 +133,7 @@ export default function MyOrders() {
             )}
           </div>
         )}
-      </div>
+      </main>
 
       <BottomSheet
         open={cancelId !== null}

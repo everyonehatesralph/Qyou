@@ -12,11 +12,11 @@ export default function Contact() {
   const { phone, email, messenger } = PRODUCT.contact
 
   return (
-    <section id="contact" className="scroll-mt-16 px-2 py-4 sm:px-4">
+    <section id="contact" className="px-2 py-4 sm:px-4">
       <div className="overflow-hidden rounded-[28px] bg-accent text-on-accent sm:rounded-[36px]">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-8 lg:grid-cols-[1fr_auto] lg:py-24">
           <Reveal>
-            <p className="font-mono text-[11px] uppercase tracking-widest">Book a demo</p>
+            <p className="font-mono text-xs uppercase tracking-widest">Book a demo</p>
             <h2 className="mt-3 font-display text-[clamp(2.75rem,9vw,5.5rem)] leading-[0.9] tracking-[-0.045em]">
               Your number’s up.
             </h2>
@@ -52,11 +52,11 @@ export default function Contact() {
                   </div>
                 }
               >
-                <div className="flex items-center justify-between font-mono text-[11px] uppercase tracking-widest text-ink-muted">
+                <div className="flex items-center justify-between font-mono text-xs uppercase tracking-widest text-ink-muted">
                   <span>Call or text</span>
                   <span>Qyou</span>
                 </div>
-                <a href={`tel:${phone}`} className="mt-4 block font-display text-[clamp(2rem,8vw,2.6rem)] leading-none tracking-[-0.03em] text-ink tabular-nums hover:text-accent-text">
+                <a href={`tel:${phone}`} className="mt-3 flex min-h-11 items-center font-display text-[clamp(2rem,8vw,2.6rem)] leading-none tracking-[-0.03em] text-ink tabular-nums hover:text-accent-text">
                   {formatPhone(phone)}
                 </a>
                 <p className="mt-3 text-sm text-ink-muted">{PRODUCT.tagline}</p>

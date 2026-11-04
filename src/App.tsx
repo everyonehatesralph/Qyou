@@ -5,6 +5,7 @@ import Navigation from './components/Navigation'
 import LoadingSpinner from './components/LoadingSpinner'
 import ProtectedRoute from './components/ProtectedRoute'
 import ReadyAlert from './components/ReadyAlert'
+import RouteChange, { SkipLink } from './components/RouteChange'
 import { metricsCollector } from './services/metricsCollector'
 
 // Product landing page
@@ -80,6 +81,8 @@ export default function App() {
 
   return (
     <Router>
+      <SkipLink />
+      <RouteChange />
       <Navigation />
       <ReadyAlert />
       <Suspense fallback={<LoadingSpinner />}>

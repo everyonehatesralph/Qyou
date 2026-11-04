@@ -81,13 +81,15 @@ export default function StaffLogin() {
         </div>
 
         <div
-          className={cn('mt-8 flex justify-center gap-4', shaking && 'animate-shake')}
-          role="img"
-          aria-label={`${pin.length} of ${PIN_LENGTH} digits entered`}
+          className={cn('mt-8 flex justify-center gap-4 short:mt-4', shaking && 'animate-shake')}
+          role="status"
         >
+          {/* Read out as digits go in; the dots are only for sight */}
+          <span className="sr-only">{pin.length} of {PIN_LENGTH} digits entered</span>
           {Array.from({ length: PIN_LENGTH }, (_, i) => (
             <span
               key={i}
+              aria-hidden
               className={cn(
                 'h-3.5 w-3.5 rounded-full border-2 transition-[background-color,border-color,transform] duration-150',
                 i < pin.length ? 'scale-110 border-ink bg-ink' : error ? 'border-status-cancelled-text' : 'border-line-strong',
@@ -111,11 +113,11 @@ export default function StaffLogin() {
                 onClick={() => (isBack ? handleBackspace() : handleDigit(k))}
                 aria-label={isBack ? 'Delete last digit' : k}
                 className={cn(
-                  'flex h-16 items-center justify-center rounded-card text-2xl transition-[background-color,transform] duration-100 active:scale-95',
+                  'flex h-16 items-center justify-center rounded-card text-2xl short:h-12 transition-[background-color,transform] duration-100 active:scale-95',
                   isBack ? 'text-ink-muted hover:bg-surface-2' : 'border border-line bg-surface text-ink hover:bg-surface-2',
                 )}
               >
-                {isBack ? <Delete className="h-6 w-6" /> : k}
+                {isBack ? <Delete className="h-6 w-6" aria-hidden /> : k}
               </button>
             )
           })}

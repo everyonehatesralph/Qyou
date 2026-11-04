@@ -144,18 +144,21 @@ export default function HowItWorks() {
   const printed = step >= 2
 
   return (
-    <section id="how-it-works" ref={ref} className="relative scroll-mt-16 lg:h-[400vh] h-[340vh]">
-      <div className="sticky top-0 flex h-[100dvh] items-center overflow-hidden">
+    // Pinned while the story plays. Short screens (phones turned sideways) get a plain list:
+    // a pinned panel taller than the screen would cut the heading off.
+    <section id="how-it-works" ref={ref} className="relative h-[340vh] lg:h-[400vh] short:!h-auto">
+      {/* safe center: when the panel is taller than a small phone, it starts at the top instead of losing the heading */}
+      <div className="sticky top-0 flex h-[100dvh] items-center overflow-hidden [align-items:safe_center] short:!static short:!h-auto short:py-12">
         <div className="mx-auto grid w-full max-w-6xl items-center gap-6 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10">
           {/* Steps */}
           <div className="pt-16 lg:pt-0">
-            <p className="font-mono text-[11px] uppercase tracking-widest text-accent-text">How it works</p>
+            <p className="font-mono text-xs uppercase tracking-widest text-accent-text">How it works</p>
             <h2 className="mt-3 text-balance font-display text-[34px] leading-[0.98] tracking-[-0.035em] text-ink sm:text-[48px]">
               One order, start to finish.
             </h2>
 
-            {/* Compact view for phones: current step only */}
-            <div className="mt-5 lg:hidden">
+            {/* Compact view for phones: current step only. Screen readers get the full list below. */}
+            <div className="mt-5 lg:hidden short:hidden" aria-hidden>
               <div className="flex gap-1.5" aria-hidden>
                 {STEPS.map((s, i) => (
                   <span key={s.n} className={cn('h-1 flex-1 rounded-full transition-colors duration-300', i <= step ? 'bg-accent' : 'bg-line-strong')} />
@@ -169,23 +172,24 @@ export default function HowItWorks() {
               </AnimatePresence>
             </div>
 
-            {/* Full list from 1024px with a progress rail */}
-            <ol className="relative mt-10 hidden space-y-7 pl-8 lg:block">
-              <span className="absolute bottom-1 left-[5px] top-1 w-0.5 rounded-full bg-line" aria-hidden />
-              <motion.span style={{ scaleY: rail }} className="absolute bottom-1 left-[5px] top-1 w-0.5 origin-top rounded-full bg-accent" aria-hidden />
+            {/* Full list with a progress rail from 1024px; a plain list on short screens; always read by screen readers */}
+            <ol className="sr-only mt-10 space-y-7 pl-8 lg:not-sr-only lg:relative short:not-sr-only short:relative short:mt-6 short:space-y-5">
+              <span className="absolute bottom-1 left-[5px] top-1 w-0.5 rounded-full bg-line short:hidden" aria-hidden />
+              <motion.span style={{ scaleY: rail }} className="absolute bottom-1 left-[5px] top-1 w-0.5 origin-top rounded-full bg-accent short:hidden" aria-hidden />
               {STEPS.map((s, i) => (
                 <li key={s.n} className="relative">
-                  <span className={cn('absolute -left-8 top-1.5 h-3 w-3 rounded-full border-2 transition-colors duration-300', i <= step ? 'border-accent bg-accent' : 'border-line-strong bg-bg')} aria-hidden />
+                  <span className={cn('absolute -left-8 top-1.5 h-3 w-3 rounded-full border-2 transition-colors duration-300 short:border-accent short:bg-accent', i <= step ? 'border-accent bg-accent' : 'border-line-strong bg-bg')} aria-hidden />
                   {/* Inactive steps use muted text (still AA) rather than fading out */}
-                  <p className={cn('font-display text-2xl transition-colors duration-300', i === step ? 'text-ink' : 'text-ink-muted')}><span className="mr-3 font-mono text-sm text-ink-muted">{s.n}</span>{s.title}</p>
+                  <p className={cn('font-display text-2xl transition-colors duration-300 short:text-ink', i === step ? 'text-ink' : 'text-ink-muted')}><span className="mr-3 font-mono text-sm text-ink-muted">{s.n}</span>{s.title}</p>
                   <p className="mt-1.5 max-w-md text-[15px] leading-relaxed text-ink-muted">{s.body}</p>
                 </li>
               ))}
             </ol>
           </div>
 
-          {/* Stage */}
-          <div className="relative flex h-[min(54dvh,560px)] items-center justify-center [perspective:1400px] lg:h-[620px]">
+          {/* Stage: an illustration of the steps described beside it */}
+          {/* On phones the phone sits at the top of its space; a small screen crops its bottom, never the text */}
+          <div className="relative flex h-[min(54dvh,560px)] items-start justify-center [perspective:1400px] lg:h-[620px] lg:items-center short:!hidden" aria-hidden>
             {/* The phone steps aside for the printer, further on phones so they never overlap */}
             <div
               className={cn(

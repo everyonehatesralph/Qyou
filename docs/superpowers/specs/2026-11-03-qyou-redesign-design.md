@@ -294,3 +294,79 @@ from Revision 1; everything else stands.
 - **Analytics:** the dashboard gets a "Today at a glance" section (revenue and orders vs
   yesterday, average wait and prep time, orders by hour, top sellers, busiest tables). The
   Sales page and its nav item are named "Analytics" again.
+
+## Revision 3 (2026-11-04): phones first, accessibility
+
+Requested by the owner: most guests are on phones; every screen must work at every size and
+be accessible. Checked by a second e2e suite (`e2e/devices.spec.ts`) on 10 more sizes: 320,
+360, 390 and 430 px phones, phones turned sideways (667×375, 844×390), tablets both ways
+(820×1180, 1024×768) and wide desktops (1440, 1920), plus every sheet.
+
+- **Targets:** every control is at least 44×44 px on touch screens (chips, kitchen "Hide",
+  table "Free table", footer and header links, the ready-alert OK). Chart columns, which only
+  focus for their tooltip, are exempt from 44 but still at least 24 (WCAG 2.5.8).
+- **Short screens** (`short:` variant, height ≤ 600 px: phones turned sideways and the smallest phones): the
+  guest and staff headers scroll away, category chips stop sticking, the tab bars shrink to
+  48 px with icon and label side by side, cart bars shrink, sheets scroll as one piece, the PIN
+  keypad is shorter, and the landing story becomes a plain list instead of a pinned panel.
+- **Small phones:** under 360 px the guest header shows the short restaurant name and menu
+  and cart rows drop the decorative letter tile; menu descriptions show two lines on phones;
+  names and labels wrap instead of being cut off; the order page's two buttons stack.
+- **Screen changes:** every route sets its own page title, starts at the top (Back/Forward keep
+  their position) and moves focus to the new page's heading. A "Skip to content" link is the
+  first stop on every page.
+- **Screen readers:** one polite live region (`announce`) reads out cart changes and live order
+  status changes; staff PIN progress is announced; the landing illustrations are hidden from
+  screen readers (the copy beside them says the same), and the full four steps of "How it
+  works" are always in the reading order. Every page has a `main` landmark and an `h1`.
+- **Keyboard:** focus follows the Add button into the stepper and back; after a sheet closes,
+  focus returns to what opened it, or to the page heading if that is gone; the order-type and
+  other segmented controls are proper radio groups (one tab stop, arrow keys); a sheet body
+  that scrolls with nothing focusable in it takes focus itself. Scroll padding keeps focused
+  controls clear of sticky headers and bottom bars (WCAG 2.4.11).
+- **Text:** real labels are at least 12 px (decorative mock-ups excepted); fields stay 16 px so
+  iOS does not zoom; Windows High Contrast marks selected chips, tabs, radios and switches
+  with the system highlight.
+
+## Revision 4 (2026-11-04): a photo menu
+
+Requested by the owner, with a delivery-app menu as the reference: guests choose by photo.
+
+- **Guest menu:** a two-column photo grid on phones (three from 640 px). Each card is the
+  photo, name and price; a round + sits on the photo's corner and turns into the − n +
+  stepper. Tapping the card opens a sheet with a large photo, the description and the add
+  control. Sold-out items are greyed with a "Sold out" tag.
+- **Sections, not filters:** underlined section tabs (Popular, Coffee, Tea, Pastry, Food)
+  jump to their section and follow the scroll. Popular is the four most-ordered items, or
+  house picks until there are enough orders. Search shows a flat grid of matches.
+- **Photos:** each demo item has a built-in photo in `public/menu` (free Unsplash photos,
+  640×640 WebP, about 450 KB for all ten; links in `public/menu/CREDITS.md`). Items without a
+  photo show their first letter.
+- **Staff photo editing:** the item editor shows the photo with Change photo, Remove photo
+  and Use original photo; changes apply on Save. Picked photos are centre-cropped to 640×640
+  and re-encoded in the browser (about 50–90 KB). They are stored on that device only
+  (`src/services/menuPhotos.ts`) until the shared backend stores them; the editor says so.
+
+## Revision 5 (2026-11-04): pinned staff panel
+
+- From 768 px the rounded staff content panel is pinned to the window like the sidebar and
+  its content scrolls inside it (sticky page header included), so the panel's corners never
+  slide away. Phones and short screens keep normal page scrolling.
+
+## Revision 6 (2026-11-04): staff sidebar
+
+- The restaurant leads (its tile and name, with a live/offline dot); links are grouped into
+  Service (Dashboard, Kitchen, Tables) and Manage (Menu, Analytics, QR codes) and are real
+  links. The active item is a quiet `surface-3` pill with an accent icon and an accent marker
+  on the sidebar's edge, instead of a solid ink pill.
+- Live counts: new orders on Dashboard (waiting colors) and orders in the kitchen on Kitchen
+  (progress colors), also on the phone tab bar. Collapsed, they show as dots.
+- The footer is one row: the Qyou mark, then theme and sign-out icon buttons. No divider lines;
+  spacing separates the parts.
+
+## Revision 7 (2026-11-04): one theme
+
+- The kitchen screen no longer has its own mode or toggle; it follows the app's light/dark
+  setting like every page. The setting is remembered per device, so a kitchen tablet set to
+  dark stays dark. This replaces "the kitchen screen defaults to dark" from the original spec:
+  with the sidebar's theme button, two switches that changed different things were confusing.

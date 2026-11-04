@@ -14,7 +14,8 @@ export default function CustomerHeader() {
   const [helpOpen, setHelpOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-glass backdrop-blur-md">
+    // Pinned only on roomy screens; on phones and landscape tablets it scrolls away so the menu keeps the screen
+    <header className="relative z-40 border-b border-line bg-glass backdrop-blur-md roomy:sticky roomy:top-0">
       <div className="mx-auto flex h-16 max-w-3xl items-center gap-3 px-4">
         <button
           type="button"
@@ -23,7 +24,11 @@ export default function CustomerHeader() {
         >
           <LetterTile text={RESTAURANT.logoText} tone="accent" size="sm" />
           <span className="min-w-0">
-            <span className="block truncate font-display text-[18px] leading-tight text-ink">{RESTAURANT.name}</span>
+            {/* The short name on the narrowest phones, so the full name never gets cut */}
+            <span className="block truncate font-display text-[18px] leading-tight text-ink">
+              <span className="min-[360px]:hidden">{RESTAURANT.shortName}</span>
+              <span className="max-[359px]:hidden">{RESTAURANT.name}</span>
+            </span>
             <span className="block truncate text-[13px] text-ink-muted">
               {customerName ? `Hi ${customerName}${tableName ? ` · ${tableName}` : ''}` : 'Ordering by Qyou'}
             </span>

@@ -116,12 +116,12 @@ function KitchenBoard() {
 
 export default function TeamFeatures() {
   return (
-    <section id="features" className="scroll-mt-16 px-2 py-4 sm:px-4">
+    <section id="features" className="px-2 py-4 sm:px-4">
       <div data-theme="dark" className="rounded-[28px] bg-surface text-ink sm:rounded-[36px]">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-8 lg:py-24">
           <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-center lg:gap-14">
             <Reveal>
-              <p className="font-mono text-[11px] uppercase tracking-widest text-accent-text">For your team</p>
+              <p className="font-mono text-xs uppercase tracking-widest text-accent-text">For your team</p>
               <h2 className="mt-3 text-balance font-display text-[40px] leading-[0.95] tracking-[-0.04em] sm:text-[56px]">
                 Built for the rush.
               </h2>
@@ -148,7 +148,7 @@ export default function TeamFeatures() {
               </Reveal>
             ))}
           </div>
-          <p className="mt-6 font-mono text-[11px] uppercase tracking-widest text-ink-muted">Everything above is in Qyou today.</p>
+          <p className="mt-6 font-mono text-xs uppercase tracking-widest text-ink-muted">Everything above is in Qyou today.</p>
         </div>
       </div>
     </section>

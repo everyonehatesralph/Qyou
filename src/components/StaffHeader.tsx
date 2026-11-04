@@ -17,7 +17,7 @@ interface Props {
 /** Sticky title bar at the top of every staff page. */
 export default function StaffHeader({ title, subtitle, actions, sidebarExpanded, onSidebarToggle }: Props) {
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-glass backdrop-blur-md">
+    <header className="sticky top-0 z-30 border-b border-line bg-glass backdrop-blur-md short:static">
       <div className="flex min-h-16 items-center gap-2 px-4 py-2 sm:px-6">
         {onSidebarToggle && (
           <IconButton
@@ -29,8 +29,8 @@ export default function StaffHeader({ title, subtitle, actions, sidebarExpanded,
           </IconButton>
         )}
         <div className="min-w-0 flex-1">
-          <h1 className="truncate font-display text-[22px] leading-tight text-ink">{title}</h1>
-          {subtitle && <p className="truncate text-[13px] text-ink-muted">{subtitle}</p>}
+          <h1 className="text-balance font-display text-[22px] leading-tight text-ink">{title}</h1>
+          {subtitle && <p className="text-pretty text-[13px] text-ink-muted">{subtitle}</p>}
         </div>
         {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
       </div>

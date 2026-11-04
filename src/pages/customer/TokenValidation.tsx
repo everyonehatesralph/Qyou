@@ -77,9 +77,9 @@ export default function TokenValidation() {
               tone="accent"
               bodyClassName="px-5 pb-3 pt-4"
               stubClassName="px-5 pb-3.5 pt-2.5"
-              stub={<p className="font-mono text-[10px] uppercase tracking-widest">Ordering by Qyou</p>}
+              stub={<p className="font-mono text-xs uppercase tracking-widest">Ordering by Qyou</p>}
             >
-              <p className="font-mono text-[10px] uppercase tracking-widest">You're at</p>
+              <p className="font-mono text-xs uppercase tracking-widest">You're at</p>
               <p className="font-display text-[40px] leading-none tracking-[-0.03em]">{tname}</p>
             </Ticket>
           </motion.div>
@@ -98,7 +98,8 @@ export default function TokenValidation() {
               value={name}
               onChange={e => setName(e.target.value)}
               autoComplete="given-name"
-              autoFocus
+              // Not on phones: the keyboard would cover the table ticket, and screen readers would skip the page
+              autoFocus={window.matchMedia('(hover: hover) and (pointer: fine)').matches}
               hint="So staff know whose order it is."
             />
             <Button type="submit" variant="primary" size="lg" fullWidth disabled={!name.trim()} className="mt-5">

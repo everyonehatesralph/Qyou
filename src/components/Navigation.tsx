@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
   ShoppingCart, UtensilsCrossed, ClipboardList, LayoutGrid, ChefHat, BookOpen, QrCode,
   LogOut, TrendingUp, Armchair, MoreHorizontal, ChevronRight, Sun, Moon, type LucideIcon,
@@ -7,12 +7,13 @@ import {
 import { motion } from 'framer-motion'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
+import { useOrders } from '../context/OrderContext'
 import { useSidebar } from '../context/SidebarContext'
 import { useTheme } from '../context/ThemeContext'
 import CustomerHeader from './CustomerHeader'
 import CartFlyLayer from './CartFly'
 import { RESTAURANT } from '../config/restaurant'
-import { BottomSheet, TicketMark, Wordmark, cn } from './ui'
+import { BottomSheet, IconButton, LetterTile, TicketMark, cn } from './ui'
 
 const PILL_SPRING = { type: 'spring', stiffness: 420, damping: 34 } as const
 
@@ -44,12 +45,22 @@ const staffItems: NavItem[] = [
 ]
 const STAFF_BAR = staffItems.slice(0, 4)
 const STAFF_MORE = staffItems.slice(4)
+// The sidebar groups: running service, then setting things up
+const STAFF_GROUPS = [
+  { id: 'service', label: 'Service', items: staffItems.slice(0, 3) },
+  { id: 'manage', label: 'Manage', items: staffItems.slice(3) },
+]
 
-function BottomBarButton({ item, active, onClick, badge, pillId, cartTarget }: {
+/** Live counts beside a nav item, in the same colors as the dashboard's cards. */
+interface NavCount { count: number; label: string; tone: string; dot: string }
+
+function BottomBarButton({ item, active, onClick, badge, badgeLabel = 'items', pillId, cartTarget }: {
   item: NavItem
   active: boolean
   onClick: () => void
   badge?: number
+  /** What the badge counts, for screen readers ("3 new orders"). */
+  badgeLabel?: string
   /** Shared layout id so the active pill slides between tabs. */
   pillId: string
   /** Marks the icon the add-to-cart flight lands on. */
@@ -62,11 +73,11 @@ function BottomBarButton({ item, active, onClick, badge, pillId, cartTarget }: {
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'relative flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors duration-150',
+        'relative flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors duration-150 short:flex-row short:gap-2 short:text-[13px]',
         active ? 'text-ink' : 'text-ink-muted hover:text-ink',
       )}
     >
-      <span className="relative flex h-8 w-14 items-center justify-center" data-cart-target={cartTarget || undefined}>
+      <span className="relative flex h-8 w-14 items-center justify-center short:h-7 short:w-11" data-cart-target={cartTarget || undefined}>
         {active && <motion.span layoutId={pillId} transition={PILL_SPRING} className="absolute inset-0 rounded-full bg-ink" aria-hidden />}
         <Icon className={cn('relative h-5 w-5 transition-colors duration-150', active && 'text-bg')} aria-hidden />
         {!!badge && (
@@ -79,7 +90,7 @@ function BottomBarButton({ item, active, onClick, badge, pillId, cartTarget }: {
         )}
       </span>
       {item.label}
-      {!!badge && <span className="sr-only">, {badge} items</span>}
+      {!!badge && <span className="sr-only">, {badge} {badgeLabel}</span>}
     </button>
   )
 }
@@ -90,75 +101,125 @@ function StaffNavigation() {
   const { staffLogout } = useAuth()
   const { isDark, toggleTheme } = useTheme()
   const { expanded } = useSidebar()
+  const { orders, isConnected } = useOrders()
   const [moreOpen, setMoreOpen] = useState(false)
   const isActive = (path: string) => location.pathname.startsWith(path)
 
   const go = (path: string) => { setMoreOpen(false); navigate(path) }
   const signOut = () => { setMoreOpen(false); staffLogout(); navigate('/staff/login') }
 
-  const rowClass = (active: boolean) => cn(
-    'relative flex h-11 w-full items-center gap-3 rounded-full px-3.5 text-[15px] transition-colors duration-150',
-    active ? 'font-semibold text-bg' : 'text-ink-muted hover:bg-surface-2 hover:text-ink',
-    !expanded && 'justify-center px-0',
-  )
+  const counts = useMemo<Record<string, NavCount>>(() => ({
+    '/staff/dashboard': {
+      count: orders.filter(o => o.status === 'pending').length,
+      label: 'new orders',
+      tone: 'bg-status-waiting-bg text-status-waiting-text',
+      dot: 'bg-status-waiting-text',
+    },
+    '/staff/kitchen': {
+      count: orders.filter(o => o.status === 'confirmed' || o.status === 'preparing').length,
+      label: 'in the kitchen',
+      tone: 'bg-status-progress-bg text-status-progress-text',
+      dot: 'bg-status-progress-text',
+    },
+  }), [orders])
 
   return (
     <>
-      {/* Sidebar, 768px and up */}
+      {/* Sidebar, 768px and up. No divider lines: spacing separates the parts. */}
       <aside
         className={cn(
           'fixed inset-y-0 left-0 z-40 hidden flex-col bg-surface transition-[width] duration-200 md:flex',
           expanded ? 'w-60' : 'w-[72px]',
         )}
       >
-        <button
-          type="button"
-          onClick={() => navigate('/staff/dashboard')}
-          className={cn('flex h-16 shrink-0 items-center gap-2 border-b border-line text-left', expanded ? 'px-5' : 'justify-center')}
-        >
+        {/* The restaurant, and whether orders are coming in live */}
+        <div className={cn('flex min-h-[72px] shrink-0 items-center gap-3 pt-2', expanded ? 'px-4' : 'justify-center')}>
+          <span className="relative shrink-0" title={expanded ? undefined : `${RESTAURANT.name} · ${isConnected ? 'Live' : 'Offline'}`}>
+            <LetterTile text={RESTAURANT.logoText} tone="accent" size="sm" />
+            <span
+              className={cn('absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface', isConnected ? 'bg-status-ready-text' : 'bg-status-waiting-text')}
+              aria-hidden
+            />
+          </span>
           {expanded ? (
             <span className="min-w-0">
-              <Wordmark size="sm" />
-              <span className="mt-1 block truncate text-xs text-ink-muted">{RESTAURANT.name}</span>
+              <span className="block text-[15px] font-semibold leading-tight text-ink">{RESTAURANT.name}</span>
+              <span className="mt-0.5 block text-xs text-ink-muted">Staff · {isConnected ? 'Live' : 'Offline'}</span>
             </span>
           ) : (
-            <TicketMark size="md" />
+            <span className="sr-only">{RESTAURANT.name}, {isConnected ? 'live' : 'offline'}</span>
           )}
-        </button>
+        </div>
 
-        <nav aria-label="Staff" className="flex-1 space-y-1 overflow-y-auto p-3">
-          {staffItems.map(item => {
-            const active = isActive(item.path)
-            return (
-              <button
-                key={item.path}
-                type="button"
-                onClick={() => navigate(item.path)}
-                aria-current={active ? 'page' : undefined}
-                title={expanded ? undefined : item.label}
-                className={rowClass(active)}
+        <nav aria-label="Staff" className="mt-4 flex-1 overflow-y-auto px-3 pb-3">
+          {STAFF_GROUPS.map((group, gi) => (
+            <div key={group.id} className={cn(gi > 0 && 'mt-6')}>
+              {expanded && (
+                <p id={`staff-nav-${group.id}`} className="px-3 pb-2 font-mono text-xs uppercase tracking-widest text-ink-muted">
+                  {group.label}
+                </p>
+              )}
+              <ul
+                className="space-y-1"
+                aria-labelledby={expanded ? `staff-nav-${group.id}` : undefined}
+                aria-label={expanded ? undefined : group.label}
               >
-                {active && (
-                  <motion.span layoutId="staff-side-pill" transition={PILL_SPRING} className="absolute inset-0 rounded-full bg-ink" aria-hidden>
-                    <span className="absolute left-1.5 top-1/2 h-4 w-1 -translate-y-1/2 rounded-full bg-accent" />
-                  </motion.span>
-                )}
-                <item.icon className="relative h-5 w-5 shrink-0" aria-hidden />
-                {expanded ? <span className="relative">{item.label}</span> : <span className="sr-only">{item.label}</span>}
-              </button>
-            )
-          })}
+                {group.items.map(item => {
+                  const active = isActive(item.path)
+                  const live = counts[item.path]
+                  const n = live?.count ?? 0
+                  return (
+                    <li key={item.path}>
+                      <Link
+                        to={item.path}
+                        aria-current={active ? 'page' : undefined}
+                        title={expanded ? undefined : item.label}
+                        className={cn(
+                          'relative flex h-11 w-full items-center gap-3 rounded-[12px] px-3 text-[15px] transition-colors duration-150',
+                          active ? 'font-semibold text-ink' : 'text-ink-muted hover:bg-surface-2 hover:text-ink',
+                          !expanded && 'justify-center px-0',
+                        )}
+                      >
+                        {active && (
+                          <>
+                            <motion.span layoutId="staff-side-pill" transition={PILL_SPRING} className="absolute inset-0 rounded-[12px] bg-surface-3" aria-hidden />
+                            {/* A marker on the sidebar's edge, outside the pill */}
+                            <motion.span layoutId="staff-side-edge" transition={PILL_SPRING} className="absolute -left-3 bottom-2.5 top-2.5 w-[3px] rounded-r-full bg-accent" aria-hidden />
+                          </>
+                        )}
+                        <item.icon className={cn('relative h-5 w-5 shrink-0', active && 'text-accent-text')} aria-hidden />
+                        {expanded ? <span className="relative flex-1">{item.label}</span> : <span className="sr-only">{item.label}</span>}
+                        {n > 0 && (expanded ? (
+                          <span key={n} className={cn('relative min-w-6 animate-pop rounded-full px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums', live.tone)}>
+                            {n > 99 ? '99+' : n}
+                          </span>
+                        ) : (
+                          <span className={cn('absolute right-3.5 top-2 h-2 w-2 rounded-full ring-2 ring-surface', live.dot)} aria-hidden />
+                        ))}
+                        {n > 0 && <span className="sr-only">, {n} {live.label}</span>}
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
 
-        <div className="space-y-1 border-t border-line p-3">
-          <button type="button" onClick={toggleTheme} className={rowClass(false)} title={expanded ? undefined : 'Theme'}>
-            {isDark ? <Sun className="h-5 w-5 shrink-0" aria-hidden /> : <Moon className="h-5 w-5 shrink-0" aria-hidden />}
-            {expanded ? (isDark ? 'Light mode' : 'Dark mode') : <span className="sr-only">{isDark ? 'Light mode' : 'Dark mode'}</span>}
-          </button>
-          <button type="button" onClick={signOut} className={rowClass(false)} title={expanded ? undefined : 'Sign out'}>
-            <LogOut className="h-5 w-5 shrink-0" aria-hidden />
-            {expanded ? 'Sign out' : <span className="sr-only">Sign out</span>}
-          </button>
+        {/* Product mark, then the two actions */}
+        <div className={cn('flex shrink-0 gap-1 p-3', expanded ? 'items-center' : 'flex-col items-center')}>
+          {expanded && (
+            <span className="flex min-w-0 flex-1 items-center gap-2 px-2 text-xs text-ink-muted">
+              <TicketMark size="sm" className="h-6 w-5 text-xs [--notch:3px]" />
+              <span><span className="font-display text-[15px] text-ink">Qyou</span> staff</span>
+            </span>
+          )}
+          <IconButton label={isDark ? 'Switch to light mode' : 'Switch to dark mode'} onClick={toggleTheme}>
+            {isDark ? <Sun /> : <Moon />}
+          </IconButton>
+          <IconButton label="Sign out" onClick={signOut}>
+            <LogOut />
+          </IconButton>
         </div>
       </aside>
 
@@ -167,9 +228,17 @@ function StaffNavigation() {
         aria-label="Staff"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
       >
-        <div className="grid h-16 grid-cols-5">
+        <div className="grid h-16 grid-cols-5 short:h-12">
           {STAFF_BAR.map(item => (
-            <BottomBarButton key={item.path} item={item} pillId="staff-bar-pill" active={isActive(item.path)} onClick={() => navigate(item.path)} />
+            <BottomBarButton
+              key={item.path}
+              item={item}
+              pillId="staff-bar-pill"
+              active={isActive(item.path)}
+              onClick={() => navigate(item.path)}
+              badge={counts[item.path]?.count}
+              badgeLabel={counts[item.path]?.label}
+            />
           ))}
           <BottomBarButton
             pillId="staff-bar-pill"
@@ -238,7 +307,7 @@ export default function Navigation() {
         aria-label="Main"
         className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]"
       >
-        <div className="mx-auto grid h-16 max-w-md grid-cols-3">
+        <div className="mx-auto grid h-16 max-w-md grid-cols-3 short:h-12">
           {customerItems.map(item => (
             <BottomBarButton
               key={item.path}

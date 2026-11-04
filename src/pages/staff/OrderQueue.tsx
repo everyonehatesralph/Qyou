@@ -5,12 +5,10 @@ import { useOrderNotification } from '../../hooks/useOrderNotification'
 import SoundOffNotice from '../../components/SoundOffNotice'
 import { useNow, minutesSince } from '../../hooks/useNow'
 import { useSidebar } from '../../context/SidebarContext'
-import { useKitchenTheme } from '../../context/ThemeContext'
 import { useMemo, useState, useCallback, memo } from 'react'
 import { LayoutGroup, motion } from 'framer-motion'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
-import ThemeToggle from '../../components/ThemeToggle'
 import { Button, EmptyState, IconButton, cn } from '../../components/ui'
 import { peso } from '../../utils/formatters'
 import { orderRef } from '../../services/orderModel'
@@ -84,7 +82,7 @@ const KitchenCard = memo(function KitchenCard({ order, status, action, now, onAd
           </p>
           {late && <p className="mt-1 text-xs font-medium">{veryLate ? 'Very late' : 'Waiting long'}</p>}
         </div>
-        <IconButton label="Hide from this screen" onClick={() => onHide(order.id)} className="-mr-2 -mt-2 h-9 w-9 text-ink-muted">
+        <IconButton label="Hide from this screen" onClick={() => onHide(order.id)} className="-mr-2.5 -mt-2.5 text-ink-muted">
           <EyeOff />
         </IconButton>
       </div>
@@ -131,7 +129,6 @@ const KitchenCard = memo(function KitchenCard({ order, status, action, now, onAd
 export default function OrderQueue() {
   const { orders, updateOrderStatus, isConnected } = useOrders()
   const { expanded: sidebarExpanded, toggle: toggleSidebar } = useSidebar()
-  const { theme: kitchenTheme, toggle: toggleKitchenTheme } = useKitchenTheme()
   const [hidden, setHidden] = useState<Set<string>>(new Set())
   const now = useNow(30_000)
 
@@ -163,11 +160,10 @@ export default function OrderQueue() {
   }, [])
 
   return (
-    <StaffPageShell theme={kitchenTheme}>
+    <StaffPageShell>
       <StaffHeader
         title="Kitchen"
         subtitle={totalActive === 0 ? 'No active orders' : `${totalActive} active ${totalActive === 1 ? 'order' : 'orders'}`}
-        actions={<ThemeToggle theme={kitchenTheme} onToggle={toggleKitchenTheme} className="-mr-2" />}
         sidebarExpanded={sidebarExpanded}
         onSidebarToggle={toggleSidebar}
       />
