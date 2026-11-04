@@ -12,7 +12,7 @@ function formatPhone(phone: string): string {
 
 const STEPS = [
   { title: 'Call or text', body: 'Tell us about your café and how busy your counter gets.' },
-  { title: 'See it on your phone', body: 'We walk you through what guests and staff see, order to pickup.' },
+  { title: 'See it live', body: 'On your phone, we walk you through what guests and staff see, order to pickup.' },
   { title: 'Set up together', body: 'Your menu, your tables and your QR codes, ready to print.' },
 ]
 
@@ -39,11 +39,12 @@ export default function Contact() {
   return (
     <section id="contact" className="px-2 py-4 sm:px-4">
       <div className="overflow-hidden rounded-[28px] bg-accent text-on-accent sm:rounded-[36px]">
-        {/* Phones: intro, number, then the steps, so Call is near the top. Desktop: steps under the intro, number beside them */}
-        <div className="mx-auto grid max-w-6xl gap-y-10 px-5 py-16 sm:px-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-x-16 lg:py-24">
+        {/* Phones: intro, number, then the steps, so Call is near the top. Desktop: the steps sit in
+            a row under the intro with the number beside them, so it all fits a ~650px-tall window */}
+        <div className="mx-auto grid max-w-6xl gap-y-10 px-5 py-16 sm:px-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-x-16 lg:gap-y-8">
           <Reveal className="lg:col-start-1 lg:row-start-1">
             <p className="font-mono text-xs uppercase tracking-widest">Book a demo</p>
-            <h2 className="mt-3 font-display text-[clamp(3rem,10vw,6rem)] leading-[0.9] tracking-[-0.045em]">
+            <h2 className="mt-3 font-display text-[clamp(3rem,min(10vw,12vh),5.5rem)] leading-[0.9] tracking-[-0.045em]">
               You’re next.
             </h2>
             <p className="mt-5 max-w-md text-[17px] leading-relaxed">
@@ -52,11 +53,11 @@ export default function Contact() {
           </Reveal>
 
           <Reveal delay={0.05} className="lg:col-start-1 lg:row-start-2">
-            <ol className="max-w-md">
+            <ol className="max-w-md lg:grid lg:max-w-none lg:grid-cols-3 lg:gap-6">
               {STEPS.map((s, i) => (
                 <li key={s.title}>
                   <div className="h-px bg-current opacity-25" aria-hidden />
-                  <div className="flex gap-4 py-4">
+                  <div className="flex gap-4 py-4 lg:flex-col lg:gap-2 lg:pb-0">
                     <span className="pt-0.5 font-mono text-xs tabular-nums">{String(i + 1).padStart(2, '0')}</span>
                     <div>
                       <p className="font-display text-xl leading-tight tracking-[-0.02em]">{s.title}</p>
@@ -66,7 +67,7 @@ export default function Contact() {
                 </li>
               ))}
             </ol>
-            <div className="h-px max-w-md bg-current opacity-25" aria-hidden />
+            <div className="h-px max-w-md bg-current opacity-25 lg:hidden" aria-hidden />
 
             <Link
               to={PRODUCT.demoTablePath}
