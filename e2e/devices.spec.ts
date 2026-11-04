@@ -35,7 +35,7 @@ const SHEETS: Sheet[] = [
   { id: 'help', route: 'menu', open: page => page.getByRole('button', { name: 'Help' }).click() },
   { id: 'item', route: 'menu', open: page => page.getByRole('button', { name: /^Matcha Latte/ }).first().click() },
   { id: 'checkout', route: 'cart', open: page => page.getByRole('button', { name: /Checkout/ }).click() },
-  { id: 'summary', route: 'tracker', open: page => page.getByRole('button', { name: 'Order summary' }).click() },
+  { id: 'receipt', route: 'tracker', open: page => page.getByRole('button', { name: 'View receipt' }).click() },
   { id: 'edit-item', route: 'staffmenu', open: page => page.getByRole('button', { name: /^Edit / }).first().click() },
   { id: 'staff-more', route: 'dashboard', phoneOnly: true, open: page => page.getByRole('button', { name: 'More' }).click() },
 ]

@@ -1,10 +1,11 @@
-import { ChevronRight, ClipboardList } from 'lucide-react'
+import { ChevronRight, ClipboardList, Download } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useOrders, getMyOrderIds } from '../../context/OrderContext'
 import type { Order } from '../../context/OrderContext'
 import { useNow, timeAgo } from '../../hooks/useNow'
+import { useReceipt } from '../../hooks/useReceipt'
 import { ACTIVE_STATUSES, STATUS_GROUP_CLASSES, STATUS_META, STATUS_STEP } from '../../theme/status'
 import { RESTAURANT } from '../../config/restaurant'
 import { BottomSheet, Button, EmptyState, PageHeader, StatusPill, cn } from '../../components/ui'
@@ -16,6 +17,7 @@ function OrderRow({ order, now, onOpen, onCancel }: { order: Order; now: number;
   const step = STATUS_STEP[order.status]
   const fill = STATUS_GROUP_CLASSES[STATUS_META[order.status].group].fill
   const canCancel = order.status === 'pending' || order.status === 'confirmed'
+  const receipt = useReceipt(order)
 
   return (
     <motion.li
@@ -53,13 +55,23 @@ function OrderRow({ order, now, onOpen, onCancel }: { order: Order; now: number;
         </div>
       )}
 
-      {canCancel && onCancel && (
-        <div className="border-t border-line px-4 py-2">
-          <Button variant="ghost" onClick={onCancel} aria-label={`Cancel order ${order.id}`} className="-ml-3 text-status-cancelled-text hover:bg-status-cancelled-bg">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 border-t border-line px-4 py-2">
+        <Button
+          variant="ghost"
+          leftIcon={<Download />}
+          onClick={receipt.download}
+          aria-busy={receipt.busy === 'download'}
+          aria-label={`Download receipt for order ${order.id}`}
+          className="-ml-3"
+        >
+          {receipt.busy === 'download' ? 'Saving…' : 'Download receipt'}
+        </Button>
+        {canCancel && onCancel && (
+          <Button variant="ghost" onClick={onCancel} aria-label={`Cancel order ${order.id}`} className="-mr-3 text-status-cancelled-text hover:bg-status-cancelled-bg">
             Cancel order
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </motion.li>
   )
 }

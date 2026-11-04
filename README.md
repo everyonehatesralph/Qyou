@@ -29,12 +29,23 @@ dev server and `server/index.ts`). Orders are kept in `server/orders.json`. With
 |---|---|
 | `/` | Product landing page |
 | `/t/:tableId` | Table check-in (what a table's QR code opens) |
-| `/menu`, `/cart`, `/order/:id`, `/my-orders` | Guest menu, cart, order tracker, order history |
+| `/menu`, `/cart`, `/order/:id`, `/my-orders` | Guest menu, cart, order tracker and receipt, order history |
 | `/takeaway-pickup` | Take-away pickup board |
 | `/staff/login` | Staff PIN sign-in |
 | `/staff/dashboard`, `/staff/kitchen`, `/staff/tables` | Dashboard, kitchen screen, tables |
 | `/staff/menu`, `/staff/sales`, `/staff/qr-codes` | Menu availability, sales, printable QR codes |
 | `/staff/metrics` | Developer metrics (not in the navigation; some figures are simulated) |
+
+## Guest receipts
+
+Right after ordering, the order page has **Download receipt** and **View receipt**, and each order
+in Your orders has **Download receipt**. The receipt lists the restaurant, order number, date and
+time, table or take-away code, guest name, status and payment, every item with its quantity,
+options and price, any add-ons and notes, and the total. Download saves it as a PNG image
+(1080 px wide, drawn in the browser by `src/services/receiptImage.ts`, which loads only when a
+guest uses it); the receipt view also offers **Share** where the phone can share files. The
+receipt content is built once in `src/services/receipt.ts`, so the view and the image always
+agree. It is an order receipt, not an official (BIR) receipt, and says so on its face.
 
 ## Onboarding a restaurant
 
@@ -48,8 +59,8 @@ Messenger values hide those buttons on the landing page.
 ## Design system
 
 - Color tokens are CSS custom properties in `src/styles/globals.css`, scoped by
-  `data-theme="light|dark"`. Any subtree can set its own mode; the kitchen screen defaults to
-  dark (`qyou_kitchen_theme`) while the rest of the app defaults to light (`qyou_theme`).
+  `data-theme="light|dark"`. Any subtree can set its own mode; the whole app follows one choice
+  per device (`qyou_theme`), light by default.
 - Tailwind color names map to the tokens (`bg`, `surface`, `ink`, `ink-muted`, `accent`,
   `status-*`…). `.tsx` files contain no hex or `rgb()` literals.
 - Shared components are in `src/components/ui` (Button, Card, Ticket, StatusPill, BottomSheet,
@@ -60,7 +71,7 @@ Messenger values hide those buttons on the landing page.
 ## Checks
 
 ```bash
-npm test                 # color math and accent contrast tests (node --test)
+npm test                 # color math, accent contrast and receipt tests (node --test)
 npm run check:contrast   # every text/background token pair in both modes meets WCAG AA
 npm run check:colors     # fails on hex/rgb() color literals in .tsx files (default: src)
 npm run build

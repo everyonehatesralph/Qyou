@@ -1,14 +1,15 @@
-import { ArrowLeft, BellRing, Check, ClipboardList, Loader2, Receipt, ShoppingBag, UtensilsCrossed } from 'lucide-react'
+import { ArrowLeft, BellRing, Check, ClipboardList, Download, Loader2, Receipt, ShoppingBag, UtensilsCrossed } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useOrders } from '../../context/OrderContext'
 import type { Order, OrderStatus as Status } from '../../context/OrderContext'
 import { useReadyNotification } from '../../hooks/useReadyNotification'
+import { useReceipt } from '../../hooks/useReceipt'
 import { clockTime } from '../../hooks/useNow'
 import { STATUS_STEP } from '../../theme/status'
 import { RESTAURANT } from '../../config/restaurant'
-import InvoiceModal from '../../components/InvoiceModal'
+import ReceiptSheet from '../../components/InvoiceModal'
 import { Button, Card, EmptyState, IconButton, StatusPill, Ticket, announce, cn } from '../../components/ui'
 
 const peso = (n: number) => `${RESTAURANT.currency}${n.toFixed(0)}`
@@ -96,11 +97,12 @@ export default function OrderStatus() {
   const navigate = useNavigate()
   const { orderId } = useParams()
   const { orders, isConnected } = useOrders()
-  const [showSummary, setShowSummary] = useState(false)
+  const [showReceipt, setShowReceipt] = useState(false)
   // Rings and vibrates when one of this device's orders becomes ready
   const { newReadyOrderId, dismissNotification } = useReadyNotification(orders)
 
   const order = useMemo(() => orders.find(o => o.id === orderId), [orders, orderId])
+  const receipt = useReceipt(order)
 
   // Status changes arrive live; read them out (not the status the page opened with)
   const lastStatus = useRef(order?.status)
@@ -260,14 +262,17 @@ export default function OrderStatus() {
           </div>
         </Card>
 
-        {/* Side by side from 640px; stacked full width on phones so neither label is squeezed */}
+        {/* The receipt is ready as soon as the order is placed. Side by side from 640px; stacked on phones */}
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <Button leftIcon={<Receipt />} onClick={() => setShowSummary(true)}>Order summary</Button>
-          <Button variant="ghost" onClick={() => navigate('/menu')}>Order more</Button>
+          <Button leftIcon={<Download />} onClick={receipt.download} aria-busy={receipt.busy === 'download'}>
+            {receipt.busy === 'download' ? 'Saving…' : 'Download receipt'}
+          </Button>
+          <Button variant="ghost" leftIcon={<Receipt />} onClick={() => setShowReceipt(true)}>View receipt</Button>
         </div>
+        <Button variant="ghost" fullWidth onClick={() => navigate('/menu')} className="mt-2">Order more</Button>
       </div>
 
-      <InvoiceModal order={order} open={showSummary} onClose={() => setShowSummary(false)} />
+      <ReceiptSheet order={order} open={showReceipt} onClose={() => setShowReceipt(false)} />
     </main>
   )
 }
