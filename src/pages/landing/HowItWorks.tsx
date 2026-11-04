@@ -205,14 +205,14 @@ export default function HowItWorks() {
             <div
               className={cn(
                 'preserve-3d relative transition-transform duration-700',
-                printed && '-translate-x-[84px] sm:-translate-x-[80px] lg:-translate-x-[100px]',
+                printed && '-translate-x-[84px] sm:-translate-x-[80px] lg:-translate-x-[102px] xl:-translate-x-[116px]',
               )}
             >
               <motion.div
                 style={{ rotateY, rotateX }}
                 animate={step === LAST && !reduce ? { x: [0, -5, 5, -4, 4, 0] } : { x: 0 }}
                 transition={{ duration: 0.5, repeat: step === LAST ? Infinity : 0, repeatDelay: 1.6 }}
-                className="preserve-3d w-[min(52vw,208px)] sm:w-[240px] lg:w-[260px]"
+                className="preserve-3d w-[min(52vw,208px)] sm:w-[240px] xl:w-[260px]"
               >
                 <PhoneFrame>
                   <AnimatePresence mode="popLayout">
@@ -240,7 +240,7 @@ export default function HowItWorks() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10, transition: { duration: 0.2 } }}
                   transition={{ duration: 0.3, ease: EASE }}
-                  className="absolute right-0 top-[4%] z-10 w-[148px] sm:right-[4%] sm:w-[176px] lg:-right-10 lg:top-[14%] lg:w-[184px]"
+                  className="absolute right-0 top-[4%] z-10 w-[140px] sm:right-[4%] sm:w-[176px] lg:-right-10 lg:top-[14%] lg:w-[168px] xl:-right-14 xl:w-[184px]"
                 >
                   <KitchenPrinter ready={step === LAST} />
                 </motion.div>
