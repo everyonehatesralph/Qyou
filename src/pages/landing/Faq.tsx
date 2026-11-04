@@ -18,6 +18,26 @@ const FAQS = [
     a: 'A phone or tablet for your staff to see orders, and Wi-Fi. Table QR codes print straight from the staff screen.',
   },
   {
+    q: 'What if someone photographs the QR code and orders from home?',
+    a: 'Every new order waits on the staff dashboard until someone confirms it, and nothing reaches the kitchen before that. An order for an empty table is easy to spot: reject it with one tap. Guests pay at the restaurant, so a fake order gets nobody anything.',
+  },
+  {
+    q: 'What if a guest doesn’t have a phone?',
+    a: 'They order the way they always have, with your staff. Or someone at their table adds it to their own order from their phone.',
+  },
+  {
+    q: 'What if a guest isn’t comfortable ordering on a phone?',
+    a: 'There is little to learn: scan, type a first name, tap the dishes, place the order. The Help button on the menu walks them through it step by step, and your staff can always take their order the usual way.',
+  },
+  {
+    q: 'How do guests pay?',
+    a: 'The way they do today, at the counter or the table. Staff see what is waiting to be paid on the dashboard and mark orders paid there, and guests can see and print an order summary on their phone. Online payment isn’t part of Qyou yet.',
+  },
+  {
+    q: 'What if the internet goes down?',
+    a: 'Guests need mobile data or your Wi-Fi to order. If your connection drops, the staff screens show Offline and catch up once it is back; until then, take orders the usual way.',
+  },
+  {
     q: 'Can guests order take-away?',
     a: 'Yes. Guests choose dine in or take away at checkout. Take-away orders get a short pickup code to show at the counter.',
   },

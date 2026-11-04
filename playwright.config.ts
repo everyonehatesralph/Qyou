@@ -18,7 +18,7 @@ export default defineConfig({
     { name: 'seed', testMatch: /seed\.setup\.ts/ },
     { name: 'screens', testMatch: /screens\.spec\.ts/, dependencies: ['seed'] },
     { name: 'devices', testMatch: /devices\.spec\.ts/, dependencies: ['seed'] },
-    { name: 'flows', testMatch: /photos\.spec\.ts/ },
+    { name: 'flows', testMatch: /(photos|reject)\.spec\.ts/ },
   ],
   use: {
     baseURL: `http://localhost:${PORT}`,

@@ -1,4 +1,4 @@
-import { Banknote, Bell, Check, ShoppingBag } from 'lucide-react'
+import { Banknote, Bell, Check, ShoppingBag, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useOrders } from '../../context/OrderContext'
 import type { Order } from '../../context/OrderContext'
@@ -39,7 +39,13 @@ function SectionTitle({ title, count, action }: { title: string; count?: number;
 }
 
 // ─── New order card ──────────────────────────────────────────────────────────
-const IncomingCard = memo(function IncomingCard({ order, now, onConfirm }: { order: Order; now: number; onConfirm: (id: string) => void }) {
+const IncomingCard = memo(function IncomingCard({ order, now, onConfirm, onReject }: {
+  order: Order
+  now: number
+  onConfirm: (id: string) => void
+  /** Turns down an order no one should cook (e.g. sent from outside the restaurant). */
+  onReject: (id: string) => void
+}) {
   return (
     <motion.div
       layout
@@ -76,8 +82,17 @@ const IncomingCard = memo(function IncomingCard({ order, now, onConfirm }: { ord
         ))}
       </ul>
       {order.notes && <p className="mx-4 mt-3 rounded-control bg-surface-2 px-3 py-2 text-sm text-ink">{order.notes}</p>}
-      <div className="mt-auto p-4 pt-4">
-        <Button variant="primary" fullWidth leftIcon={<Check />} onClick={() => onConfirm(order.id)}>
+      <div className="mt-auto flex gap-2 p-4 pt-4">
+        <Button
+          variant="ghost"
+          leftIcon={<X />}
+          onClick={() => onReject(order.id)}
+          aria-label={`Reject order ${order.id}`}
+          className="text-status-cancelled-text hover:bg-status-cancelled-bg"
+        >
+          Reject
+        </Button>
+        <Button variant="primary" leftIcon={<Check />} onClick={() => onConfirm(order.id)} className="flex-1">
           Confirm order
         </Button>
       </div>
@@ -88,7 +103,7 @@ const IncomingCard = memo(function IncomingCard({ order, now, onConfirm }: { ord
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { orders, updateOrderStatus, isConnected } = useOrders()
+  const { orders, updateOrderStatus, cancelOrder, isConnected } = useOrders()
   const { expanded: sidebarExpanded, toggle: toggleSidebar } = useSidebar()
   const now = useNow(30_000)
   const [freeTableId, setFreeTableId] = useState<number | null>(null)
@@ -122,6 +137,7 @@ export default function Dashboard() {
   const freeCount = RESTAURANT.tables.filter(t => !ordersByTable.has(t.id)).length
 
   const confirmOrder = (orderId: string) => updateOrderStatus(orderId, 'confirmed')
+  const rejectOrder = (orderId: string) => cancelOrder(orderId)
   const markPaid = (orderId: string) => updateOrderStatus(orderId, 'paid')
 
   // Unchanged behavior: freeing a table marks all its unpaid orders as paid
@@ -170,7 +186,7 @@ export default function Dashboard() {
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               <AnimatePresence initial={false}>
                 {pendingOrders.map(order => (
-                  <IncomingCard key={order.id} order={order} now={now} onConfirm={confirmOrder} />
+                  <IncomingCard key={order.id} order={order} now={now} onConfirm={confirmOrder} onReject={rejectOrder} />
                 ))}
               </AnimatePresence>
             </div>
