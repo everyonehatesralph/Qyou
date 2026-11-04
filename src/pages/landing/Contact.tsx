@@ -59,7 +59,6 @@ export default function Contact() {
                 <a href={`tel:${phone}`} className="mt-3 flex min-h-11 items-center font-display text-[clamp(2rem,8vw,2.6rem)] leading-none tracking-[-0.03em] text-ink tabular-nums hover:text-accent-text">
                   {formatPhone(phone)}
                 </a>
-                <p className="mt-3 text-sm text-ink-muted">{PRODUCT.tagline}</p>
               </Ticket>
             </TiltCard>
             </div>
