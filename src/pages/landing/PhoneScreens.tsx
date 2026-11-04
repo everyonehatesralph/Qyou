@@ -279,9 +279,11 @@ export function ScanScreen() {
           transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
         />
       </div>
+      {/* Slides up from below the screen's edge (which clips it) rather than fading in: never
+          half-transparent, so its text never shows at low contrast */}
       <motion.div
-        initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
+        initial={{ y: 120 }}
+        animate={{ y: 0 }}
         transition={{ delay: 0.6, type: 'spring', stiffness: 300, damping: 26 }}
         className="absolute inset-x-4 bottom-14 rounded-2xl bg-surface px-3.5 py-2.5"
       >
@@ -318,16 +320,16 @@ export function OrderScreen() {
 
 const RECEIPT_LINES = [{ id: 2, qty: 2 }, { id: 7, qty: 1 }].map(l => ({ ...l, item: item(l.id) }))
 
-// The receipt prints like a ticket from a thermal printer: paper feeds out in eight short,
-// eased bursts, then settles with a small swing
+// Receipts print like a ticket from a thermal printer: paper feeds out in eight short, eased
+// bursts, then settles with a small swing. Shared with the kitchen printer in How it works.
 const FEED_STEPS = 8
-const feed = (t: number) => {
+export const feed = (t: number) => {
   const i = Math.min(FEED_STEPS - 1, Math.floor(t * FEED_STEPS))
   const f = t * FEED_STEPS - i
   return (i + f * f * (3 - 2 * f)) / FEED_STEPS
 }
-const FEED_DELAY = 0.35
-const FEED_DURATION = 1.6
+export const FEED_DELAY = 0.35
+export const FEED_DURATION = 1.6
 const PRINTED = FEED_DELAY + FEED_DURATION
 
 /** Step 3: the receipt prints onto the guest's phone as soon as they order; then Download receipt. */
