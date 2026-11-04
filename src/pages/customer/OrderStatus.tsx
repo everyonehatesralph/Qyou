@@ -9,7 +9,7 @@ import { STATUS_STEP } from '../../theme/status'
 import { RESTAURANT } from '../../config/restaurant'
 import InvoiceModal from '../../components/InvoiceModal'
 import { Button, Card, EmptyState, IconButton, StatusPill, Ticket, announce, cn } from '../../components/ui'
-import { orderRef } from '../../services/orderModel'
+import { optionsText, orderRef } from '../../services/orderModel'
 
 const peso = (n: number) => `${RESTAURANT.currency}${n.toFixed(0)}`
 
@@ -223,11 +223,12 @@ export default function OrderStatus() {
             </span>
           </div>
           <ul className="divide-y divide-line px-4 sm:px-5">
-            {order.items.map(item => (
-              <li key={item.id} className="flex justify-between gap-3 py-2.5 text-[15px]">
+            {order.items.map((item, i) => (
+              <li key={`${item.id}-${i}`} className="flex justify-between gap-3 py-2.5 text-[15px]">
                 <span className="text-ink">
                   <span className="tabular-nums text-ink-muted">{item.quantity}× </span>
                   {item.name}
+                  {item.options?.length ? <span className="block text-[13px] text-ink-muted">{optionsText(item)}</span> : null}
                 </span>
                 <span className="tabular-nums text-ink">{peso(item.price * item.quantity)}</span>
               </li>

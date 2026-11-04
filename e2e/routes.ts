@@ -20,8 +20,11 @@ async function checkIn(page: Page) {
 }
 
 async function addItems(page: Page) {
-  // Popular repeats some items, so take the first of each
+  // Popular repeats some items, so take the first of each. The macchiato has options
+  // (size, hot or iced, sugar): its sheet opens with the usual picks, and Add to cart takes them.
   await page.getByRole('button', { name: 'Add Caramel Macchiato' }).first().click()
+  await page.getByRole('dialog').getByRole('button', { name: /Add to cart/ }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
   await page.getByRole('button', { name: 'Add Butter Croissant' }).first().click()
 }
 

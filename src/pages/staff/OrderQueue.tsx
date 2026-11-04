@@ -11,7 +11,7 @@ import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 import { Button, EmptyState, IconButton, cn } from '../../components/ui'
 import { peso } from '../../utils/formatters'
-import { orderRef } from '../../services/orderModel'
+import { optionsText, orderRef } from '../../services/orderModel'
 
 // ─── Pipeline ────────────────────────────────────────────────────────────────
 type KitchenStatus = 'confirmed' | 'preparing' | 'ready'
@@ -95,10 +95,13 @@ const KitchenCard = memo(function KitchenCard({ order, status, action, now, onAd
       )}
 
       <ul className="mx-4 space-y-1.5 border-t border-line pt-3">
-        {order.items.map(item => (
-          <li key={item.id} className="flex gap-2.5 text-[18px] leading-snug text-ink">
+        {order.items.map((item, i) => (
+          <li key={`${item.id}-${i}`} className="flex gap-2.5 text-[18px] leading-snug text-ink">
             <span className="min-w-[2ch] font-medium tabular-nums">{item.quantity}×</span>
-            <span>{item.name}</span>
+            <span>
+              {item.name}
+              {item.options?.length ? <span className="block text-[15px] font-medium text-ink-muted">{optionsText(item)}</span> : null}
+            </span>
           </li>
         ))}
       </ul>

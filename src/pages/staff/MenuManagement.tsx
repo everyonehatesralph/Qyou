@@ -1,4 +1,4 @@
-import { Camera, ImageOff, Loader2, Pencil, Plus, RotateCcw, Trash2, UtensilsCrossed } from 'lucide-react'
+import { Camera, Check, ImageOff, ListChecks, Loader2, Pencil, Plus, RotateCcw, Trash2, UtensilsCrossed } from 'lucide-react'
 import { useState, useCallback, useId, useRef, type ChangeEvent, type FormEvent } from 'react'
 import { useMenu } from '../../context/MenuContext'
 import { useSidebar } from '../../context/SidebarContext'
@@ -6,6 +6,8 @@ import { MENU_CATEGORIES, type MenuItem } from '../../constants/menu'
 import StaffPageShell from '../../components/StaffPageShell'
 import StaffHeader from '../../components/StaffHeader'
 import ItemPhoto from '../../components/ItemPhoto'
+import OptionGroupEditor from '../../components/OptionGroupEditor'
+import type { LiveOptionGroup } from '../../services/orderSync'
 import { photoFor, preparePhoto, removePhoto, resetPhoto, savePhoto, usePhotoOverrides } from '../../services/menuPhotos'
 import {
   BottomSheet, Button, EmptyState, IconButton, Switch, TextInput, cn, fieldClasses,
@@ -19,8 +21,14 @@ const ADD_ON_CATEGORY = 'Add-ons'
 const CATEGORIES = [...MENU_CATEGORIES, ADD_ON_CATEGORY]
 const EMPTY_FORM: EditableItem = { name: '', price: '', category: 'Coffee' }
 
+/** "Regular, Large +₱30" */
+const choicesSummary = (g: LiveOptionGroup) =>
+  g.choices.map(c => (c.price > 0 ? `${c.name} +${peso(c.price)}` : c.name)).join(', ')
+
 export default function MenuManagement() {
-  const { items: menuItems, addOns, toggleItemAvailability, saveItem, removeItem } = useMenu()
+  const {
+    items: menuItems, addOns, optionGroups, toggleItemAvailability, saveItem, removeItem, saveOptionGroup, removeOptionGroup,
+  } = useMenu()
   const { expanded: sidebarExpanded, toggle: toggleSidebar } = useSidebar()
   // Every change is saved to the order backend and reaches guests' phones at once
   const items = [...menuItems, ...addOns]
@@ -31,6 +39,10 @@ export default function MenuManagement() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const [listError, setListError] = useState('')
+  // The option groups this item asks for, in the order guests see them
+  const [optionIds, setOptionIds] = useState<number[]>([])
+  // null = closed, 'new' = adding, or the group being edited
+  const [editingGroup, setEditingGroup] = useState<LiveOptionGroup | 'new' | null>(null)
   const categoryId = useId()
   const photoNoteId = useId()
   const overrides = usePhotoOverrides()
@@ -50,6 +62,7 @@ export default function MenuManagement() {
   const openEdit = useCallback((item: MenuItem) => {
     setForm({ name: item.name, price: String(item.price), category: item.category })
     setDescription(item.description)
+    setOptionIds(item.optionGroupIds ?? [])
     setFormError('')
     resetPhotoForm()
     setEditing(item.id)
@@ -58,6 +71,7 @@ export default function MenuManagement() {
   const openAdd = useCallback(() => {
     setForm(EMPTY_FORM)
     setDescription('')
+    setOptionIds([])
     setFormError('')
     resetPhotoForm()
     setEditing('new')
@@ -118,6 +132,8 @@ export default function MenuManagement() {
         category: form.category,
         description,
         addon: form.category === ADD_ON_CATEGORY,
+        // Add-ons are extras themselves; they don't take options
+        optionGroupIds: form.category === ADD_ON_CATEGORY ? [] : optionIds,
       })
       // Photos stay on this device for now, under the id the server gave the item
       return applyPhoto(saved.id)
@@ -184,6 +200,7 @@ export default function MenuManagement() {
                         <p className="text-[13px] tabular-nums text-ink-muted">
                           {peso(item.price)}
                           {!isAvailable && ' · Sold out'}
+                          {(item.optionGroupIds?.length ?? 0) > 0 && ` · ${item.optionGroupIds!.length} ${item.optionGroupIds!.length === 1 ? 'option' : 'options'}`}
                         </p>
                       </div>
                       <Switch
@@ -201,6 +218,36 @@ export default function MenuManagement() {
             </section>
           ))
         )}
+
+        <section aria-labelledby="option-groups">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h2 id="option-groups" className="font-display text-xl text-ink">Options</h2>
+            <Button variant="ghost" leftIcon={<Plus />} onClick={() => setEditingGroup('new')} className="-mr-3">Add option group</Button>
+          </div>
+          <p className="mb-3 text-sm text-ink-muted">Choices guests make, like size or sugar level. Turn them on per item in the item's editor.</p>
+          {optionGroups.length === 0 ? (
+            <EmptyState icon={ListChecks} title="No options yet" body="Add sizes, sugar levels or extras guests can choose." />
+          ) : (
+            <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
+              {optionGroups.map(g => (
+                <li key={g.id} className="flex items-center gap-3 py-2 pl-4 pr-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[15px] font-medium leading-snug text-ink">
+                      {g.name}
+                      <span className="ml-2 text-[13px] font-normal text-ink-muted">
+                        {g.required ? (g.multiple ? 'Pick one or more' : 'Pick one') : 'Optional'}
+                      </span>
+                    </p>
+                    <p className="text-[13px] text-ink-muted">{choicesSummary(g)}</p>
+                  </div>
+                  <IconButton label={`Edit ${g.name} options`} onClick={() => setEditingGroup(g)}>
+                    <Pencil />
+                  </IconButton>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </main>
 
       <BottomSheet
@@ -281,6 +328,43 @@ export default function MenuManagement() {
               </select>
             </div>
           </div>
+          {form.category !== ADD_ON_CATEGORY && optionGroups.length > 0 && (
+            <fieldset>
+              <legend className="mb-1.5 text-sm font-medium text-ink">Options guests choose</legend>
+              <div className="divide-y divide-line rounded-card border border-line">
+                {optionGroups.map(g => {
+                  const on = optionIds.includes(g.id)
+                  return (
+                    // The whole row is the target; the real checkbox is hidden behind the drawn one
+                    <label
+                      key={g.id}
+                      className="flex min-h-12 cursor-pointer items-center gap-3 px-4 py-2 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-accent"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() => setOptionIds(prev => (on ? prev.filter(id => id !== g.id) : [...prev, g.id]))}
+                        className="sr-only"
+                      />
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] border transition-colors duration-150',
+                          on ? 'border-accent bg-accent text-on-accent' : 'border-line-strong bg-surface',
+                        )}
+                      >
+                        {on && <Check className="h-4 w-4" strokeWidth={3} />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[15px] text-ink">{g.name}</span>
+                        <span className="block text-[13px] text-ink-muted">{choicesSummary(g)}</span>
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+            </fieldset>
+          )}
           {formError && <p role="alert" className="text-sm text-status-cancelled-text">{formError}</p>}
           <div className="flex gap-3 pt-2">
             {typeof editing === 'number' && (
@@ -292,6 +376,13 @@ export default function MenuManagement() {
           </div>
         </form>
       </BottomSheet>
+
+      <OptionGroupEditor
+        group={editingGroup}
+        onClose={() => setEditingGroup(null)}
+        onSave={async group => { await saveOptionGroup(group) }}
+        onRemove={removeOptionGroup}
+      />
     </StaffPageShell>
   )
 }

@@ -71,6 +71,10 @@ On Vercel, add the same two variables for **Production** and **Preview**, then r
 - Only staff can set how many tables there are (`set_table_count`); a table with open orders
   can't be removed. `place_order` refuses tables that don't exist or were removed, and takes
   the table's name from `restaurant_tables`.
+- Item options live in `option_groups` (choices with extra prices). `place_order` adds the
+  chosen options to each item's price, keeps different choices as separate lines, and refuses
+  a choice the item doesn't offer or a missing required one. Only staff change groups
+  (`save_option_group`, `remove_option_group`) or which groups an item asks for.
 - Only staff can change the menu (`save_menu_item`, `set_menu_item_available`,
   `remove_menu_item`). Removed items are kept, switched off, so old orders still name them.
 - Each order gets the day's next queue number from `order_counters`, taken under a row lock so
@@ -78,7 +82,7 @@ On Vercel, add the same two variables for **Production** and **Preview**, then r
   (`restaurant_day()`). A number is unique only with its day.
 - Only users in `staff_members` can read `orders` or call `set_order_status`.
 - Nobody can insert, update or delete table rows directly.
-- `orders`, `order_board`, `menu_items` and `restaurant_tables` are in the `supabase_realtime`
-  publication, so screens, guests' menus and check-in update live.
+- `orders`, `order_board`, `menu_items`, `option_groups` and `restaurant_tables` are in the
+  `supabase_realtime` publication, so screens, guests' menus and check-in update live.
 
 `npm test` runs this migration on an in-process Postgres and checks all of the above.

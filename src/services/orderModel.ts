@@ -10,6 +10,15 @@ export interface OrderItem {
   /** Menu category when the order was placed ("Add-ons" for extras). Older orders may lack it. */
   category?: string
   addon?: boolean
+  /** The choices made for this line (Large, Iced…); `price` above already includes them. */
+  options?: ChosenOption[]
+}
+
+/** One choice on an order line, as it was when ordered. */
+export interface ChosenOption {
+  group: string
+  choice: string
+  price: number
 }
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'served' | 'paid' | 'cancelled'
 export type OrderType = 'dineIn' | 'takeaway'
@@ -67,7 +76,8 @@ export interface PlaceOrderInput {
   tableName: string
   customerName: string
   orderType: OrderType
-  items: { id: number; quantity: number }[]
+  /** `choices`: ids of the option choices picked for that line (size, sugar…). */
+  items: { id: number; quantity: number; choices?: number[] }[]
   notes?: string
 }
 
@@ -197,6 +207,105 @@ export interface MenuPrice {
   addon?: boolean
   /** False once staff remove the item; it stays only so old orders keep their ids. */
   active?: boolean
+  /** Option groups this item asks for, in order. */
+  optionGroupIds?: number[]
+}
+
+// ─── Item options ────────────────────────────────────────────────────────────
+export interface OptionGroupLike {
+  id: number
+  name: string
+  required: boolean
+  multiple: boolean
+  choices: { id: number; name: string; price: number }[]
+  /** False once staff remove the group. */
+  active?: boolean
+}
+
+/** The groups an item asks for, in its order, leaving out removed ones. */
+export function groupsFor(item: Pick<MenuPrice, 'optionGroupIds'>, groups: OptionGroupLike[]): OptionGroupLike[] {
+  return (item.optionGroupIds ?? [])
+    .map(id => groups.find(g => g.id === id && g.active !== false))
+    .filter((g): g is OptionGroupLike => !!g)
+}
+
+/**
+ * Checks a set of choices against an item's groups. `ok` is false when a choice isn't offered,
+ * a single-choice group has two, or a required group has none (those are listed in `missing`).
+ */
+export function checkOptions(itemGroups: OptionGroupLike[], choices: number[]) {
+  const options: ChosenOption[] = []
+  let extra = 0
+  let offered = 0
+  const missing: string[] = []
+  let tooMany = false
+  for (const g of itemGroups) {
+    const picked = g.choices.filter(c => choices.includes(c.id))
+    offered += picked.length
+    if (!g.multiple && picked.length > 1) tooMany = true
+    if (g.required && picked.length === 0) missing.push(g.name)
+    for (const c of picked) {
+      options.push({ group: g.name, choice: c.name, price: c.price })
+      extra += c.price
+    }
+  }
+  const unknown = offered !== new Set(choices).size || new Set(choices).size !== choices.length
+  return { ok: !unknown && !tooMany && missing.length === 0, invalid: unknown || tooMany, missing, options, extra }
+}
+
+/** Short text for a line's options: "Large · Iced · 50% sugar". */
+export function optionsText(item: { options?: ChosenOption[] }): string {
+  return (item.options ?? []).map(o => o.choice).join(' · ')
+}
+
+/** One cart or order line per item and set of choices. */
+export function lineKey(id: number, choices: number[] = []): string {
+  return choices.length ? `${id}:${[...choices].sort((a, b) => a - b).join(',')}` : String(id)
+}
+
+export interface OptionGroupInput {
+  id?: number | null
+  name: unknown
+  required?: unknown
+  multiple?: unknown
+  choices: unknown
+}
+
+/**
+ * Staff add or edit an option group (the order server; Supabase does the same in SQL). A choice
+ * without an id is new; one left out is gone. Returns the new list and the saved group.
+ */
+export function applyOptionGroupSave<G extends OptionGroupLike>(groups: G[], input: OptionGroupInput): { groups: G[]; group: G } {
+  const name = typeof input.name === 'string' ? input.name.trim() : ''
+  if (name.length < 1 || name.length > 40) throw new OrderError('invalid_name')
+  const raw = input.choices
+  if (!Array.isArray(raw) || raw.length < 1 || raw.length > 20) throw new OrderError('invalid_choices')
+  const existing = input.id == null ? undefined : groups.find(g => g.id === input.id && g.active !== false)
+  if (input.id != null && !existing) throw new OrderError('unknown_option_group')
+  const known = new Set((existing?.choices ?? []).map(c => c.id))
+  let nextId = Math.max(99, ...groups.flatMap(g => g.choices.map(c => c.id))) + 1
+  const choices = raw.map((c: { id?: unknown; name?: unknown; price?: unknown }) => {
+    const cname = typeof c?.name === 'string' ? c.name.trim() : ''
+    const price = c?.price === undefined ? 0 : c.price
+    if (cname.length < 1 || cname.length > 40) throw new OrderError('invalid_choices')
+    if (typeof price !== 'number' || !(price >= 0 && price <= 100000) || Math.round(price * 100) !== price * 100) {
+      throw new OrderError('invalid_choices')
+    }
+    if (c.id !== undefined && !(typeof c.id === 'number' && known.has(c.id))) throw new OrderError('invalid_choices')
+    return { id: typeof c.id === 'number' ? c.id : nextId++, name: cname, price }
+  })
+  const fields = {
+    name,
+    required: typeof input.required === 'boolean' ? input.required : existing?.required ?? true,
+    multiple: typeof input.multiple === 'boolean' ? input.multiple : existing?.multiple ?? false,
+    choices,
+  }
+  if (existing) {
+    const group = { ...existing, ...fields }
+    return { groups: groups.map(g => (g === existing ? group : g)), group }
+  }
+  const group = { id: Math.max(0, ...groups.map(g => g.id)) + 1, ...fields, active: true } as G
+  return { groups: [...groups, group], group }
 }
 
 export class OrderError extends Error {
@@ -210,27 +319,40 @@ export class OrderError extends Error {
 const MAX_LINES = 30
 const MAX_PER_ITEM = 50
 
-export function priceOrder(menu: MenuPrice[], lines: unknown): { items: OrderItem[]; total: number } {
+export function priceOrder(menu: MenuPrice[], lines: unknown, groups: OptionGroupLike[] = []): { items: OrderItem[]; total: number } {
   if (!Array.isArray(lines) || lines.length === 0) throw new OrderError('empty_order')
   if (lines.length > MAX_LINES) throw new OrderError('too_many_items')
-  const wanted = new Map<number, number>()
-  for (const line of lines as { id?: unknown; quantity?: unknown }[]) {
-    const { id, quantity } = line ?? {}
+  // Same item with the same choices is one line; different choices stay apart
+  const wanted = new Map<string, { id: number; choices: number[]; quantity: number }>()
+  for (const line of lines as { id?: unknown; quantity?: unknown; choices?: unknown }[]) {
+    const { id, quantity, choices } = line ?? {}
     if (!Number.isInteger(id) || (id as number) < 1 || !Number.isInteger(quantity) || (quantity as number) < 1) {
       throw new OrderError('invalid_items')
     }
-    wanted.set(id as number, (wanted.get(id as number) ?? 0) + (quantity as number))
+    if ((quantity as number) > MAX_PER_ITEM) throw new OrderError('too_many_items')
+    const picked = choices === undefined ? [] : choices
+    if (!Array.isArray(picked) || !picked.every(Number.isInteger) || new Set(picked).size !== picked.length) {
+      throw new OrderError('invalid_options')
+    }
+    const sorted = [...(picked as number[])].sort((a, b) => a - b)
+    const key = lineKey(id as number, sorted)
+    const prev = wanted.get(key)
+    wanted.set(key, { id: id as number, choices: sorted, quantity: (prev?.quantity ?? 0) + (quantity as number) })
   }
   const items: OrderItem[] = []
-  for (const [id, quantity] of wanted) {
+  for (const { id, choices, quantity } of wanted.values()) {
     const item = menu.find(m => m.id === id && m.active !== false)
     if (!item) throw new OrderError('unknown_item')
     if (!item.available) throw new OrderError('item_unavailable')
     if (quantity > MAX_PER_ITEM) throw new OrderError('too_many_items')
+    const check = checkOptions(groupsFor(item, groups), choices)
+    if (check.invalid) throw new OrderError('invalid_options')
+    if (check.missing.length > 0) throw new OrderError('missing_option')
     items.push({
-      id, name: item.name, price: item.price, quantity,
+      id, name: item.name, price: item.price + check.extra, quantity,
       ...(item.category ? { category: item.category } : {}),
       ...(item.addon ? { addon: true } : {}),
+      ...(check.options.length ? { options: check.options } : {}),
     })
   }
   return { items, total: items.reduce((s, i) => s + i.price * i.quantity, 0) }
@@ -288,6 +410,10 @@ const ERROR_TEXT: Record<string, string> = {
   invalid_category: 'Pick a category for the item.',
   invalid_price:    'Enter a price from 0 to 100,000, with at most two decimals.',
   invalid_table_count: 'Pick between 1 and 200 tables.',
+  missing_option:   'Choose the options for each item (size, sugar…) before ordering.',
+  invalid_options:  'The options on one of your items changed. Remove it and add it again.',
+  invalid_choices:  'Each choice needs a name of up to 40 characters and a price from 0 to 100,000.',
+  unknown_option_group: 'That option group was removed. Reload and try again.',
   not_cancellable:  'The kitchen has started on this order, so it can no longer be cancelled.',
   staff_only:       'Sign in as staff to change orders.',
 }

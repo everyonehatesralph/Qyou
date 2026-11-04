@@ -2,7 +2,7 @@ import { test, before } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { PGlite } from '@electric-sql/pglite'
-import { SEED_MENU } from '../src/constants/menu.ts'
+import { OPTION_GROUPS, SEED_MENU } from '../src/constants/menu.ts'
 
 // Runs the Supabase migration on an in-process Postgres with the few Supabase pieces it
 // relies on (auth.users, auth.uid(), the anon/authenticated roles, the realtime publication)
@@ -69,22 +69,25 @@ const place = (who: string, id: string, items: unknown, opts: { table?: number; 
     [id, opts.table ?? 4, `Table ${opts.table ?? 4}`, opts.name ?? 'Ana', opts.type ?? 'dineIn', JSON.stringify(items), 'Dine In'],
   ).then(rows => rows[0])
 
-test('the seeded menu matches src/constants/menu.ts', async () => {
+test('the seeded menu and options match src/constants/menu.ts', async () => {
   const fresh = await supabaseLikeDb({ defaultGrants: true })
-  const rows = (await fresh.query<{ id: number; name: string; price: string; category: string; description: string; addon: boolean }>(
-    'select id, name, price, category, description, addon from public.menu_items order by id')).rows
+  const rows = (await fresh.query<{ id: number; name: string; price: string; category: string; description: string; addon: boolean; option_group_ids: number[] }>(
+    'select id, name, price, category, description, addon, option_group_ids from public.menu_items order by id')).rows
+  const groups = (await fresh.query<{ id: number; name: string; required: boolean; multiple: boolean; choices: { id: number; name: string; price: number }[] }>(
+    'select id, name, required, multiple, choices from public.option_groups order by id')).rows
   await fresh.close()
   assert.deepEqual(
-    rows.map(r => ({ id: r.id, name: r.name, price: Number(r.price), category: r.category, description: r.description, addon: r.addon })),
-    SEED_MENU.map(m => ({ id: m.id, name: m.name, price: m.price, category: m.category, description: m.description, addon: !!m.addon })),
+    rows.map(r => ({ id: r.id, name: r.name, price: Number(r.price), category: r.category, description: r.description, addon: r.addon, groups: r.option_group_ids })),
+    SEED_MENU.map(m => ({ id: m.id, name: m.name, price: m.price, category: m.category, description: m.description, addon: !!m.addon, groups: m.optionGroupIds ?? [] })),
   )
+  assert.deepEqual(groups, OPTION_GROUPS)
 })
 
 test('orders are priced by the server, not the browser', async () => {
   const order = await place('anon', uuid(1), [
-    { id: 2, name: 'Caramel Macchiato', price: 1, quantity: 2 },
+    { id: 2, name: 'Caramel Macchiato', price: 1, quantity: 2, choices: [1, 3, 5] },
     { id: 7, price: 0, quantity: 1 },
-    { id: 2, quantity: 1 },
+    { id: 2, quantity: 1, choices: [5, 3, 1] },
   ])
   assert.equal(Number(order.total), 165 * 3 + 95)
   assert.deepEqual(order.items.map(i => [i.id, i.name, Number(i.price), i.quantity, i.category, i.addon]), [
@@ -123,7 +126,7 @@ test('bad carts are refused', async () => {
 })
 
 test('add-ons are charged like menu items', async () => {
-  const order = await place('anon', uuid(5), [{ id: 2, quantity: 1 }, { id: 102, quantity: 1 }, { id: 103, quantity: 1 }])
+  const order = await place('anon', uuid(5), [{ id: 2, quantity: 1, choices: [1, 3, 5] }, { id: 102, quantity: 1 }, { id: 103, quantity: 1 }])
   assert.equal(Number(order.total), 165 + 25 + 0)
   assert.deepEqual(order.items.map(i => [i.name, i.category, i.addon]), [
     ['Caramel Macchiato', 'Coffee', false],
@@ -132,8 +135,44 @@ test('add-ons are charged like menu items', async () => {
   ])
 })
 
+test('options are priced by the server and keep each drink as ordered', async () => {
+  // Large (+30), Iced, 50% sugar; and the same drink Regular, Hot, 100%; and the Large one again
+  const order = await place('anon', uuid(6), [
+    { id: 2, quantity: 1, choices: [2, 4, 7] },
+    { id: 2, quantity: 1, choices: [1, 3, 5] },
+    { id: 2, quantity: 1, choices: [7, 2, 4] },
+  ])
+  assert.equal(Number(order.total), (165 + 30) * 2 + 165)
+  type Line = { quantity: number; price: number; options: { group: string; choice: string; price: number }[] }
+  const [large, regular] = order.items as unknown as Line[]
+  assert.equal(large.quantity, 2)
+  assert.equal(Number(large.price), 195)
+  assert.deepEqual(large.options.map(o => [o.group, o.choice, Number(o.price)]), [
+    ['Size', 'Large', 30], ['Hot or iced', 'Iced', 0], ['Sugar level', '50% sugar', 0],
+  ])
+  assert.equal(regular.quantity, 1)
+  assert.equal(Number(regular.price), 165)
+  // Items without options carry none
+  const plain = await place('anon', uuid(7), [{ id: 7, quantity: 1 }])
+  assert.ok(!('options' in plain.items[0]))
+})
+
+test('missing or wrong options are refused', async () => {
+  const macchiato = (choices: unknown) => place('anon', uuid(8), [{ id: 2, quantity: 1, choices }])
+  await rejects(macchiato([1, 3]), 'missing_option')            // no sugar level
+  await rejects(macchiato([]), 'missing_option')
+  await rejects(place('anon', uuid(8), [{ id: 2, quantity: 1 }]), 'missing_option')
+  await rejects(macchiato([1, 2, 3, 5]), 'invalid_options')     // two sizes
+  await rejects(macchiato([1, 3, 5, 10]), 'invalid_options')    // ice isn't asked on this drink
+  await rejects(macchiato([1, 3, 5, 999]), 'invalid_options')   // no such choice
+  await rejects(macchiato([1, 1, 3, 5]), 'invalid_options')     // the same choice twice
+  await rejects(macchiato([1, 3, 5.5]), 'invalid_options')
+  await rejects(macchiato('large'), 'invalid_options')
+  await rejects(place('anon', uuid(8), [{ id: 7, quantity: 1, choices: [1] }]), 'invalid_options') // croissant has no options
+})
+
 test('take-away orders get a pickup code', async () => {
-  const order = await place('anon', uuid(4), [{ id: 4, quantity: 1 }], { type: 'takeaway', name: 'Jun' })
+  const order = await place('anon', uuid(4), [{ id: 4, quantity: 1, choices: [1, 5, 10] }], { type: 'takeaway', name: 'Jun' })
   assert.match(order.takeaway_code, /^T-[A-HJ-NP-Z2-9]{4}$/)
 })
 
@@ -232,6 +271,45 @@ test('sold-out and removed items cannot be ordered', async () => {
   assert.equal(count, 1)
 })
 
+test('staff manage option groups; guests and prices follow', async () => {
+  const save = `select * from public.save_option_group($1, $2, $3, $4, $5::jsonb)`
+  const milk = [{ name: 'Fresh milk', price: 0 }, { name: 'Oat milk', price: 25 }]
+  await rejects(as('anon', save, [null, 'Milk', false, false, JSON.stringify(milk)]), 'permission denied')
+  await rejects(as(STRANGER, save, [null, 'Milk', false, false, JSON.stringify(milk)]), 'staff_only')
+  await rejects(as(STAFF, save, [null, 'Milk', false, false, '[]']), 'invalid_choices')
+  await rejects(as(STAFF, save, [null, 'Milk', false, false, JSON.stringify([{ name: '', price: 0 }])]), 'invalid_choices')
+  await rejects(as(STAFF, save, [null, 'Milk', false, false, JSON.stringify([{ name: 'Oat', price: -1 }])]), 'invalid_choices')
+  // A choice can't be taken from another group
+  await rejects(as(STAFF, save, [null, 'Milk', false, false, JSON.stringify([{ id: 2, name: 'Large', price: 0 }])]), 'invalid_choices')
+
+  const [group] = await as<{ id: number; choices: { id: number; name: string; price: number }[] }>(STAFF, save,
+    [null, 'Milk', false, false, JSON.stringify(milk)])
+  assert.equal(group.id, 5)
+  const oat = group.choices.find(c => c.name === 'Oat milk')!
+  assert.ok(oat.id >= 100, 'new choices get fresh ids')
+
+  // On the macchiato after its size, temperature and sugar; optional, so it can be left out
+  await as(STAFF, `select * from public.save_menu_item(2, 'Caramel Macchiato', 165, 'Coffee', '', false, $1::integer[])`, [[1, 2, 3, group.id]])
+  assert.equal(Number((await place('anon', uuid(50), [{ id: 2, quantity: 1, choices: [1, 3, 5, oat.id] }])).total), 190)
+  assert.equal(Number((await place('anon', uuid(51), [{ id: 2, quantity: 1, choices: [1, 3, 5] }])).total), 165)
+
+  // Oat milk goes up; the order placed before keeps its price
+  await as(STAFF, save, [group.id, 'Milk', false, false, JSON.stringify([{ id: oat.id, name: 'Oat milk', price: 35 }])])
+  assert.equal(Number((await place('anon', uuid(52), [{ id: 2, quantity: 1, choices: [1, 3, 5, oat.id] }])).total), 200)
+  const [kept] = await as<{ total: string }>('anon', 'select total from public.get_orders($1::uuid[])', [[uuid(50)]])
+  assert.equal(Number(kept.total), 190)
+
+  // A removed group isn't asked for any more, and its choices can't be ordered
+  await rejects(as(STRANGER, 'select public.remove_option_group(5)'), 'staff_only')
+  await as(STAFF, 'select public.remove_option_group(5)')
+  await rejects(place('anon', uuid(53), [{ id: 2, quantity: 1, choices: [1, 3, 5, oat.id] }]), 'invalid_options')
+  assert.equal(Number((await place('anon', uuid(53), [{ id: 2, quantity: 1, choices: [1, 3, 5] }])).total), 165)
+  // Unknown groups are dropped when attaching
+  const [item] = await as<{ option_group_ids: number[] }>(STAFF,
+    `select * from public.save_menu_item(2, 'Caramel Macchiato', 165, 'Coffee', '', false, $1::integer[])`, [[1, 2, 3, 99, 2]])
+  assert.deepEqual(item.option_group_ids, [1, 2, 3])
+})
+
 test('running the migration again keeps staff menu edits', async () => {
   await db.exec(MIGRATION)
   const [row] = (await db.query<{ name: string; price: string }>('select name, price from public.menu_items where id = 1')).rows
@@ -303,10 +381,10 @@ test('the table name on an order comes from the server, not the phone', async ()
   assert.equal(order.table_name, 'Table 3')
 })
 
-test('orders, the board, the menu and the tables are published for live updates', async () => {
+test('orders, the board, the menu, its options and the tables are published for live updates', async () => {
   const rows = (await db.query<{ tablename: string }>(
     `select tablename from pg_publication_tables where pubname = 'supabase_realtime' order by tablename`)).rows
-  assert.deepEqual(rows.map(r => r.tablename), ['menu_items', 'order_board', 'orders', 'restaurant_tables'])
+  assert.deepEqual(rows.map(r => r.tablename), ['menu_items', 'option_groups', 'order_board', 'orders', 'restaurant_tables'])
 })
 
 test('works on a project that does not expose new tables by default', async () => {

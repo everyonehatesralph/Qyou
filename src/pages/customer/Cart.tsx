@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCart } from '../../context/CartContext'
 import { useMenu } from '../../context/MenuContext'
+import { optionsText } from '../../services/orderModel'
 import { useAuth } from '../../context/AuthContext'
 import { useOrders } from '../../context/OrderContext'
 import { RESTAURANT } from '../../config/restaurant'
@@ -28,11 +29,11 @@ export default function Cart() {
 
   const changeQty = (item: typeof cartItems[number], next: number) => {
     if (next > item.quantity) {
-      addToCart(item)
+      addToCart(item, item.choices)
       announce(`${item.name}: ${next}. ${itemsText(cartCount + 1)}.`)
       return
     }
-    updateQuantity(item.id, -1)
+    updateQuantity(item.key, -1)
     if (next > 0) {
       announce(`${item.name}: ${next}. ${itemsText(cartCount - 1)}.`)
       return
@@ -97,7 +98,7 @@ export default function Cart() {
               <AnimatePresence initial={false}>
               {cartItems.map(item => (
                 <motion.li
-                  key={item.id}
+                  key={item.key}
                   layout
                   exit={{ opacity: 0, x: -48, height: 0, paddingTop: 0, paddingBottom: 0 }}
                   transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
@@ -106,13 +107,18 @@ export default function Cart() {
                   <ItemPhoto item={item} dimmed={!item.available} className="h-14 w-14 shrink-0 rounded-control border border-line max-[359px]:hidden" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-3">
-                      <p className={cn('text-[15px] font-medium leading-snug', item.available ? 'text-ink' : 'text-ink-muted')}>{item.name}</p>
+                      <div className="min-w-0">
+                        <p className={cn('text-[15px] font-medium leading-snug', item.available ? 'text-ink' : 'text-ink-muted')}>{item.name}</p>
+                        {item.options.length > 0 && <p className="mt-0.5 text-[13px] text-ink-muted">{optionsText(item)}</p>}
+                      </div>
                       <p className={cn('shrink-0 text-[15px] tabular-nums', item.available ? 'font-medium text-ink' : 'text-ink-muted line-through')}>{peso(item.price * item.quantity)}</p>
                     </div>
                     <div className="mt-2 flex items-center justify-between gap-3">
                       {item.available
                         ? <p className="text-[13px] tabular-nums text-ink-muted">{peso(item.price)} each</p>
-                        : <p className="text-[13px] font-medium text-status-cancelled-text">Sold out. Remove it to order.</p>}
+                        : <p className="text-[13px] font-medium text-status-cancelled-text">
+                            {item.problem === 'options_changed' ? 'Options changed. Remove it and add it again.' : 'Sold out. Remove it to order.'}
+                          </p>}
                       <QuantityStepper
                         value={item.quantity}
                         itemName={item.name}

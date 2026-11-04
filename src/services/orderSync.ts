@@ -10,7 +10,7 @@
  * Staff devices follow every order. Guest devices follow the public order board and
  * load their own orders by id, so a guest never receives another guest's items or name.
  */
-import type { MenuItem } from '../constants/menu'
+import type { MenuItem, OptionGroup } from '../constants/menu'
 import { SUPABASE_CONFIGURED } from './supabaseClient'
 import { supabaseTransport } from './supabaseTransport'
 import { serverTransport } from './serverTransport'
@@ -33,7 +33,7 @@ export type Feed = 'orders' | 'board'
 export type FeedRow<F extends Feed> = F extends 'orders' ? Order : BoardRow
 
 /** A menu row as the backend keeps it; removed items stay (inactive) so old orders resolve. */
-export type LiveMenuItem = MenuItem & { addon: boolean; active: boolean }
+export type LiveMenuItem = MenuItem & { addon: boolean; active: boolean; optionGroupIds: number[] }
 export interface MenuItemInput {
   /** Leave out to add a new item. */
   id?: number
@@ -42,6 +42,20 @@ export interface MenuItemInput {
   category: string
   description: string
   addon?: boolean
+  /** Leave out to keep the item's option groups. */
+  optionGroupIds?: number[]
+}
+
+/** An option group as the backend keeps it; removed groups stay (inactive). */
+export type LiveOptionGroup = OptionGroup & { active: boolean }
+export interface OptionGroupSave {
+  /** Leave out to add a new group. */
+  id?: number
+  name: string
+  required: boolean
+  multiple: boolean
+  /** A choice without an id is new; one left out is removed. */
+  choices: { id?: number; name: string; price: number }[]
 }
 
 export interface Transport {
@@ -56,6 +70,12 @@ export interface Transport {
     subscribe(on: FeedHandlers<DiningTable>): () => void
     /** Tables 1..count open, the rest switched off. Refused while a removed table has open orders. */
     setCount(count: number): Promise<DiningTable[]>
+  }
+  /** Option groups (size, sugar…): everyone follows them, staff change them. */
+  options: {
+    subscribe(on: FeedHandlers<LiveOptionGroup>): () => void
+    save(group: OptionGroupSave): Promise<LiveOptionGroup>
+    remove(id: number): Promise<LiveOptionGroup>
   }
   /** The live menu: everyone follows it, staff change it. */
   menu: {
@@ -267,6 +287,7 @@ class OrderSyncClient {
 
   get menu() { return this.transport.menu }
   get tables() { return this.transport.tables }
+  get options() { return this.transport.options }
   get staff() { return this.transport.staff }
 }
 

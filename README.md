@@ -35,6 +35,11 @@ items or dine-in names.
 - **Menu**: staff edits (price, name, new items, sold out) save to the backend and reach every
   phone at once. New prices apply to new orders; placed orders keep theirs. The cart always
   shows live prices and blocks checkout while it holds a sold-out item.
+- **Item options** (size, hot or iced, sugar level, ice level, or your own like milk): shared
+  groups staff attach to items and edit on the Menu screen (name, must-choose, pick-several,
+  choices with an extra price). Guests pick them in the item's sheet, with the usual choice
+  preselected; the server prices them and refuses a missing or wrong choice. The same drink
+  with different options is its own line in the cart and on the kitchen ticket.
 - **Add-ons** are menu items of their own (category "Add-ons"), charged and listed on the order.
 - **Tables**: staff set how many tables there are on the Tables screen (**Edit tables**); the
   starting count comes from `src/config/restaurant.ts`. A table with open orders can't be

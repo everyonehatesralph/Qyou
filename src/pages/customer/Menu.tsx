@@ -50,7 +50,9 @@ export default function Menu() {
   const [params] = useSearchParams()
   const reduce = useReducedMotion()
   const { addToCart, updateQuantity, cartItems, cartCount, cartTotal } = useCart()
-  const { items, itemAvailability } = useMenu()
+  const { items, itemAvailability, groupsForItem } = useMenu()
+  // Drinks with options (size, sugar…) open their sheet to choose instead of adding at once
+  const hasOptions = (item: MenuItem) => groupsForItem(item).length > 0
   const [query, setQuery] = useState('')
   const [openId, setOpenId] = useState<number | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
@@ -74,7 +76,7 @@ export default function Menu() {
   ].filter(s => s.items.length > 0), [popular, items])
 
   const getQty = useCallback(
-    (id: number) => cartItems.find(ci => ci.id === id)?.quantity ?? 0,
+    (id: number) => cartItems.filter(ci => ci.id === id).reduce((s, ci) => s + ci.quantity, 0),
     [cartItems],
   )
   const isAvailable = (item: MenuItem) => item.available && itemAvailability[item.id] !== false
@@ -143,6 +145,13 @@ export default function Menu() {
     announce(`Added ${item.name}. ${itemsText(cartCount + 1)}.`)
   }
 
+  const addWithOptions = (item: MenuItem, choices: number[], quantity: number, button: HTMLButtonElement) => {
+    addToCart(item, choices, quantity)
+    flyToCart(button)
+    announce(`Added ${quantity} ${item.name}. ${itemsText(cartCount + quantity)}.`)
+    setOpenId(null)
+  }
+
   const setQty = (item: MenuItem, next: number, key?: string) => {
     const qty = getQty(item.id)
     if (next > qty) {
@@ -156,7 +165,8 @@ export default function Menu() {
   }
 
   const card = (item: MenuItem, sectionId: string, index: number) => {
-    const qty = getQty(item.id)
+    // With options, each set of choices is its own cart line: the card always offers +
+    const qty = hasOptions(item) ? 0 : getQty(item.id)
     const available = isAvailable(item)
     const key = `${sectionId}-${item.id}`
     return (
@@ -197,7 +207,7 @@ export default function Menu() {
                       ref={takeFocus(key, 'add')}
                       label={`Add ${item.name}`}
                       variant="outline"
-                      onClick={e => add(item, e.currentTarget, key)}
+                      onClick={e => (hasOptions(item) ? setOpenId(item.id) : add(item, e.currentTarget, key))}
                       className="border-line bg-surface text-ink shadow-lift hover:bg-surface"
                     >
                       <Plus />
@@ -329,9 +339,11 @@ export default function Menu() {
         item={openItem}
         available={openItem ? isAvailable(openItem) : false}
         qty={openItem ? getQty(openItem.id) : 0}
+        groups={openItem ? groupsForItem(openItem) : []}
         onClose={() => setOpenId(null)}
         onAdd={button => openItem && add(openItem, button)}
         onChange={next => openItem && setQty(openItem, next)}
+        onAddWithOptions={(choices, quantity, button) => openItem && addWithOptions(openItem, choices, quantity, button)}
       />
 
       {/* Cart bar, above the bottom navigation */}

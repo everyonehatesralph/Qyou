@@ -2,7 +2,7 @@ import { Printer } from 'lucide-react'
 import type { Order } from '../context/OrderContext'
 import { RESTAURANT } from '../config/restaurant'
 import { BottomSheet, Button, cn } from './ui'
-import { orderRef } from '../services/orderModel'
+import { optionsText, orderRef } from '../services/orderModel'
 
 interface InvoiceModalProps {
   order: Order
@@ -78,7 +78,7 @@ export default function InvoiceModal({ order, open, onClose }: InvoiceModalProps
             <tbody>
               ${order.items.map(item => `
                 <tr>
-                  <td>${esc(item.name)}</td>
+                  <td>${esc(item.name)}${item.options?.length ? `<br><small>${esc(optionsText(item))}</small>` : ''}</td>
                   <td>${item.quantity}</td>
                   <td>${money(item.price)}</td>
                   <td>${money(item.price * item.quantity)}</td>
@@ -126,10 +126,11 @@ export default function InvoiceModal({ order, open, onClose }: InvoiceModalProps
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
-          {order.items.map(item => (
-            <tr key={item.id}>
+          {order.items.map((item, i) => (
+            <tr key={`${item.id}-${i}`}>
               <td className="py-2.5 pr-2 text-ink">
                 {item.name}
+                {item.options?.length ? <span className="block text-[13px] text-ink-muted">{optionsText(item)}</span> : null}
                 <span className="block text-[13px] text-ink-muted">{money(item.price)} each</span>
               </td>
               <td className="py-2.5 text-center tabular-nums text-ink">{item.quantity}</td>

@@ -38,12 +38,21 @@ export default function DashboardAnalytics({ orders }: { orders: Order[] }) {
     const withOrders = t.hours.filter(h => h.orders > 0).map(h => h.hour)
     const first = Math.min(7, ...withOrders)
     const last = Math.min(23, Math.max(now.getHours(), first + 5))
-    const hours = t.hours.slice(first, last + 1).map(h => ({
-      label: hourLabel(h.hour),
-      value: h.orders,
-      detail: `${h.orders} ${h.orders === 1 ? 'order' : 'orders'} · ${peso(h.revenue)} sold`,
-      emphasis: h.hour === now.getHours(),
-    }))
+    // At most 8 bars, so each stays big enough to tap on a small phone late in the day:
+    // past 8 hours, bars cover 2 (or 3) hours each
+    const size = Math.ceil((last - first + 1) / 8)
+    const hours = []
+    for (let h = first; h <= last; h += size) {
+      const slice = t.hours.slice(h, Math.min(h + size, last + 1))
+      const n = slice.reduce((s, x) => s + x.orders, 0)
+      const revenue = slice.reduce((s, x) => s + x.revenue, 0)
+      hours.push({
+        label: hourLabel(h),
+        value: n,
+        detail: `${size > 1 ? `until ${hourLabel((h + size) % 24)} · ` : ''}${n} ${n === 1 ? 'order' : 'orders'} · ${peso(revenue)} sold`,
+        emphasis: now.getHours() >= h && now.getHours() < h + size,
+      })
+    }
     return { ...t, hours }
   }, [orders, byId])
 

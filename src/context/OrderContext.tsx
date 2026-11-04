@@ -20,7 +20,7 @@ interface OrderContextType {
   orders: Order[]
   /** Resolves with the new order's id once the restaurant has it; rejects with words to show the guest. */
   placeOrder: (
-    cartItems: { id: number; name: string; price: number; quantity: number }[],
+    cartItems: { id: number; name: string; price: number; quantity: number; choices?: number[] }[],
     tableId: number | null,
     tableName: string,
     customerName: string,
@@ -61,7 +61,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   // ── Place order ──
   const placeOrder = useCallback(async (
-    cartItems: { id: number; name: string; price: number; quantity: number }[],
+    cartItems: { id: number; name: string; price: number; quantity: number; choices?: number[] }[],
     tableId: number | null,
     tableName: string,
     customerName: string,
@@ -71,13 +71,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const startTime = performance.now()
     metricsCollector.recordOrderInFlight(true)
 
-    // Only ids and quantities go up: the server prices the order from its menu
+    // Only ids, quantities and option choices go up: the server prices the order from its menu
     const request: Omit<PlaceOrderInput, 'id'> = {
       tableId:      tableId ?? 0,
       tableName:    tableName || `Table ${tableId}`,
       customerName,
       orderType,
-      items:        cartItems.map(ci => ({ id: ci.id, quantity: ci.quantity })),
+      items:        cartItems.map(ci => ({ id: ci.id, quantity: ci.quantity, ...(ci.choices?.length ? { choices: ci.choices } : {}) })),
       notes,
     }
     const key = JSON.stringify(request)

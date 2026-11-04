@@ -8,7 +8,7 @@ import { useNow, timeAgo } from '../../hooks/useNow'
 import { ACTIVE_STATUSES, STATUS_GROUP_CLASSES, STATUS_META, STATUS_STEP } from '../../theme/status'
 import { RESTAURANT } from '../../config/restaurant'
 import { BottomSheet, Button, EmptyState, PageHeader, StatusPill, cn } from '../../components/ui'
-import { orderRef } from '../../services/orderModel'
+import { optionsText, orderRef } from '../../services/orderModel'
 
 const peso = (n: number) => `${RESTAURANT.currency}${n.toFixed(0)}`
 
@@ -37,7 +37,7 @@ function OrderRow({ order, now, onOpen, onCancel }: { order: Order; now: number;
             <StatusPill status={order.status} audience="customer" />
           </div>
           <p className="mt-1.5 truncate text-sm text-ink-muted">
-            {order.items.map(i => `${i.quantity}× ${i.name}`).join(', ')}
+            {order.items.map(i => `${i.quantity}× ${i.name}${i.options?.length ? ` (${optionsText(i)})` : ''}`).join(', ')}
           </p>
           <p className="mt-1 text-[13px] text-ink-muted">
             {timeAgo(order.createdAt, now)} · <span className="tabular-nums">{peso(order.total)}</span>

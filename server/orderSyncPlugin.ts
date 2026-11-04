@@ -3,7 +3,10 @@
  * local dev, the e2e suite and self-hosting with server/index.ts. Orders live in
  * server/orders.json.
  *
- * - GET  /api/orders/stream?feed=orders|board  SSE snapshots: every order (staff) or the public board
+ * - GET  /api/stream?feeds=orders,board,menu,options,tables
+ *                             one SSE stream per page for every live feed it follows (browsers allow only
+ *                             six connections to a server, so one stream each would starve requests).
+ *                             Frames are { feed, rows }; orders (every order) is staff only, board is public.
  * - POST /api/orders/place    { id, tableId, tableName, customerName, orderType, items: [{ id, quantity }], notes }
  *                             priced here from the menu; whatever the browser thinks things cost is ignored
  * - POST /api/orders/lookup   { ids }        a guest's own orders, by id
@@ -12,11 +15,14 @@
  * - GET  /api/orders                         staff only
  * - POST /api/staff/login     { pin }        sets the staff cookie
  * - GET  /api/staff/session, POST /api/staff/logout
- * - GET  /api/menu, GET /api/menu/stream     the live menu (SSE snapshots), for everyone
+ * - GET  /api/menu                           the live menu, for everyone
  * - POST /api/menu/save       { id?, name, price, category, description, addon }  staff only
  * - POST /api/menu/available  { id, available }                                    staff only
  * - POST /api/menu/remove     { id }                                               staff only
- * - GET  /api/tables, GET /api/tables/stream the tables guests can check in at, for everyone
+ * - GET  /api/options                        option groups (size, sugar…), for everyone
+ * - POST /api/options/save    { id?, name, required, multiple, choices }  staff only
+ * - POST /api/options/remove  { id }                                      staff only
+ * - GET  /api/tables                         the tables guests can check in at, for everyone
  * - POST /api/tables/count    { count }      staff only: tables 1..count are open
  * - POST /api/dev/seed        { orders, resetMenu, resetTables }  dev server only: e2e fixtures
  */
@@ -26,19 +32,21 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import { randomBytes, randomUUID, timingSafeEqual } from 'crypto'
 import fs from 'fs'
 import path from 'path'
-import { SEED_MENU, type MenuItem } from '../src/constants/menu.ts'
+import { OPTION_GROUPS, SEED_MENU, type MenuItem, type OptionGroup } from '../src/constants/menu.ts'
 import { RESTAURANT } from '../src/config/restaurant.ts'
 import {
-  ORDER_STATUSES, OrderError, applyTableCount, isOpenOrder, isOrderId, makeTakeawayCode, priceOrder, restaurantDay,
+  ORDER_STATUSES, OrderError, applyOptionGroupSave, applyTableCount, isOpenOrder, isOrderId, makeTakeawayCode, priceOrder, restaurantDay,
   sortOrders, toBoardRow, withStatus, type DiningTable, type Order, type OrderStatus,
 } from '../src/services/orderModel.ts'
 
 type StoredOrder = Order & { boardId: string }
 type StoredItem = MenuItem & { active: boolean }
+type StoredGroup = OptionGroup & { active: boolean }
 
 const DATA_FILE = path.resolve(process.cwd(), 'server/orders.json')
 const MENU_FILE = path.resolve(process.cwd(), 'server/menu.json')
 const TABLES_FILE = path.resolve(process.cwd(), 'server/tables.json')
+const OPTIONS_FILE = path.resolve(process.cwd(), 'server/options.json')
 const COOKIE = 'qyou_staff'
 const MAX_BODY = 64 * 1024
 
@@ -62,9 +70,17 @@ function saveJson(file: string, data: unknown) {
   }
 }
 
-const seedMenu = (): StoredItem[] => SEED_MENU.map(m => ({ ...m, addon: !!m.addon, active: true }))
+const seedMenu = (): StoredItem[] => SEED_MENU.map(m => ({ ...m, addon: !!m.addon, optionGroupIds: m.optionGroupIds ?? [], active: true }))
 
 const seedTables = (): DiningTable[] => RESTAURANT.tables.map(t => ({ ...t, active: true }))
+const seedOptions = (): StoredGroup[] => OPTION_GROUPS.map(g => ({ ...g, active: true }))
+
+function loadOptions(): StoredGroup[] {
+  try {
+    if (fs.existsSync(OPTIONS_FILE)) return JSON.parse(fs.readFileSync(OPTIONS_FILE, 'utf-8'))
+  } catch { /* noop */ }
+  return seedOptions()
+}
 
 function loadTables(): DiningTable[] {
   try {
@@ -127,10 +143,13 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
   let orders: StoredOrder[] = loadOrders()
   let menu: StoredItem[] = loadMenu()
   let tables: DiningTable[] = loadTables()
+  let options: StoredGroup[] = loadOptions()
   const sessions = new Set<string>()
   const failedLogins = new Map<string, number[]>()
-  type Feed = 'orders' | 'board' | 'menu' | 'tables'
-  const streams = new Map<ServerResponse, Feed>()
+  type Feed = 'orders' | 'board' | 'menu' | 'tables' | 'options'
+  const FEEDS: Feed[] = ['orders', 'board', 'menu', 'tables', 'options']
+  // Each open stream and the feeds it follows
+  const streams = new Map<ServerResponse, Set<Feed>>()
 
   const isStaff = (req: IncomingMessage) => {
     const token = cookieOf(req, COOKIE)
@@ -143,18 +162,21 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
     return orders.filter(o => new Date(o.createdAt).getTime() > since).map(toBoardRow)
   }
 
-  const frame = (feed: Feed) => `data: ${JSON.stringify(
-    feed === 'orders' ? { orders: sortOrders(orders) }
-    : feed === 'board' ? { board: board() }
-    : feed === 'menu' ? { menu }
-    : { tables },
-  )}\n\n`
+  const rowsOf = (feed: Feed): unknown[] =>
+    feed === 'orders' ? sortOrders(orders)
+    : feed === 'board' ? board()
+    : feed === 'menu' ? menu
+    : feed === 'options' ? options
+    : tables
+  const frame = (feed: Feed) => `data: ${JSON.stringify({ feed, rows: rowsOf(feed) })}\n\n`
 
   function push(feeds: Feed[]) {
-    const frames = Object.fromEntries(feeds.map(f => [f, frame(f)]))
-    streams.forEach((feed, res) => {
-      if (!frames[feed]) return
-      try { res.write(frames[feed]) } catch { streams.delete(res) }
+    const frames = new Map(feeds.map(f => [f, frame(f)]))
+    streams.forEach((follows, res) => {
+      for (const [feed, text] of frames) {
+        if (!follows.has(feed)) continue
+        try { res.write(text) } catch { streams.delete(res); return }
+      }
     })
   }
 
@@ -173,6 +195,16 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
     push(['tables'])
   }
 
+  function optionsChanged() {
+    saveJson(OPTIONS_FILE, options)
+    push(['options'])
+  }
+
+  /** Groups that exist, each once, in the order given. */
+  const knownGroups = (ids: unknown): number[] => Array.isArray(ids)
+    ? [...new Set(ids)].filter((id): id is number => options.some(g => g.id === id && g.active))
+    : []
+
   function updateItem(id: unknown, change: (m: StoredItem) => StoredItem): StoredItem {
     const item = menu.find(m => m.id === id && m.active)
     if (!item) throw new OrderError('unknown_item')
@@ -182,10 +214,10 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
     return saved
   }
 
-  const openStream = (req: IncomingMessage, res: ServerResponse, feed: Feed) => {
+  const openStream = (req: IncomingMessage, res: ServerResponse, follows: Set<Feed>) => {
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' })
-    res.write(frame(feed))
-    streams.set(res, feed)
+    for (const feed of follows) res.write(frame(feed))
+    streams.set(res, follows)
     req.on('close', () => streams.delete(res))
   }
 
@@ -202,20 +234,19 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
   return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
     const url = new URL(req.url || '/', 'http://localhost')
     const route = `${req.method} ${url.pathname}`
-    if (!['/api/orders', '/api/staff', '/api/menu', '/api/tables', '/api/dev'].some(prefix => url.pathname.startsWith(prefix))) {
+    if (!['/api/stream', '/api/orders', '/api/staff', '/api/menu', '/api/options', '/api/tables', '/api/dev'].some(prefix => url.pathname.startsWith(prefix))) {
       next()
       return
     }
 
     try {
       switch (route) {
-        case 'GET /api/orders/stream': {
-          const feed = url.searchParams.get('feed') === 'orders' && isStaff(req) ? 'orders' : 'board'
-          if (url.searchParams.get('feed') === 'orders' && feed !== 'orders') {
-            send(res, 401, { error: 'staff_only' })
-            return
-          }
-          openStream(req, res, feed)
+        case 'GET /api/stream': {
+          const asked = (url.searchParams.get('feeds') ?? '').split(',').filter((f): f is Feed => FEEDS.includes(f as Feed))
+          if (asked.length === 0) { send(res, 400, { error: 'no_feeds' }); return }
+          // Every order is for staff only; the rest is public
+          if (asked.includes('orders') && !isStaff(req)) { send(res, 401, { error: 'staff_only' }); return }
+          openStream(req, res, new Set(asked))
           return
         }
 
@@ -237,7 +268,7 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
           const table = tables.find(t => t.id === body.tableId && t.active)
           if (!table) throw new OrderError('invalid_table')
 
-          const { items, total } = priceOrder(menu, body.items)
+          const { items, total } = priceOrder(menu, body.items, options)
           const recent = orders.filter(o => Date.now() - new Date(o.createdAt).getTime() < 10 * 60_000)
           if (recent.filter(o => o.tableId === body.tableId).length >= 30 || recent.length >= 300) {
             throw new OrderError('too_many_orders')
@@ -327,11 +358,6 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
           return
         }
 
-        case 'GET /api/menu/stream': {
-          openStream(req, res, 'menu')
-          return
-        }
-
         case 'GET /api/menu': {
           send(res, 200, { menu })
           return
@@ -353,13 +379,17 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
           if (body.id === null || body.id === undefined) {
             const item: StoredItem = {
               id: menu.reduce((max, m) => Math.max(max, m.id), 0) + 1,
-              ...fields, addon: !!body.addon, available: true, active: true,
+              ...fields, addon: !!body.addon, optionGroupIds: knownGroups(body.optionGroupIds), available: true, active: true,
             }
             menu = [...menu, item]
             menuChanged()
             send(res, 200, { item })
           } else {
-            send(res, 200, { item: updateItem(body.id, m => ({ ...m, ...fields, addon: typeof body.addon === 'boolean' ? body.addon : m.addon })) })
+            send(res, 200, { item: updateItem(body.id, m => ({
+              ...m, ...fields,
+              addon: typeof body.addon === 'boolean' ? body.addon : m.addon,
+              optionGroupIds: Array.isArray(body.optionGroupIds) ? knownGroups(body.optionGroupIds) : m.optionGroupIds,
+            })) })
           }
           return
         }
@@ -378,8 +408,29 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
           return
         }
 
-        case 'GET /api/tables/stream': {
-          openStream(req, res, 'tables')
+        case 'GET /api/options': {
+          send(res, 200, { options })
+          return
+        }
+
+        case 'POST /api/options/save': {
+          if (!isStaff(req)) { send(res, 401, { error: 'staff_only' }); return }
+          const saved = applyOptionGroupSave(options, await readBody(req))
+          options = saved.groups
+          optionsChanged()
+          send(res, 200, { group: saved.group })
+          return
+        }
+
+        case 'POST /api/options/remove': {
+          if (!isStaff(req)) { send(res, 401, { error: 'staff_only' }); return }
+          const { id } = await readBody(req)
+          const group = options.find(g => g.id === id && g.active)
+          if (!group) throw new OrderError('unknown_option_group')
+          const removed = { ...group, active: false }
+          options = options.map(g => (g === group ? removed : g))
+          optionsChanged()
+          send(res, 200, { group: removed })
           return
         }
 
@@ -404,7 +455,7 @@ export function createOrderSyncMiddleware({ staffPin, allowSeed = false }: Order
           const ids = new Set(seed.map(o => o.id))
           orders = [...seed.map(o => ({ ...o, boardId: o.boardId ?? randomUUID() })), ...orders.filter(o => !ids.has(o.id))]
           changed()
-          if (resetMenu) { menu = seedMenu(); menuChanged() }
+          if (resetMenu) { menu = seedMenu(); menuChanged(); options = seedOptions(); optionsChanged() }
           if (resetTables) { tables = seedTables(); tablesChanged() }
           send(res, 200, { ok: true })
           return

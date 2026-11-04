@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { MENU_ITEMS, SEED_MENU } from '../constants/menu.ts'
+import { MENU_ITEMS, OPTION_GROUPS, SEED_MENU } from '../constants/menu.ts'
 import {
-  applyTableCount, guestView, isOpenOrder, isOrderId, newOrderId, openOrdersByTable, orderErrorText, orderRef, priceOrder,
+  applyOptionGroupSave, applyTableCount, checkOptions, groupsFor, guestView, isOpenOrder, isOrderId, lineKey, optionsText, newOrderId, openOrdersByTable, orderErrorText, orderRef, priceOrder,
   restaurantDay, settleTable, toBoardRow, withStatus, OrderError, type BoardRow, type Order,
 } from './orderModel.ts'
 
@@ -188,4 +188,75 @@ test('a table with open orders cannot be switched off', () => {
   assert.doesNotThrow(() => applyTableCount(ten, 9, new Set([3, 9])))
   for (const bad of [0, 201, 2.5, '5', null]) assert.throws(() => applyTableCount(ten, bad, new Set()), /invalid_table_count/)
   assert.equal(orderErrorText(new Error('table_in_use:9')), 'Table 9 still has open orders. Free it before removing it.')
+})
+
+// ─── Item options ────────────────────────────────────────────────────────────
+const LARGE = 2, ICED = 4, HOT = 3, REGULAR = 1, FULL_SUGAR = 5, HALF_SUGAR = 7, NORMAL_ICE = 10
+
+test('options are priced and keep each drink apart', () => {
+  const { items, total } = priceOrder(SEED_MENU, [
+    { id: 2, quantity: 1, choices: [LARGE, ICED, HALF_SUGAR] },
+    { id: 2, quantity: 1, choices: [REGULAR, HOT, FULL_SUGAR] },
+    { id: 2, quantity: 1, choices: [HALF_SUGAR, LARGE, ICED] },
+  ], OPTION_GROUPS)
+  assert.equal(total, (165 + 30) * 2 + 165)
+  assert.equal(items.length, 2)
+  assert.deepEqual([items[0].quantity, items[0].price, optionsText(items[0])], [2, 195, 'Large · Iced · 50% sugar'])
+  assert.deepEqual(items[0].options!.map(o => [o.group, o.choice, o.price]), [
+    ['Size', 'Large', 30], ['Hot or iced', 'Iced', 0], ['Sugar level', '50% sugar', 0],
+  ])
+  assert.deepEqual([items[1].quantity, items[1].price], [1, 165])
+})
+
+test('options must be complete and offered', () => {
+  const code = (choices: unknown, id = 2) => {
+    try { priceOrder(SEED_MENU, [{ id, quantity: 1, choices }], OPTION_GROUPS); return 'ok' } catch (e) { return (e as OrderError).code }
+  }
+  assert.equal(code([REGULAR, HOT, FULL_SUGAR]), 'ok')
+  assert.equal(code([REGULAR, HOT]), 'missing_option')
+  assert.equal(code(undefined), 'missing_option')
+  assert.equal(code([REGULAR, LARGE, HOT, FULL_SUGAR]), 'invalid_options')
+  assert.equal(code([REGULAR, HOT, FULL_SUGAR, NORMAL_ICE]), 'invalid_options')  // no ice on this drink
+  assert.equal(code([REGULAR, HOT, FULL_SUGAR, 999]), 'invalid_options')
+  assert.equal(code([REGULAR, REGULAR, HOT, FULL_SUGAR]), 'invalid_options')
+  assert.equal(code('large'), 'invalid_options')
+  assert.equal(code([1.5]), 'invalid_options')
+  assert.equal(code([REGULAR], 7), 'invalid_options')                          // croissant has none
+  assert.equal(code([REGULAR, FULL_SUGAR, NORMAL_ICE], 4), 'ok')               // cold brew: size, sugar, ice
+  // A removed group isn't asked for, and its choices can't be picked
+  const noSugar = OPTION_GROUPS.map(g => (g.id === 3 ? { ...g, active: false } : g))
+  assert.doesNotThrow(() => priceOrder(SEED_MENU, [{ id: 2, quantity: 1, choices: [REGULAR, HOT] }], noSugar))
+  assert.throws(() => priceOrder(SEED_MENU, [{ id: 2, quantity: 1, choices: [REGULAR, HOT, FULL_SUGAR] }], noSugar), /invalid_options/)
+})
+
+test('checkOptions tells the cart what is missing', () => {
+  const groups = groupsFor(SEED_MENU.find(m => m.id === 2)!, OPTION_GROUPS)
+  assert.deepEqual(groups.map(g => g.name), ['Size', 'Hot or iced', 'Sugar level'])
+  const partial = checkOptions(groups, [LARGE])
+  assert.deepEqual([partial.ok, partial.missing, partial.extra], [false, ['Hot or iced', 'Sugar level'], 30])
+  assert.equal(checkOptions(groups, [LARGE, ICED, HALF_SUGAR]).ok, true)
+  assert.equal(lineKey(2, [7, 2, 4]), '2:2,4,7')
+  assert.equal(lineKey(7), '7')
+})
+
+test('staff edit option groups; choice ids stay unique', () => {
+  const groups = OPTION_GROUPS.map(g => ({ ...g, active: true }))
+  const added = applyOptionGroupSave(groups, { name: ' Milk ', required: false, multiple: false, choices: [{ name: 'Fresh', price: 0 }, { name: 'Oat', price: 25 }] })
+  assert.equal(added.group.id, 5)
+  assert.equal(added.group.name, 'Milk')
+  assert.deepEqual(added.group.choices.map(c => c.id), [100, 101])
+  // Edit: keep Oat (new price), drop Fresh, add Soy
+  const oat = added.group.choices[1]
+  const edited = applyOptionGroupSave(added.groups, { id: 5, name: 'Milk', choices: [{ id: oat.id, name: 'Oat', price: 35 }, { name: 'Soy', price: 20 }] })
+  assert.deepEqual(edited.group.choices, [{ id: 101, name: 'Oat', price: 35 }, { id: 102, name: 'Soy', price: 20 }])
+  assert.equal(edited.group.required, false, 'kept when not sent')
+  const code = (input: Parameters<typeof applyOptionGroupSave>[1]) => {
+    try { applyOptionGroupSave(groups, input); return 'ok' } catch (e) { return (e as OrderError).code }
+  }
+  assert.equal(code({ name: '', choices: [{ name: 'A', price: 0 }] }), 'invalid_name')
+  assert.equal(code({ name: 'X', choices: [] }), 'invalid_choices')
+  assert.equal(code({ name: 'X', choices: [{ name: 'A', price: -1 }] }), 'invalid_choices')
+  assert.equal(code({ name: 'X', choices: [{ name: 'A', price: 1.005 }] }), 'invalid_choices')
+  assert.equal(code({ name: 'X', choices: [{ id: 2, name: 'Large', price: 0 }] }), 'invalid_choices') // another group's choice
+  assert.equal(code({ id: 99, name: 'X', choices: [{ name: 'A', price: 0 }] }), 'unknown_option_group')
 })

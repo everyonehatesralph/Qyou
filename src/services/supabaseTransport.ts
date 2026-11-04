@@ -4,7 +4,7 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 import { getSupabase, STAFF_SESSION_KEY } from './supabaseClient'
 import { RESTAURANT } from '../config/restaurant'
-import type { Feed, FeedHandlers, FeedRow, LiveMenuItem, StaffSignIn, Transport } from './orderSync'
+import type { Feed, FeedHandlers, FeedRow, LiveMenuItem, LiveOptionGroup, StaffSignIn, Transport } from './orderSync'
 import type { BoardRow, DiningTable, Order, OrderItem, OrderStatus, OrderType } from './orderModel'
 
 interface StageColumns {
@@ -42,7 +42,25 @@ interface MenuDbRow {
   addon: boolean
   available: boolean
   active: boolean
+  option_group_ids: number[] | null
 }
+interface OptionGroupDbRow {
+  id: number
+  name: string
+  required: boolean
+  multiple: boolean
+  choices: { id: number; name: string; price: number | string }[]
+  active: boolean
+}
+
+const groupFromRow = (r: OptionGroupDbRow): LiveOptionGroup => ({
+  id: r.id,
+  name: r.name,
+  required: r.required,
+  multiple: r.multiple,
+  choices: (r.choices ?? []).map(c => ({ id: c.id, name: c.name, price: Number(c.price) })),
+  active: r.active !== false,
+})
 
 function stages(r: StageColumns) {
   const out: Partial<Record<'confirmedAt' | 'preparingAt' | 'readyAt' | 'servedAt' | 'paidAt' | 'cancelledAt', string>> = {}
@@ -82,6 +100,7 @@ function orderFromRow(r: OrderDbRow): Order {
       id: i.id, name: i.name, price: Number(i.price), quantity: i.quantity,
       ...(i.category ? { category: i.category } : {}),
       ...(i.addon ? { addon: true } : {}),
+      ...(i.options?.length ? { options: i.options.map(o => ({ group: o.group, choice: o.choice, price: Number(o.price) })) } : {}),
     })),
     total: Number(r.total),
     status: r.status,
@@ -107,6 +126,7 @@ function menuFromRow(r: MenuDbRow): LiveMenuItem {
     addon: !!r.addon,
     available: r.available !== false,
     active: r.active !== false,
+    optionGroupIds: r.option_group_ids ?? [],
   }
 }
 
@@ -239,6 +259,24 @@ export const supabaseTransport: Transport = {
     },
   },
 
+  options: {
+    subscribe(on) {
+      return follow('option_groups', groupFromRow, sb => sb.from('option_groups').select('*').order('id'), on)
+    },
+    async save(group) {
+      return groupFromRow(await rpc<OptionGroupDbRow>('save_option_group', {
+        p_id: group.id ?? null,
+        p_name: group.name,
+        p_required: group.required,
+        p_multiple: group.multiple,
+        p_choices: group.choices,
+      }))
+    },
+    async remove(id) {
+      return groupFromRow(await rpc<OptionGroupDbRow>('remove_option_group', { p_id: id }))
+    },
+  },
+
   menu: {
     subscribe(on) {
       return follow('menu_items', menuFromRow, sb => sb.from('menu_items').select('*').order('id'), on)
@@ -252,6 +290,7 @@ export const supabaseTransport: Transport = {
         p_category: item.category,
         p_description: item.description,
         p_addon: item.addon ?? false,
+        p_option_group_ids: item.optionGroupIds ?? null,
       }))
     },
 

@@ -1,6 +1,6 @@
 // Orders over the Node order server (server/orderSyncPlugin.ts): REST for writes,
 // Server-Sent Events for live snapshots. Staff sign-in is an HttpOnly cookie the server sets.
-import type { Feed, FeedHandlers, FeedRow, LiveMenuItem, StaffSignIn, Transport } from './orderSync'
+import type { Feed, FeedHandlers, FeedRow, LiveMenuItem, LiveOptionGroup, StaffSignIn, Transport } from './orderSync'
 import type { DiningTable, Order } from './orderModel'
 
 /** Only a hint that this device signed in; the cookie itself is unreadable from script. */
@@ -18,45 +18,83 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
   return data as T
 }
 
-/** An SSE stream of snapshots; `pick` takes the rows out of each frame. */
-function stream<T>(url: string, pick: (msg: Record<string, unknown>) => unknown, on: FeedHandlers<T>): () => void {
-  let es: EventSource | null = null
-  let retry: ReturnType<typeof setTimeout> | null = null
-  let delay = 1000
-  let stopped = false
+// ─── Live feeds: one SSE stream per page ────────────────────────────────────
+// Browsers allow only six connections to a server; a stream per feed (orders, menu, options,
+// tables) in two tabs would use them all and leave saves waiting. So every feed this page
+// follows shares one stream, reopened when the set of feeds changes.
+type StreamFeed = Feed | 'menu' | 'options' | 'tables'
 
-  const open = () => {
-    es = new EventSource(url)
-    es.onmessage = ev => {
-      try {
-        const rows = pick(JSON.parse(ev.data))
-        if (!Array.isArray(rows)) return
-        delay = 1000
-        on.snapshot(rows as T[])
-      } catch { /* ignore a bad frame */ }
-    }
-    es.onerror = () => {
-      if (stopped) return
-      on.down()
-      // EventSource retries a dropped stream by itself, but gives up on a bad response
-      if (es && es.readyState === EventSource.CLOSED) {
-        es.close()
-        retry = setTimeout(open, delay)
-        delay = Math.min(delay * 2, 30_000)
-      }
+const followers = new Map<StreamFeed, Set<FeedHandlers<unknown>>>()
+/** The last rows of each feed, for a follower that joins an open stream. */
+const latest = new Map<StreamFeed, unknown[]>()
+let source: EventSource | null = null
+let openFeeds = ''
+let retry: ReturnType<typeof setTimeout> | null = null
+let delay = 1000
+let scheduled = false
+
+const wanted = () => [...followers].filter(([, set]) => set.size > 0).map(([feed]) => feed).sort().join(',')
+
+function connect() {
+  scheduled = false
+  const feeds = wanted()
+  if (source && feeds === openFeeds) return
+  source?.close()
+  source = null
+  if (retry) { clearTimeout(retry); retry = null }
+  openFeeds = feeds
+  latest.clear()
+  if (!feeds) return
+
+  const es = new EventSource(`/api/stream?feeds=${feeds}`)
+  source = es
+  es.onmessage = ev => {
+    try {
+      const { feed, rows } = JSON.parse(ev.data) as { feed: StreamFeed; rows: unknown }
+      if (!Array.isArray(rows)) return
+      delay = 1000
+      latest.set(feed, rows)
+      followers.get(feed)?.forEach(on => on.snapshot(rows))
+    } catch { /* ignore a bad frame */ }
+  }
+  es.onerror = () => {
+    if (source !== es) return
+    followers.forEach(set => set.forEach(on => on.down()))
+    // EventSource retries a dropped stream by itself, but gives up on a bad response
+    if (es.readyState === EventSource.CLOSED) {
+      es.close()
+      source = null
+      openFeeds = ''
+      retry = setTimeout(connect, delay)
+      delay = Math.min(delay * 2, 30_000)
     }
   }
-  open()
+}
 
+/** Follows and unfollows made together (a page mounting) share one reconnect. */
+function schedule() {
+  if (scheduled) return
+  scheduled = true
+  queueMicrotask(connect)
+}
+
+function follow<T>(feed: StreamFeed, on: FeedHandlers<T>): () => void {
+  let set = followers.get(feed)
+  if (!set) followers.set(feed, set = new Set())
+  const handler = on as FeedHandlers<unknown>
+  set.add(handler)
+  schedule()
+  // Joining a feed that's already streaming: start from its last rows
+  const rows = latest.get(feed)
+  if (rows && openFeeds.split(',').includes(feed)) queueMicrotask(() => { if (set!.has(handler)) on.snapshot(rows as T[]) })
   return () => {
-    stopped = true
-    if (retry) clearTimeout(retry)
-    es?.close()
+    set!.delete(handler)
+    schedule()
   }
 }
 
 function subscribe<F extends Feed>(feed: F, on: FeedHandlers<FeedRow<F>>): () => void {
-  return stream<FeedRow<F>>(`/api/orders/stream?feed=${feed}`, msg => (feed === 'orders' ? msg.orders : msg.board), on)
+  return follow(feed, on)
 }
 
 export const serverTransport: Transport = {
@@ -80,16 +118,28 @@ export const serverTransport: Transport = {
 
   tables: {
     subscribe(on) {
-      return stream<DiningTable>('/api/tables/stream', msg => msg.tables, on)
+      return follow<DiningTable>('tables', on)
     },
     async setCount(count) {
       return (await call<{ tables: DiningTable[] }>('/api/tables/count', { count })).tables
     },
   },
 
+  options: {
+    subscribe(on) {
+      return follow<LiveOptionGroup>('options', on)
+    },
+    async save(group) {
+      return (await call<{ group: LiveOptionGroup }>('/api/options/save', group)).group
+    },
+    async remove(id) {
+      return (await call<{ group: LiveOptionGroup }>('/api/options/remove', { id })).group
+    },
+  },
+
   menu: {
     subscribe(on) {
-      return stream<LiveMenuItem>('/api/menu/stream', msg => msg.menu, on)
+      return follow<LiveMenuItem>('menu', on)
     },
     async save(item) {
       return (await call<{ item: LiveMenuItem }>('/api/menu/save', item)).item

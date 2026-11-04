@@ -18,7 +18,7 @@ import { Button, Card, EmptyState, StatusPill, cn } from '../../components/ui'
 import { useTables } from '../../context/TablesContext'
 import { RESTAURANT } from '../../config/restaurant'
 import { peso } from '../../utils/formatters'
-import { openOrdersByTable, orderRef, settleTable } from '../../services/orderModel'
+import { openOrdersByTable, optionsText, orderRef, settleTable } from '../../services/orderModel'
 import { paidToday } from '../../services/analytics'
 
 function greeting(): string {
@@ -28,7 +28,7 @@ function greeting(): string {
   return 'Good evening'
 }
 
-const itemsSummary = (o: Order) => o.items.map(i => `${i.quantity}× ${i.name}`).join(', ')
+const itemsSummary = (o: Order) => o.items.map(i => `${i.quantity}× ${i.name}${i.options?.length ? ` (${optionsText(i)})` : ''}`).join(', ')
 
 function SectionTitle({ title, count, action }: { title: string; count?: number; action?: ReactNode }) {
   return (
@@ -72,10 +72,11 @@ const IncomingCard = memo(function IncomingCard({ order, now, onConfirm }: { ord
         </p>
       )}
       <ul className="mx-4 space-y-1 border-t border-line pt-3 text-[15px] text-ink">
-        {order.items.map(item => (
-          <li key={item.id}>
+        {order.items.map((item, i) => (
+          <li key={`${item.id}-${i}`}>
             <span className="tabular-nums text-ink-muted">{item.quantity}× </span>
             {item.name}
+            {item.options?.length ? <span className="block text-sm text-ink-muted">{optionsText(item)}</span> : null}
           </li>
         ))}
       </ul>
