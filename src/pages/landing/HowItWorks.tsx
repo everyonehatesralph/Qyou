@@ -202,7 +202,7 @@ export default function HowItWorks() {
                 style={{ rotateY, rotateX }}
                 animate={step === 3 && !reduce ? { x: [0, -5, 5, -4, 4, 0] } : { x: 0 }}
                 transition={{ duration: 0.5, repeat: step === 3 ? Infinity : 0, repeatDelay: 1.6 }}
-                className="w-[min(52vw,208px)] sm:w-[240px] lg:w-[260px]"
+                className="preserve-3d w-[min(52vw,208px)] sm:w-[240px] lg:w-[260px]"
               >
                 <PhoneFrame>
                   <AnimatePresence mode="popLayout">

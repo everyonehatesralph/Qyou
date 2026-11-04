@@ -46,7 +46,15 @@ function Scene({ px, py, scroll }: { px: MotionValue<number>; py: MotionValue<nu
   return (
     // A picture of the product; the headline and copy beside it say the same in words
     // On phones the scene is as tall as its phone (52% of the screen, like the one in How it works)
-    <div className="relative mx-auto h-[calc(min(52vw,208px)*2.3+32px)] w-full max-w-[460px] [perspective:1600px] sm:h-[600px]" aria-hidden>
+    // The scene fades in here, not on the phone: a fading element is drawn flat, which
+    // would hide the phone's depth until the fade ends
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.8, delay: 0.25, ease: EASE }}
+      className="relative mx-auto h-[calc(min(52vw,208px)*2.3+32px)] w-full max-w-[460px] [perspective:1600px] sm:h-[600px]"
+      aria-hidden
+    >
       <motion.div style={{ rotateY, rotateX, y: reduce ? 0 : lift }} className="preserve-3d absolute inset-0">
         {/* Back: now-serving ticket */}
         <motion.div
@@ -69,10 +77,10 @@ function Scene({ px, py, scroll }: { px: MotionValue<number>; py: MotionValue<nu
 
         {/* Middle: the phone */}
         <motion.div
-          initial={{ opacity: 0, y: 60 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ y: 60 }}
+          animate={{ y: 0 }}
           transition={{ duration: 1.1, delay: 0.25, ease: EASE }}
-          className="absolute left-1/2 top-0 w-[min(52vw,208px)] sm:w-[272px]"
+          className="preserve-3d absolute left-1/2 top-0 w-[min(52vw,208px)] sm:w-[272px]"
           style={{ x: '-50%' }}
         >
           <PhoneFrame>
@@ -117,7 +125,7 @@ function Scene({ px, py, scroll }: { px: MotionValue<number>; py: MotionValue<nu
           </div>
         </motion.div>
       </motion.div>
-    </div>
+    </motion.div>
   )
 }
 

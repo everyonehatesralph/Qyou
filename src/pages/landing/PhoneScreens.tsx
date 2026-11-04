@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
 import { BellRing, Check, Flame, Minus, Plus, Search } from 'lucide-react'
@@ -16,20 +16,123 @@ const item = (id: number) => MENU_ITEMS.find(i => i.id === id)!
 const SCREEN_W = 260
 const SCREEN_H = 564
 
+// The body's corners (rounded-[17%/7.9%]) as fractions of its width and height
+const CORNER_X = 0.17
+const CORNER_Y = 0.079
+// Thickness as a share of the width (a current phone is about 72mm wide and 8mm thick)
+const THICKNESS = 0.1
+// Flat facets per rounded corner of the band
+const FACETS = 6
+// Where the light comes from, on screen: above and a little to the left
+const LIGHT = (() => { const x = -0.45, y = -0.9, l = Math.hypot(x, y); return [x / l, y / l] as const })()
+
+/** Layout size of an element (ignores the 3D turn it is shown at). */
+function useBoxSize<T extends HTMLElement>() {
+  const ref = useRef<T>(null)
+  const [size, setSize] = useState({ w: 0, h: 0 })
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const measure = () => setSize(s => (s.w === el.offsetWidth && s.h === el.offsetHeight ? s : { w: el.offsetWidth, h: el.offsetHeight }))
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  return [ref, size] as const
+}
+
 /**
- * A current phone: thin even bezels, a small camera pill, a flat graphite edge with
- * the action and volume buttons on the left, the side button and camera control on
- * the right. The screen is light in both modes, like a product shot.
+ * A strip standing on the outline: `length` along the edge, `height` deep into the phone,
+ * centred on (x, y) at `z` and facing outwards at `facing` degrees (0 up, 90 right).
+ */
+function edgeStrip(x: number, y: number, length: number, height: number, z: number, facing: number): CSSProperties {
+  return {
+    left: x - length / 2,
+    top: y - height / 2,
+    width: length,
+    height,
+    transform: `translateZ(${z}px) rotateZ(${facing}deg) rotateX(90deg)`,
+  }
+}
+
+/**
+ * The phone's depth, drawn behind the screen in 3D: the metal band (flat strips along the
+ * straight edges, narrow facets round the corners, each shaded by how much it faces the
+ * light, with bright chamfers at the front and back), the buttons on the band, the back,
+ * a soft shadow at the back and a blurred one on the page behind.
+ */
+function PhoneDepth({ w, h }: { w: number; h: number }) {
+  if (!w || !h) return null
+  const d = Math.round(w * THICKNESS)
+  const rx = w * CORNER_X
+  const ry = h * CORNER_Y
+
+  // The outline, clockwise from the top edge; consecutive points make one face of the band
+  const pts: [number, number][] = []
+  const corner = (cx: number, cy: number, from: number) => {
+    for (let i = 0; i <= FACETS; i++) {
+      const a = ((from + (90 * i) / FACETS) * Math.PI) / 180
+      pts.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a)])
+    }
+  }
+  corner(w - rx, ry, -90)
+  corner(w - rx, h - ry, 0)
+  corner(rx, h - ry, 90)
+  corner(rx, ry, 180)
+
+  const faces = pts.map(([x1, y1], i) => {
+    const [x2, y2] = pts[(i + 1) % pts.length]
+    const len = Math.hypot(x2 - x1, y2 - y1)
+    if (len < 0.5) return null
+    // Outward normal of a clockwise outline (y points down)
+    const nx = (y2 - y1) / len
+    const ny = -(x2 - x1) / len
+    const lit = Math.max(0, nx * LIGHT[0] + ny * LIGHT[1])
+    const style = {
+      ...edgeStrip((x1 + x2) / 2, (y1 + y2) / 2, len + 0.8, d, -d / 2, (Math.atan2(nx, -ny) * 180) / Math.PI),
+      // Lightness of the metal at this face; .phone-band turns it into the band's colours
+      '--lit': (19 + 14 * lit).toFixed(1),
+    } as CSSProperties
+    return <span key={i} className="phone-band backface-hidden absolute" style={style} />
+  })
+
+  // Buttons sit on the band, a little proud of it: [side, top, length] as fractions of the height
+  const proud = Math.max(1, w * 0.006)
+  const buttons: [side: 'left' | 'right', top: number, len: number, flush?: boolean][] = [
+    ['left', 0.165, 0.04],
+    ['left', 0.235, 0.075],
+    ['left', 0.325, 0.075],
+    ['right', 0.25, 0.115],
+    ['right', 0.53, 0.065, true], // camera control: flush sapphire
+  ]
+
+  return (
+    <>
+      <span aria-hidden className="phone-cast absolute inset-0 rounded-[17%/7.9%]" style={{ transform: `translateZ(${-d - 70}px) translate(6%, 8%) scale(0.97)`, filter: `blur(${Math.round(w * 0.07)}px)` }} />
+      <span aria-hidden className="phone-back absolute inset-0 rounded-[17%/7.9%]" style={{ transform: `translateZ(${-d}px)` }} />
+      {faces}
+      {buttons.map(([side, top, len, flush]) => {
+        const out = flush ? 0.4 : proud
+        const style = edgeStrip(side === 'right' ? w + out : -out, h * (top + len / 2), h * len, d * 0.42, -d / 2, side === 'right' ? 90 : 270)
+        return <span key={`${side}${top}`} className={cn(flush ? 'phone-key-flush' : 'phone-key', 'backface-hidden absolute rounded-full')} style={style} />
+      })}
+    </>
+  )
+}
+
+/**
+ * A current phone: thin even bezels, a small camera pill and a graphite band with real
+ * thickness when turned in 3D, the action and volume buttons on its left, the side button
+ * and camera control on its right. The screen is light in both modes, like a product shot.
+ * Its parents need preserve-3d (and one of them a perspective) for the depth to show.
  */
 export function PhoneFrame({ children, className }: { children: ReactNode; className?: string }) {
   const [screen, scale] = useFitScale<HTMLDivElement>(SCREEN_W)
+  const [body, size] = useBoxSize<HTMLDivElement>()
   return (
-    <div className={cn('phone-body relative rounded-[17%/7.9%] p-[1.1%]', className)}>
-      <span aria-hidden className="phone-button absolute -left-[2px] top-[16.5%] h-[4%] w-[3px] rounded-l-[2px]" />
-      <span aria-hidden className="phone-button absolute -left-[2px] top-[23.5%] h-[7.5%] w-[3px] rounded-l-[2px]" />
-      <span aria-hidden className="phone-button absolute -left-[2px] top-[32.5%] h-[7.5%] w-[3px] rounded-l-[2px]" />
-      <span aria-hidden className="phone-button absolute -right-[2px] top-[25%] h-[11.5%] w-[3px] rounded-r-[2px]" />
-      <span aria-hidden className="phone-button absolute -right-[1.5px] top-[53%] h-[6.5%] w-[2px] rounded-r-[2px] opacity-80" />
+    <div ref={body} className={cn('phone-body preserve-3d relative rounded-[17%/7.9%] p-[1.1%]', className)}>
+      <PhoneDepth w={size.w} h={size.h} />
       <div className="phone-bezel rounded-[16%/7.4%] p-[2.1%]">
         <div ref={screen} data-theme="light" className="relative aspect-[9/19.5] overflow-hidden rounded-[14.5%/6.7%] bg-bg text-ink">
           <div className="absolute left-0 top-0 origin-top-left" style={{ width: SCREEN_W, height: SCREEN_H, transform: `scale(${scale})` }}>
