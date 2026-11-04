@@ -23,8 +23,9 @@ test('an order placed on one phone reaches staff, and status flows back', async 
   await guest.getByLabel('Your name').fill('Kai')
   await guest.getByRole('button', { name: 'Start ordering' }).click()
   await guest.waitForURL('**/menu')
-  await guest.getByRole('button', { name: 'Add Matcha Latte' }).click()
-  await guest.getByRole('button', { name: 'Add one Matcha Latte' }).click()
+  // Popular repeats some items, so take the first of each
+  await guest.getByRole('button', { name: 'Add Matcha Latte' }).first().click()
+  await guest.getByRole('button', { name: 'Add one Matcha Latte' }).first().click()
   await guest.getByRole('button', { name: /View cart/ }).click()
   await guest.getByRole('button', { name: /Checkout/ }).click()
   await guest.getByRole('radio', { name: /Dine in/ }).click()
