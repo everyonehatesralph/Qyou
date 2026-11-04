@@ -1,12 +1,39 @@
-import type { ReactNode } from 'react'
+import { useLayoutEffect, useState, type ReactNode } from 'react'
 import { cn } from './ui'
 
 // Small single-series charts on the --chart token. One hue, thin bars with 4px
 // rounded data ends on the baseline, 2px gaps, and a tooltip on hover/focus.
 // Each bar is a labelled, focusable image. Text stays in text tokens.
 
+/** Narrowest column a finger can still hit (WCAG 2.5.8 target size), and the gap between columns (gap-[2px] below). */
+const MIN_COLUMN = 24
+const GAP = 2
+
+/**
+ * How many columns fit side by side at MIN_COLUMN or wider, measured live on the element the
+ * ref is given (the chart's box). Infinity until measured, which happens before the first paint.
+ */
+export function useColumnsThatFit<T extends HTMLElement>() {
+  const [node, setNode] = useState<T | null>(null)
+  const [width, setWidth] = useState(0)
+  useLayoutEffect(() => {
+    if (!node) return
+    const measure = () => setWidth(node.getBoundingClientRect().width)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(node)
+    return () => ro.disconnect()
+  }, [node])
+  // A pixel of slack so sub-pixel layouts never land a column just under the minimum
+  const fits = width > 0 ? Math.max(1, Math.floor((width - 1 + GAP) / (MIN_COLUMN + GAP))) : Infinity
+  return [setNode, fits] as const
+}
+
 export interface ColumnDatum {
+  /** Text under the column. */
   label: string
+  /** Fuller name for the tooltip and screen readers (e.g. "9am–11am"); defaults to the label. */
+  name?: string
   value: number
   /** Tooltip / table text for the value, e.g. "3 orders · ₱1,040". */
   detail: string
@@ -45,7 +72,7 @@ export function ColumnChart({ data, title, height = 140, labelEvery = 1, fill = 
             key={d.label}
             tabIndex={0}
             role="img"
-            aria-label={`${d.label}: ${d.detail}`}
+            aria-label={`${d.name ?? d.label}: ${d.detail}`}
             className="group relative flex min-w-0 cursor-default items-end rounded-t-[4px]"
           >
             {/* Hit target is the full column; the visible bar is the data */}
@@ -65,7 +92,7 @@ export function ColumnChart({ data, title, height = 140, labelEvery = 1, fill = 
                 i < data.length / 4 ? 'left-0' : i >= (data.length * 3) / 4 ? 'right-0' : 'left-1/2 -translate-x-1/2',
               )}
             >
-              {d.label}: {d.detail}
+              {d.name ?? d.label}: {d.detail}
             </span>
           </div>
         ))}

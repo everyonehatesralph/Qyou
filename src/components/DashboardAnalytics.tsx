@@ -1,16 +1,42 @@
 import { useMemo } from 'react'
+import type { ColumnDatum } from './Charts'
 import { useNavigate } from 'react-router-dom'
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Minus } from 'lucide-react'
 import type { Order } from '../context/OrderContext'
 import { peso } from '../utils/formatters'
 import KpiCard from './KpiCard'
-import { BarList, ColumnChart } from './Charts'
+import { BarList, ColumnChart, useColumnsThatFit } from './Charts'
 import { Button, Card, cn } from './ui'
 
 const isSameDay = (iso: string, day: Date) => new Date(iso).toDateString() === day.toDateString()
 const minutes = (from?: string, to?: string) => (from && to ? (new Date(to).getTime() - new Date(from).getTime()) / 60_000 : null)
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null)
 const hourLabel = (h: number) => (h === 0 ? '12am' : h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h - 12}pm`)
+
+interface Hour { h: number; n: number; rev: number; now: boolean }
+
+/**
+ * One column per hour, or per block of 2 or more hours when the hours would not fit as
+ * finger-sized columns (a narrow phone late in the day). Blocks start at the first hour.
+ */
+function hourColumns(hours: Hour[], fits: number): { size: number; columns: ColumnDatum[] } {
+  const size = Math.max(1, Math.ceil(hours.length / fits))
+  const columns: ColumnDatum[] = []
+  for (let i = 0; i < hours.length; i += size) {
+    const block = hours.slice(i, i + size)
+    const n = block.reduce((s, x) => s + x.n, 0)
+    const rev = block.reduce((s, x) => s + x.rev, 0)
+    const from = block[0].h
+    columns.push({
+      label: hourLabel(from),
+      name: block.length > 1 ? `${hourLabel(from)}–${hourLabel((block[block.length - 1].h + 1) % 24)}` : undefined,
+      value: n,
+      detail: `${n} ${n === 1 ? 'order' : 'orders'} · ${peso(rev)}`,
+      emphasis: block.some(x => x.now),
+    })
+  }
+  return { size, columns }
+}
 
 /** "+12% vs yesterday" with an arrow; text tokens only, the arrow carries direction. */
 function Delta({ today, yesterday }: { today: number; yesterday: number }) {
@@ -51,15 +77,11 @@ export default function DashboardAnalytics({ orders }: { orders: Order[] }) {
     }
     const first = Math.min(7, ...counts.keys())
     const last = Math.max(now.getHours(), first + 5)
-    const hours = Array.from({ length: last - first + 1 }, (_, i) => first + i).map(h => {
-      const e = counts.get(h) ?? { n: 0, rev: 0 }
-      return {
-        label: hourLabel(h),
-        value: e.n,
-        detail: `${e.n} ${e.n === 1 ? 'order' : 'orders'} · ${peso(e.rev)}`,
-        emphasis: h === now.getHours(),
-      }
-    })
+    const hours: Hour[] = Array.from({ length: last - first + 1 }, (_, i) => first + i).map(h => ({
+      h,
+      ...(counts.get(h) ?? { n: 0, rev: 0 }),
+      now: h === now.getHours(),
+    }))
 
     const items = new Map<number, { name: string; qty: number; rev: number }>()
     for (const o of today) for (const i of o.items) {
@@ -82,6 +104,10 @@ export default function DashboardAnalytics({ orders }: { orders: Order[] }) {
     }
   }, [orders])
 
+  const [chartRef, fits] = useColumnsThatFit<HTMLDivElement>()
+  const byHour = useMemo(() => hourColumns(stats.hours, fits), [stats.hours, fits])
+  const chartTitle = `Orders ${byHour.size === 1 ? 'by hour' : `per ${byHour.size} hours`}`
+
   const fmtMin = (m: number | null) => (m === null ? '—' : `${m.toFixed(m < 10 ? 1 : 0)} min`)
 
   return (
@@ -103,12 +129,15 @@ export default function DashboardAnalytics({ orders }: { orders: Order[] }) {
       <div className="mt-3 grid gap-3 lg:grid-cols-[1.4fr_1fr]">
         {/* The chart grows to match the stacked cards beside it */}
         <Card className="flex flex-col">
-          <h3 className="text-[15px] font-semibold text-ink">Orders by hour</h3>
+          <h3 className="text-[15px] font-semibold text-ink">{chartTitle}</h3>
           <p className="mt-0.5 text-sm text-ink-muted">Hover or tap a bar for the count and takings.</p>
           {stats.ordersToday === 0 ? (
             <p className="mt-6 text-sm text-ink-muted">No orders yet today.</p>
           ) : (
-            <ColumnChart fill className="mt-5 flex-1" title="Orders by hour today" data={stats.hours} labelEvery={2} height={160} />
+            // Measured box: on a narrow screen late in the day the hours pair up into blocks
+            <div ref={chartRef} className="mt-5 flex flex-1 flex-col">
+              <ColumnChart fill className="flex-1" title={`${chartTitle} today`} data={byHour.columns} labelEvery={2} height={160} />
+            </div>
           )}
         </Card>
 
